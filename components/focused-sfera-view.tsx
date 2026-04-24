@@ -2286,18 +2286,105 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
 });
 
 /** Concentric memory-balance layout (overview) — toggled from the top-right control, not the avatar. */
+const MemoryBalanceSphereItem = React.memo(function MemoryBalanceSphereItem({
+  index,
+  modeTransition,
+  onPress,
+  containerStyle,
+  children,
+}: {
+  index: number;
+  modeTransition: SharedValue<number>;
+  onPress: () => void;
+  containerStyle: any;
+  children: React.ReactNode;
+}) {
+  const animatedStyle = useAnimatedStyle(() => {
+    const start = Math.min(0.6, index * 0.12);
+    const end = Math.min(1, start + 0.5);
+    return {
+      opacity: interpolate(
+        modeTransition.value,
+        [start, end],
+        [0, 1],
+        Extrapolation.CLAMP,
+      ),
+      transform: [
+        {
+          scale: interpolate(
+            modeTransition.value,
+            [start, end],
+            [0.92, 1],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  }, [index, modeTransition]);
+
+  return (
+    <Animated.View style={[containerStyle, animatedStyle]}>
+      <Pressable
+        onPress={onPress}
+        style={{ width: "100%", height: "100%", alignItems: "center" }}
+        hitSlop={8}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+});
+
+const OrbitSphereItem = React.memo(function OrbitSphereItem({
+  index,
+  modeTransition,
+  children,
+}: {
+  index: number;
+  modeTransition: SharedValue<number>;
+  children: React.ReactNode;
+}) {
+  const animatedStyle = useAnimatedStyle(() => {
+    const appearProgress = 1 - modeTransition.value;
+    const start = Math.min(0.6, index * 0.12);
+    const end = Math.min(1, start + 0.5);
+    return {
+      opacity: interpolate(
+        appearProgress,
+        [start, end],
+        [0, 1],
+        Extrapolation.CLAMP,
+      ),
+      transform: [
+        {
+          scale: interpolate(
+            appearProgress,
+            [start, end],
+            [0.92, 1],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  }, [index, modeTransition]);
+
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>;
+});
+
 function MemoryBalanceView({
   memoryBalanceSizeBySphere,
   momentStatsBySphere,
   getSphereSunnyPercentage,
   colorScheme,
   onSpherePress,
+  modeTransition,
 }: {
   memoryBalanceSizeBySphere: Record<LifeSphere, number>;
   momentStatsBySphere: Record<LifeSphere, { sunny: number; cloudy: number }>;
   getSphereSunnyPercentage: (sphere: LifeSphere) => number;
   colorScheme: "light" | "dark";
   onSpherePress: (sphereIndex: number, sphereType: LifeSphere) => void;
+  modeTransition: SharedValue<number>;
 }) {
   const t = useTranslate();
   return (
@@ -2325,10 +2412,12 @@ function MemoryBalanceView({
         const stats = momentStatsBySphere[sphere.type];
 
         return (
-          <Pressable
+          <MemoryBalanceSphereItem
             key={`memory-balance-${sphere.type}`}
+            index={i}
+            modeTransition={modeTransition}
             onPress={() => onSpherePress(i, sphere.type)}
-            style={{
+            containerStyle={{
               position: "absolute",
               left: centerX - size / 2,
               top: centerY - size / 2,
@@ -2342,7 +2431,6 @@ function MemoryBalanceView({
               alignItems: "center",
               zIndex: 16,
             }}
-            hitSlop={8}
           >
             <View
               style={{
@@ -2471,7 +2559,7 @@ function MemoryBalanceView({
                 </View>
               </View>
             </View>
-          </Pressable>
+          </MemoryBalanceSphereItem>
         );
       })}
     </>
@@ -2652,6 +2740,9 @@ export function FocusedSferaView({
   // Sun expanded state: 0 = collapsed, 1 = expanded (spheres shrink, action buttons appear)
   const startSunExpanded = initialSunMenuExpanded;
   const sunExpanded = useSharedValue(startSunExpanded ? 1 : 0);
+  const modeTransition = useSharedValue(
+    displayMode === "memoryBalanceRings" ? 1 : 0,
+  );
   const [isSunExpanded, setIsSunExpanded] = useState(startSunExpanded);
   const handledNotificationLessonTargetKeyRef = useRef<string | null>(null);
 
@@ -2706,24 +2797,6 @@ export function FocusedSferaView({
       sunExpanded.value = withSpring(0, { damping: 14, stiffness: 120 });
     }
   }, [isSunExpanded, sunExpanded]);
-
-  /** Fades / scales Memory Balance sferas with the sun menu (same `sunExpanded` spring as orbit sferas). */
-  const memoryBalanceLayerStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(sunExpanded.value, [0, 1], [1, 0], Extrapolation.CLAMP),
-    transform: [
-      {
-        scale: interpolate(sunExpanded.value, [0, 1], [1, 0.93], Extrapolation.CLAMP),
-      },
-      {
-        translateY: interpolate(
-          sunExpanded.value,
-          [0, 1],
-          [0, MEMORY_BALANCE_MENU_HIDE_DRIFT_Y],
-          Extrapolation.CLAMP,
-        ),
-      },
-    ],
-  }));
 
   useEffect(() => {
     setFocusedIdx(initialFocusedIdx);
@@ -2810,6 +2883,15 @@ export function FocusedSferaView({
   const focusedSphere = SPHERE_LIST[focusedIdx];
   const isMemoryBalanceMode =
     selectedSphere === null && displayMode === "memoryBalanceRings";
+  useEffect(() => {
+    const target =
+      selectedSphere === null && displayMode === "memoryBalanceRings" ? 1 : 0;
+    cancelAnimation(modeTransition);
+    modeTransition.value = withTiming(target, {
+      duration: 700,
+      easing: Easing.inOut(Easing.cubic),
+    });
+  }, [selectedSphere, displayMode, modeTransition]);
   const individualModeScale =
     selectedSphere !== null ? IPAD_INDIVIDUAL_SFERA_SCALE : 1;
   const individualCardScale =
@@ -3090,6 +3172,39 @@ export function FocusedSferaView({
   const memoryBalanceToggleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: memoryBalanceToggleScale.value }],
   }));
+  const orbitLayerStyle = useAnimatedStyle(() => {
+    const sunFade = interpolate(sunExpanded.value, [0, 1], [1, 0], Extrapolation.CLAMP);
+    const modeFade = interpolate(modeTransition.value, [0, 1], [1, 0], Extrapolation.CLAMP);
+    return {
+      opacity: sunFade * modeFade,
+      transform: [
+        {
+          scale: interpolate(modeTransition.value, [0, 1], [1, 0.975], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
+  /** Fades / scales Memory Balance sferas with both mode transition and sun menu spring. */
+  const memoryBalanceLayerStyle = useAnimatedStyle(() => {
+    const sunFade = interpolate(sunExpanded.value, [0, 1], [1, 0], Extrapolation.CLAMP);
+    const modeFade = interpolate(modeTransition.value, [0, 1], [0, 1], Extrapolation.CLAMP);
+    return {
+      opacity: sunFade * modeFade,
+      transform: [
+        {
+          scale: interpolate(modeTransition.value, [0, 1], [0.965, 1], Extrapolation.CLAMP),
+        },
+        {
+          translateY: interpolate(
+            sunExpanded.value,
+            [0, 1],
+            [0, MEMORY_BALANCE_MENU_HIDE_DRIFT_Y],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  });
 
   const chevronPressIn = useCallback(
     (side: "left" | "right") => {
@@ -3220,63 +3335,80 @@ export function FocusedSferaView({
         }
       />
 
-      {/* ─── Sfera layer: default orbit or memory-balance concentric rings ─── */}
-      {!isMemoryBalanceMode &&
-        SPHERE_LIST.map((sphere, i) => (
-          <AnimatedSphere
-            key={sphere.type}
-            sphereIdx={i}
-            sphere={sphere}
-            focusedIdx={focusedIdx}
-            entityUris={orbitEntityDataBySphere[sphere.type].imageUris}
-            entityIds={orbitEntityDataBySphere[sphere.type].entityIds}
-            entityNames={orbitEntityDataBySphere[sphere.type].entityNames}
-            entityMemories={orbitEntityDataBySphere[sphere.type].memoriesPerEntity}
-            onPress={() => {
-              if (!sunLoadComplete) return;
-              if (isSunExpanded) {
-                handleCollapseSun();
-                return;
+      {/* ─── Sfera layer: crossfade between default orbit and memory-balance rings ─── */}
+      <Animated.View
+        pointerEvents={
+          selectedSphere === null && isMemoryBalanceMode ? "none" : "box-none"
+        }
+        style={[
+          {
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            zIndex: 16,
+          },
+          orbitLayerStyle,
+        ]}
+      >
+        {SPHERE_LIST.map((sphere, i) => (
+          <OrbitSphereItem key={sphere.type} index={i} modeTransition={modeTransition}>
+            <AnimatedSphere
+              sphereIdx={i}
+              sphere={sphere}
+              focusedIdx={focusedIdx}
+              entityUris={orbitEntityDataBySphere[sphere.type].imageUris}
+              entityIds={orbitEntityDataBySphere[sphere.type].entityIds}
+              entityNames={orbitEntityDataBySphere[sphere.type].entityNames}
+              entityMemories={orbitEntityDataBySphere[sphere.type].memoriesPerEntity}
+              onPress={() => {
+                if (!sunLoadComplete) return;
+                if (isSunExpanded) {
+                  handleCollapseSun();
+                  return;
+                }
+                if (i !== focusedIdx) {
+                  goToSphere(i);
+                  return;
+                }
+                if (selectedSphere !== null) {
+                  onAddMemoriesPress?.();
+                  return;
+                }
+                onSphereSelect(sphere.type);
+              }}
+              onEntitySelect={resolveEntitySelectForSphere(i)}
+              onSingleTapSameAsFocusedSphere={
+                i === focusedIdx ? handleFocusedSphereTapOverlay : undefined
               }
-              if (i !== focusedIdx) {
-                goToSphere(i);
-                return;
+              onNeedMemoriesHint={showOrbitNeedMemoriesHint}
+              needMemoriesHintEntityId={orbitNeedMemoriesHintEntityId}
+              colorScheme={colorScheme}
+              sunnyPercentage={getSphereSunnyPercentage(sphere.type)}
+              orbitDurationMs={orbitDurationMs}
+              singleTapWhenFocused={selectedSphere !== null && i === focusedIdx}
+              onPulse={
+                i === focusedIdx
+                  ? (fn) => {
+                      focusedSpherePulseRef.current = fn;
+                    }
+                  : undefined
               }
-              if (selectedSphere !== null) {
-                onAddMemoriesPress?.();
-                return;
-              }
-              onSphereSelect(sphere.type);
-            }}
-            onEntitySelect={resolveEntitySelectForSphere(i)}
-            onSingleTapSameAsFocusedSphere={
-              i === focusedIdx ? handleFocusedSphereTapOverlay : undefined
-            }
-            onNeedMemoriesHint={showOrbitNeedMemoriesHint}
-            needMemoriesHintEntityId={orbitNeedMemoriesHintEntityId}
-            colorScheme={colorScheme}
-            sunnyPercentage={getSphereSunnyPercentage(sphere.type)}
-            orbitDurationMs={orbitDurationMs}
-            singleTapWhenFocused={selectedSphere !== null && i === focusedIdx}
-            onPulse={
-              i === focusedIdx
-                ? (fn) => {
-                    focusedSpherePulseRef.current = fn;
-                  }
-                : undefined
-            }
-            sunExpanded={sunExpanded}
-            isInitialView={selectedSphere === null}
-            isSunMenuOpen={isSunExpanded}
-            individualModeScale={individualModeScale}
-            entityAvatarScale={individualEntityAvatarScale}
-            animationsEnabled={overviewAnimationsEnabled}
-          />
+              sunExpanded={sunExpanded}
+              isInitialView={selectedSphere === null}
+              isSunMenuOpen={isSunExpanded}
+              individualModeScale={individualModeScale}
+              entityAvatarScale={individualEntityAvatarScale}
+              animationsEnabled={overviewAnimationsEnabled}
+            />
+          </OrbitSphereItem>
         ))}
+      </Animated.View>
       {/* Same timing as orbit sferas: only after initial load gate (splash + data). */}
-      {isMemoryBalanceMode && sunLoadComplete && (
+      {selectedSphere === null && sunLoadComplete && (
         <Animated.View
-          pointerEvents={isSunExpanded ? "none" : "auto"}
+          pointerEvents={isMemoryBalanceMode && !isSunExpanded ? "auto" : "none"}
           style={[
             {
               position: "absolute",
@@ -3295,6 +3427,7 @@ export function FocusedSferaView({
             getSphereSunnyPercentage={getSphereSunnyPercentage}
             colorScheme={colorScheme}
             onSpherePress={handleMemoryBalanceSpherePress}
+            modeTransition={modeTransition}
           />
         </Animated.View>
       )}
@@ -3541,7 +3674,8 @@ const styles = StyleSheet.create({
   chevron: {
     position: "absolute",
     top: ORBIT_CY + ORBIT_R - scaleFocused(16),
-    zIndex: 5,
+    zIndex: 40,
+    elevation: 40,
   },
   chevronLeft: {
     left: scaleFocused(6),
@@ -3550,7 +3684,7 @@ const styles = StyleSheet.create({
     right: scaleFocused(6),
   },
   chevronPressable: {
-    padding: scaleFocused(20),
+    padding: scaleFocused(28),
     justifyContent: "center",
     alignItems: "center",
   },

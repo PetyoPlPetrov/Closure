@@ -18,6 +18,7 @@ import {
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
 import { useSubscription } from "@/utils/SubscriptionProvider";
+import { useSplash } from "@/utils/SplashAnimationProvider";
 import { type AppVersionInfo, getAppVersionInfo } from "@/utils/updates";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -81,6 +82,9 @@ export default function SettingsScreen() {
   const hasBackupAccess = hasPlusEntitlement || hasAIEntitlement;
   const { refreshEvents, resetEventsState } = useSferaEventsBadge();
   const onboardingGate = useOnboardingGate();
+  const {
+    replaySplashAnimation,
+  } = useSplash();
   const t = useTranslate();
 
   const totalEntities =
@@ -2035,6 +2039,30 @@ export default function SettingsScreen() {
           {/* Generate Fake Data Button - Only visible in development */}
           {__DEV__ && (
             <>
+              <TouchableOpacity
+                style={styles.dropdown}
+                onPress={() => {
+                  replaySplashAnimation();
+                  router.replace("/");
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownContent}>
+                  <MaterialIcons
+                    name="play-circle-outline"
+                    size={24 * fontScale}
+                    color={colors.primary}
+                  />
+                  <ThemedText
+                    size="l"
+                    weight="medium"
+                    style={styles.dropdownText}
+                  >
+                    Replay loading animation
+                  </ThemedText>
+                </View>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={[
                   styles.dropdown,

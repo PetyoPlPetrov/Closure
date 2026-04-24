@@ -8,6 +8,7 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { SPLASH_ANIMATION_KEY } from "@/utils/VisualSettingsProvider";
@@ -261,6 +262,7 @@ const ConstellationBackground = React.memo(function ConstellationBackground() {
 
 interface SplashContextType {
   hideSplash: () => void;
+  replaySplashAnimation: () => void;
   isVisible: boolean;
   isAnimationComplete: boolean;
 }
@@ -284,6 +286,9 @@ export function SplashAnimationProvider({
 }: SplashAnimationProviderProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
+  const [isReplayPriming, setIsReplayPriming] = useState(false);
+  const [animationRunId, setAnimationRunId] = useState(0);
+  const replayStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { isTablet } = useLargeDevice();
   const splashOpacity = useSharedValue(1);
 
@@ -418,6 +423,65 @@ export function SplashAnimationProvider({
       }
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const resetAnimationState = () => {
+    setIsVisible(true);
+    setIsAnimationComplete(false);
+    splashOpacity.value = 1;
+    avatarScale.value = 0;
+    avatarOpacity.value = 0;
+    textOpacity.value = 0;
+    skipOpacity.value = 0;
+
+    floatingElement1.popOutProgress.value = 0;
+    floatingElement1.orbitAngle.value = 0;
+    floatingElement1.opacity.value = 0;
+    floatingElement1.scale.value = 0;
+
+    floatingElement2.popOutProgress.value = 0;
+    floatingElement2.orbitAngle.value = 0;
+    floatingElement2.opacity.value = 0;
+    floatingElement2.scale.value = 0;
+
+    floatingElement3.popOutProgress.value = 0;
+    floatingElement3.orbitAngle.value = 0;
+    floatingElement3.opacity.value = 0;
+    floatingElement3.scale.value = 0;
+
+    floatingElement4.popOutProgress.value = 0;
+    floatingElement4.orbitAngle.value = 0;
+    floatingElement4.opacity.value = 0;
+    floatingElement4.scale.value = 0;
+
+    floatingElement5.popOutProgress.value = 0;
+    floatingElement5.orbitAngle.value = 0;
+    floatingElement5.opacity.value = 0;
+    floatingElement5.scale.value = 0;
+  };
+
+  const replaySplashAnimation = () => {
+    if (replayStartTimeoutRef.current) {
+      clearTimeout(replayStartTimeoutRef.current);
+      replayStartTimeoutRef.current = null;
+    }
+
+    resetAnimationState();
+    setIsReplayPriming(true);
+
+    replayStartTimeoutRef.current = setTimeout(() => {
+      setIsReplayPriming(false);
+      setAnimationRunId((current) => current + 1);
+      replayStartTimeoutRef.current = null;
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (replayStartTimeoutRef.current) {
+        clearTimeout(replayStartTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Animation sequence:
@@ -626,7 +690,7 @@ export function SplashAnimationProvider({
     return () => {
       clearTimeout(completeTimeout);
     };
-  }, []);
+  }, [animationRunId]);
 
   const finishHiding = () => {
     setIsVisible(false);
@@ -656,7 +720,7 @@ export function SplashAnimationProvider({
   const skipOpacity = useSharedValue(0);
   React.useEffect(() => {
     skipOpacity.value = withDelay(800, withTiming(1, { duration: 400 }));
-  }, [skipOpacity]);
+  }, [animationRunId, skipOpacity]);
   const skipStyle = useAnimatedStyle(() => ({ opacity: skipOpacity.value }));
 
   // Splash screen fade animation style
@@ -809,7 +873,12 @@ export function SplashAnimationProvider({
 
   return (
     <SplashContext.Provider
-      value={{ hideSplash, isVisible, isAnimationComplete }}
+      value={{
+        hideSplash,
+        replaySplashAnimation,
+        isVisible,
+        isAnimationComplete,
+      }}
     >
       {children}
       {isVisible && (
@@ -829,22 +898,23 @@ export function SplashAnimationProvider({
             />
 
             {/* Constellation background */}
-            <ConstellationBackground />
+            {!isReplayPriming && <ConstellationBackground />}
 
             {/* Sparkled Dots */}
-            {sparkledDots.map((dot) => (
-              <SparkledDot
-                key={dot.id}
-                x={dot.x}
-                y={dot.y}
-                size={dot.size}
-                delay={dot.delay}
-                duration={dot.duration}
-              />
-            ))}
+            {!isReplayPriming &&
+              sparkledDots.map((dot) => (
+                <SparkledDot
+                  key={dot.id}
+                  x={dot.x}
+                  y={dot.y}
+                  size={dot.size}
+                  delay={dot.delay}
+                  duration={dot.duration}
+                />
+              ))}
 
             {/* Content */}
-            <View style={styles.content}>
+            <View style={[styles.content, isReplayPriming && { opacity: 0 }]}>
               {/* Avatar Container with Floating Elements */}
               <View
                 style={[
