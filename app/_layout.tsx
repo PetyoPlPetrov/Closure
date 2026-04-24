@@ -10,7 +10,7 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
-import { router, Stack } from "expo-router";
+import { router, Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -18,6 +18,7 @@ import {
   AppState,
   type AppStateStatus,
   InteractionManager,
+  Linking,
   Platform,
   StyleSheet,
   View,
@@ -91,11 +92,18 @@ if (__DEV__) {
 // Hide native splash immediately when this module loads
 SplashScreen.preventAutoHideAsync();
 
+const appGlobals = globalThis as typeof globalThis & {
+  __sferasRevenueCatConfigured?: boolean;
+  __sferasRevenueCatConfigInProgress?: boolean;
+  __sferasHandledInitialStartupUrl?: boolean;
+};
+
 export const unstable_settings = {
   anchor: "(tabs)",
 };
 
 function AppContent() {
+  const pathname = usePathname();
   const { hideSplash, isAnimationComplete } = useSplash();
   const { colorScheme } = useTheme();
   const { showNotification: showInAppNotification } = useInAppNotification();
@@ -179,6 +187,66 @@ function AppContent() {
     useState<string | null>(null);
   const [pendingAIResponseForModal, setPendingAIResponseForModal] =
     useState<PendingAIResponse | null>(null);
+  const notFoundRecoveryAttemptsRef = useRef(0);
+
+  // Hard fallback for plain cold start: if app opens via bare custom scheme URL
+  // (e.g. sphere:///), immediately normalize to root.
+  useEffect(() => {
+    if (appGlobals.__sferasHandledInitialStartupUrl) {
+      return;
+    }
+
+    const isBareStartupUrl = (url: string): boolean => {
+      const normalized = url.trim().toLowerCase();
+      if (!normalized) return false;
+      if (/^(sphere|sferas):\/{0,3}$/i.test(normalized)) return true;
+      if (
+        normalized.startsWith("expo-development-client") ||
+        normalized.includes("://expo-development-client/?url=")
+      ) {
+        return true;
+      }
+
+      try {
+        const parsed = new URL(url);
+        const isKnownScheme =
+          parsed.protocol === "sphere:" || parsed.protocol === "sferas:";
+        const isEmptyPath =
+          !parsed.hostname && (!parsed.pathname || parsed.pathname === "/");
+        return isKnownScheme && isEmptyPath;
+      } catch {
+        return false;
+      }
+    };
+
+    Linking.getInitialURL()
+      .then((url) => {
+        appGlobals.__sferasHandledInitialStartupUrl = true;
+        if (url && isBareStartupUrl(url)) {
+          router.replace("/");
+        }
+      })
+      .catch(() => {
+        appGlobals.__sferasHandledInitialStartupUrl = true;
+        // Ignore Linking failures; app continues with normal router behavior.
+      });
+  }, []);
+
+  // Recovery fallback: if router lands on an unmatched/not-found path,
+  // send user to the default tabs entry. Limited attempts prevent loops.
+  useEffect(() => {
+    if (!pathname) return;
+    const normalized = pathname.toLowerCase();
+    const isNotFoundPath =
+      normalized.includes("not-found") || normalized.includes("unmatched");
+    if (!isNotFoundPath) return;
+    if (notFoundRecoveryAttemptsRef.current >= 2) return;
+
+    notFoundRecoveryAttemptsRef.current += 1;
+    requestAnimationFrame(() => {
+      router.replace("/(tabs)/index");
+    });
+  }, [pathname]);
 
   // Onboarding gate: show onboarding only when we have no data AND onboarding not completed
   useEffect(() => {
@@ -664,12 +732,20 @@ export default function RootLayout() {
   // SubscriptionProvider is a descendant and calls getOfferings/getCustomerInfo on mount.
   useEffect(() => {
     if (
+      appGlobals.__sferasRevenueCatConfigured ||
+      appGlobals.__sferasRevenueCatConfigInProgress
+    ) {
+      return;
+    }
+    if (
       ENABLE_REVENUECAT &&
       isNativeModuleAvailable &&
       Purchases &&
       LOG_LEVEL
     ) {
       try {
+        // Set immediately to prevent concurrent mounts from racing into configure.
+        appGlobals.__sferasRevenueCatConfigInProgress = true;
         Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.VERBOSE : LOG_LEVEL.ERROR);
         const iosApiKey = "appl_DEXthnrRgJUgeRHbnAqcepQbhkl";
         const androidApiKey = "test_bwsKZRrhzegZZheOpaNyrIYYLmW";
@@ -678,7 +754,10 @@ export default function RootLayout() {
         } else if (Platform.OS === "android") {
           Purchases.configure({ apiKey: androidApiKey });
         }
+        appGlobals.__sferasRevenueCatConfigured = true;
+        appGlobals.__sferasRevenueCatConfigInProgress = false;
       } catch (error) {
+        appGlobals.__sferasRevenueCatConfigInProgress = false;
         handleDevError(error, "RevenueCat Initialization");
       }
     }

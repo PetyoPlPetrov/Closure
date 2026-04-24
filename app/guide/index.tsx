@@ -24,7 +24,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import { SECTIONS } from "./_data";
+import { SECTIONS } from "@/utils/guide-data";
 
 export default function GuideScreen() {
   const colorScheme = useColorScheme();

@@ -6,7 +6,7 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { getReadSections, markSectionRead } from "@/utils/guide-storage";
 import { useTranslate } from "@/utils/languages/use-translate";
-import type { GuideBullet } from "./_data";
+import type { GuideBullet } from "@/utils/guide-data";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,7 +20,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import { SECTIONS } from "./_data";
+import { SECTIONS } from "@/utils/guide-data";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_H_PADDING = 16;

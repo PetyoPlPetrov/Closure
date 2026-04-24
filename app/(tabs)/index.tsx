@@ -128,7 +128,7 @@ import Svg, {
   Stop,
   LinearGradient as SvgLinearGradient,
 } from "react-native-svg";
-import { SECTIONS } from "../guide/_data";
+import { SECTIONS } from "@/utils/guide-data";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const FOCUSED_SPHERES_ORDER: LifeSphere[] = [
