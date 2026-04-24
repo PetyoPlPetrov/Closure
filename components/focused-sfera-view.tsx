@@ -383,12 +383,13 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
   entityIndex,
   memories,
   visibility,
-  animationsEnabled,
+  /** Only mounted on the focused sphere; when true, run bob (screen also `animationsEnabled`). */
+  momentFloatEnabled,
 }: {
   entityIndex: number;
   memories: IdealizedMemory[];
   visibility: SharedValue<number>;
-  animationsEnabled: boolean;
+  momentFloatEnabled: boolean;
 }) {
   const { momentColors } = useMomentColors();
   const floatY = useSharedValue(0);
@@ -398,7 +399,7 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
   }));
 
   useEffect(() => {
-    if (!animationsEnabled) {
+    if (!momentFloatEnabled) {
       cancelAnimation(floatY);
       floatY.value = 0;
       return;
@@ -415,7 +416,7 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
       cancelAnimation(floatY);
       floatY.value = 0;
     };
-  }, [entityIndex, floatY, animationsEnabled]);
+  }, [entityIndex, floatY, momentFloatEnabled]);
 
   const memoryIcons = useMemo(() => {
     const maxIcons = 8;
@@ -533,6 +534,14 @@ const SmallFloatingMomentIcon = React.memo(function SmallFloatingMomentIcon({
 const DEFAULT_ENTITY_ORBIT_DURATION_MS = 60000;
 
 // ───────────────────── Sparkled dots (scattered across screen) ─────────────────────
+// Single Reanimated driver + phase offsets (not N independent withRepeat loops).
+// Fewer dots, no heavy per-dot shadows, slower cycle; gated with pulsing setting.
+
+const SPARKLE_DOT_COUNT_PHONE = 24;
+const SPARKLE_DOT_COUNT_TABLET = 30;
+/** One 0→1 leg of the easing triangle; with reverse, full cycle ≈ 2× this. */
+const SPARKLE_DRIVER_MS = 8000;
+const SPARKLE_PHASE_SPREAD = 2.399963229728653;
 
 const SparkledDots = React.memo(function SparkledDots({
   avatarSize,
@@ -540,17 +549,19 @@ const SparkledDots = React.memo(function SparkledDots({
   avatarCenterY,
   colorScheme,
   sunnyBackground,
-  animationsEnabled,
+  sparklesEnabled,
 }: {
   avatarSize: number;
   avatarCenterX: number;
   avatarCenterY: number;
   colorScheme: "light" | "dark";
   sunnyBackground: string;
-  animationsEnabled: boolean;
+  /** Overview screen + focus + “pulsing” personalization — same as cosmic rings. */
+  sparklesEnabled: boolean;
 }) {
   const { isTablet } = useLargeDevice();
   const [isReady, setIsReady] = useState(false);
+  const globalPhase = useSharedValue(0);
 
   useEffect(() => {
     const handle = InteractionManager.runAfterInteractions(() => {
@@ -559,9 +570,32 @@ const SparkledDots = React.memo(function SparkledDots({
     return () => handle.cancel();
   }, []);
 
+  useEffect(() => {
+    if (!sparklesEnabled) {
+      cancelAnimation(globalPhase);
+      globalPhase.value = 0;
+      return;
+    }
+    globalPhase.value = 0;
+    globalPhase.value = withRepeat(
+      withTiming(1, {
+        duration: SPARKLE_DRIVER_MS,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true,
+    );
+    return () => {
+      cancelAnimation(globalPhase);
+    };
+  }, [sparklesEnabled, globalPhase]);
+
   const dots = useMemo(() => {
-    const numDots = isTablet ? 55 : 40;
+    const numDots = isTablet
+      ? SPARKLE_DOT_COUNT_TABLET
+      : SPARKLE_DOT_COUNT_PHONE;
     const padding = 20;
+    const twoPi = Math.PI * 2;
 
     return Array.from({ length: numDots }, (_, i) => {
       let x: number, y: number;
@@ -569,7 +603,7 @@ const SparkledDots = React.memo(function SparkledDots({
       if (i < numDots * 0.4) {
         const minRadius = avatarSize / 2 + 20;
         const maxRadius = Math.min(SW, SH) * 0.42;
-        const angle = Math.random() * 2 * Math.PI;
+        const angle = Math.random() * twoPi;
         const radius = minRadius + Math.random() * (maxRadius - minRadius);
         x = avatarCenterX + Math.cos(angle) * radius;
         y = avatarCenterY + Math.sin(angle) * radius;
@@ -582,14 +616,15 @@ const SparkledDots = React.memo(function SparkledDots({
       y = Math.max(padding, Math.min(SH - padding, y));
 
       const size = 2 + Math.random() * 2;
-      const delay = Math.random() * 2000;
-      const duration = 2500 + Math.random() * 1500;
+      const phaseOffset = (i * SPARKLE_PHASE_SPREAD) % twoPi;
 
-      return { x, y, size, delay, duration, id: i };
+      return { x, y, size, phaseOffset, id: i };
     });
   }, [avatarSize, avatarCenterX, avatarCenterY, isTablet]);
 
-  if (!isReady) return null;
+  if (!sparklesEnabled || !isReady) {
+    return null;
+  }
 
   return (
     <>
@@ -599,11 +634,10 @@ const SparkledDots = React.memo(function SparkledDots({
           x={dot.x}
           y={dot.y}
           size={dot.size}
-          delay={dot.delay}
-          duration={dot.duration}
+          phaseOffset={dot.phaseOffset}
           colorScheme={colorScheme}
           sunnyBackground={sunnyBackground}
-          animationsEnabled={animationsEnabled}
+          globalPhase={globalPhase}
         />
       ))}
     </>
@@ -614,73 +648,46 @@ const SparkledDot = React.memo(function SparkledDot({
   x,
   y,
   size,
-  delay,
-  duration,
+  phaseOffset,
   colorScheme,
   sunnyBackground,
-  animationsEnabled,
+  globalPhase,
 }: {
   x: number;
   y: number;
   size: number;
-  delay: number;
-  duration: number;
+  /** Radians: offsets sin wave so dots twinkle out of phase. */
+  phaseOffset: number;
   colorScheme: "light" | "dark";
   sunnyBackground: string;
-  animationsEnabled: boolean;
+  globalPhase: SharedValue<number>;
 }) {
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.7);
-
-  useEffect(() => {
-    if (!animationsEnabled) {
-      cancelAnimation(opacity);
-      cancelAnimation(scale);
-      opacity.value = 0;
-      scale.value = 0.7;
-      return;
+  const glowColor = useMemo(() => {
+    if (colorScheme === "dark") {
+      return "rgba(255, 255, 255, 0.72)";
     }
-    scale.value = withDelay(
-      delay,
-      withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 }),
-    );
+    if (
+      sunnyBackground.length >= 7 &&
+      sunnyBackground[0] === "#"
+    ) {
+      const r = parseInt(sunnyBackground.slice(1, 3), 16);
+      const g = parseInt(sunnyBackground.slice(3, 5), 16);
+      const b = parseInt(sunnyBackground.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, 0.6)`;
+    }
+    return "rgba(100, 181, 246, 0.55)";
+  }, [colorScheme, sunnyBackground]);
 
-    opacity.value = withDelay(
-      delay,
-      withTiming(
-        0.7,
-        { duration: 600, easing: Easing.out(Easing.ease) },
-        (finished) => {
-          if (finished) {
-            opacity.value = withRepeat(
-              withTiming(0.4, { duration, easing: Easing.inOut(Easing.ease) }),
-              -1,
-              true,
-            );
-          }
-        },
-      ),
-    );
-    return () => {
-      cancelAnimation(opacity);
-      cancelAnimation(scale);
+  const animatedStyle = useAnimatedStyle(() => {
+    const t = globalPhase.value;
+    const w = Math.sin(2 * Math.PI * t + phaseOffset);
+    const opacity = 0.3 + 0.28 * w;
+    const scale = 0.9 + 0.1 * w;
+    return {
+      opacity,
+      transform: [{ scale }],
     };
-  }, [delay, duration, animationsEnabled, opacity, scale]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }],
-  }));
-
-  const glowColor =
-    colorScheme === "dark"
-      ? "rgba(255, 255, 255, 0.65)"
-      : (() => {
-          const r = parseInt(sunnyBackground.slice(1, 3), 16);
-          const g = parseInt(sunnyBackground.slice(3, 5), 16);
-          const b = parseInt(sunnyBackground.slice(5, 7), 16);
-          return `rgba(${r}, ${g}, ${b}, 0.55)`;
-        })();
+  });
 
   return (
     <Animated.View
@@ -694,11 +701,6 @@ const SparkledDot = React.memo(function SparkledDot({
           height: size,
           borderRadius: size / 2,
           backgroundColor: glowColor,
-          shadowColor: glowColor,
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.8,
-          shadowRadius: size * 2,
-          elevation: 6,
           zIndex: 2,
         },
         animatedStyle,
@@ -1016,12 +1018,14 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
             </ThemedText>
           </View>
         )}
-        <SmallFloatingMoments
-          entityIndex={index}
-          memories={entityMemories}
-          visibility={momentsVisibility}
-          animationsEnabled={animationsEnabled}
-        />
+        {isFocused && entityMemories.length > 0 ? (
+          <SmallFloatingMoments
+            entityIndex={index}
+            memories={entityMemories}
+            visibility={momentsVisibility}
+            momentFloatEnabled={animationsEnabled}
+          />
+        ) : null}
       </Pressable>
       {needMemoriesHintForEntity ? (
         <View
@@ -1052,6 +1056,9 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
 });
 
 // ───────────────────── Cosmic pulse rings (radiate outward from focused sphere) ─────────────────────
+// CosmicPulseRings returns null when `enabled` is false so three CosmicRing animators are not mounted.
+// Other gating: SparkledDots·sparklesEnabled; SmallFloatingMoments·focused+memories; EntityRing·rotateOrbit;
+// insight card auto-cycle·isVisible; sphere pulse / random entity pulse·isFocused.
 
 const CosmicRing = React.memo(function CosmicRing({
   delay,
@@ -1159,6 +1166,9 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
   sphereSize: number;
   enabled: boolean;
 }) {
+  if (!enabled) {
+    return null;
+  }
   const left = offsetX - sphereSize / 2;
   const top = offsetY - sphereSize / 2;
   return (
@@ -3188,7 +3198,7 @@ export function FocusedSferaView({
         avatarCenterY={avatarCenterY}
         colorScheme={colorScheme}
         sunnyBackground={momentColors.sunny.background}
-        animationsEnabled={overviewAnimationsEnabled}
+        sparklesEnabled={overviewAnimationsEnabled && pulsingAnimations}
       />
 
       {/* ─── Cosmic pulse rings for focused sphere — rendered at root level to avoid container clipping on real iOS devices ─── */}

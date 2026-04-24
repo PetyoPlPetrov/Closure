@@ -1,11 +1,15 @@
 import { UniverseLessonsScreen } from "@/components/universe-lessons-screen";
 import { useFontScale } from "@/hooks/use-device-size";
 import type { LifeSphere } from "@/utils/JourneyProvider";
+import { useIsFocused } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LessonsTabScreen() {
+  // Pauses `UniverseLessons` logic when another tab is focused. Tab also uses
+  // `freezeOnBlur` in (tabs)/_layout so the screen tree is frozen off-tab.
+  const isLessonsTabFocused = useIsFocused();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const fontScale = useFontScale();
@@ -45,7 +49,7 @@ export default function LessonsTabScreen() {
 
   return (
     <UniverseLessonsScreen
-      visible
+      visible={isLessonsTabFocused}
       embeddedInTab
       tabBarOverlapHeight={tabBarOverlapHeight}
       onClose={() => router.replace("/(tabs)" as const)}

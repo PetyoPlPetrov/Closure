@@ -124,6 +124,8 @@ export default function TabLayout() {
           tabBarButton: HapticTab,
           tabBarIcon: lessonsIcon,
           tabBarLabel: lessonsLabel,
+          /** Pauses the Lessons screen tree when another tab is focused (no Reanimated/JS work). */
+          freezeOnBlur: true,
         }}
       />
       <Tabs.Screen name="events" options={{ href: null, headerShown: false }} />

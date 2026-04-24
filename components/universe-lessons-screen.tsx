@@ -30,6 +30,8 @@ import React, {
 } from "react";
 import {
   Alert,
+  AppState,
+  type AppStateStatus,
   BackHandler,
   Dimensions,
   FlatList,
@@ -671,14 +673,28 @@ const LessonSfera = React.memo(function LessonSfera({
 
   // Idle pulse — fires after an initial delay then every ~4.5s while card is visible
   useEffect(() => {
-    if (!isVisible) return;
-    const initial = setTimeout(() => {
-      fireMoonPulse();
-      const interval = setInterval(fireMoonPulse, 4500);
-      return () => clearInterval(interval);
-    }, 2000);
-    return () => clearTimeout(initial);
+    let initialTimer: ReturnType<typeof setTimeout> | undefined;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+    if (isVisible) {
+      initialTimer = setTimeout(() => {
+        fireMoonPulse();
+        intervalId = setInterval(fireMoonPulse, 4500);
+      }, 2000);
+    }
+    return () => {
+      if (initialTimer !== undefined) clearTimeout(initialTimer);
+      if (intervalId !== undefined) clearInterval(intervalId);
+    };
   }, [isVisible, fireMoonPulse]);
+
+  // Stop moon tap/idle sequences when this card is not the focused pager item (no work on neighbors).
+  useEffect(() => {
+    if (isVisible) return;
+    cancelAnimation(moonScale);
+    cancelAnimation(moonGlow);
+    moonScale.value = 1;
+    moonGlow.value = 0;
+  }, [isVisible, moonScale, moonGlow]);
 
   const handleMoonPress = useCallback(() => {
     moonScale.value = withSequence(
@@ -726,7 +742,8 @@ const LessonSfera = React.memo(function LessonSfera({
       );
     } else {
       cancelAnimation(glowPulse);
-      entryScale.value = withTiming(0.92, { duration: 280 });
+      cancelAnimation(entryScale);
+      entryScale.value = 0.92;
       glowPulse.value = 0.5;
     }
   }, [isVisible, entryScale, glowPulse]);
@@ -750,6 +767,7 @@ const LessonSfera = React.memo(function LessonSfera({
       );
     } else {
       cancelAnimation(rot);
+      rot.value = 0;
     }
   }, [isVisible, rot]);
 
@@ -1043,6 +1061,17 @@ export function UniverseLessonsScreen({
   const [bgSeed, setBgSeed] = useState(0);
   const listRef = useRef<FlatList>(null);
 
+  const [isAppActive, setIsAppActive] = useState<AppStateStatus>(() => AppState.currentState);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      setIsAppActive(next);
+    });
+    return () => sub.remove();
+  }, []);
+
+  /** Pager + decor run only while the app is in the foreground (saves work in background). */
+  const runLessonAnimations = visible && isAppActive === "active";
+
   const [sphereSelection, setSphereSelection] = useState<SphereFilter>("all");
   const [yearSelection, setYearSelection] = useState<YearFilter>("all");
   const [entitySelection, setEntitySelection] = useState<EntityFilter>("all");
@@ -1292,10 +1321,14 @@ export function UniverseLessonsScreen({
       setShowDecorLayers(false);
       return;
     }
+    if (!runLessonAnimations) {
+      setShowDecorLayers(false);
+      return;
+    }
     // Defer heavy visual layers slightly so modal content can appear immediately.
     const timer = setTimeout(() => setShowDecorLayers(true), 80);
     return () => clearTimeout(timer);
-  }, [visible]);
+  }, [visible, runLessonAnimations]);
 
   const openFilters = useCallback(() => {
     setFilterSheetVisible(true);
@@ -1374,10 +1407,12 @@ export function UniverseLessonsScreen({
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       const idx = viewableItems[0]?.index;
       if (idx != null) {
+        // Pager "focus" for lesson animations must track the on-screen page immediately;
+        // delaying this kept off-screen sferas running and hid animations from the new page.
+        setActiveIndex(idx);
         if (bgSeedTimerRef.current) clearTimeout(bgSeedTimerRef.current);
         bgFadeOut.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
         bgSeedTimerRef.current = setTimeout(() => {
-          setActiveIndex(idx);
           setBgSeed(idx);
           bgFadeOut.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) });
         }, 420);
@@ -1403,7 +1438,7 @@ export function UniverseLessonsScreen({
   const swipeHintOpacity = useSharedValue(0);
   const swipeHintY = useSharedValue(0);
   useEffect(() => {
-    if (!visible || !appUsabilityHints) {
+    if (!visible || !appUsabilityHints || !runLessonAnimations) {
       cancelAnimation(swipeHintOpacity);
       cancelAnimation(swipeHintY);
       swipeHintOpacity.value = 0;
@@ -1428,7 +1463,7 @@ export function UniverseLessonsScreen({
     };
     const t0 = setTimeout(cycle, 1500);
     return () => clearTimeout(t0);
-  }, [visible, appUsabilityHints, swipeHintOpacity, swipeHintY]);
+  }, [visible, runLessonAnimations, appUsabilityHints, swipeHintOpacity, swipeHintY]);
   const swipeHintStyle = useAnimatedStyle(() => ({
     opacity: swipeHintOpacity.value,
     transform: [{ translateY: swipeHintY.value }],
@@ -1490,7 +1525,7 @@ export function UniverseLessonsScreen({
     ({ item, index }: { item: LessonCard; index: number }) => (
       <LessonSfera
         card={item}
-        isVisible={index === activeIndex}
+        isVisible={index === activeIndex && runLessonAnimations}
         onAvatarPress={item.memoryId ? () => handleAvatarPress(item) : undefined}
         onToggleFavorite={
           item.memoryId ? () => handleToggleFavorite(item) : undefined
@@ -1498,7 +1533,7 @@ export function UniverseLessonsScreen({
         pageHeight={listPageHeight}
       />
     ),
-    [activeIndex, handleAvatarPress, handleToggleFavorite, listPageHeight],
+    [activeIndex, runLessonAnimations, handleAvatarPress, handleToggleFavorite, listPageHeight],
   );
   const keyExtractor = useCallback((item: LessonCard) => item.id, []);
 
@@ -1580,6 +1615,8 @@ export function UniverseLessonsScreen({
                 offset: listPageHeight * index,
                 index,
               })}
+              // Fewer off-screen items mounted; non-active still rely on isVisible, not on unmount.
+              windowSize={3}
               style={{ flex: 1 }}
             />
             {filteredCards.length > 1 && (
