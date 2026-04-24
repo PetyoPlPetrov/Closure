@@ -20,6 +20,8 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getSphereSferaColor } from "@/utils/sphere-styles";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as Device from "expo-device";
+import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import React, {
   useCallback,
@@ -36,6 +38,9 @@ import {
   Dimensions,
   FlatList,
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -1167,7 +1172,14 @@ export function UniverseLessonsScreen({
 
   const hasUserLessons = cards.length > 0;
 
+  const triggerLightHaptic = useCallback(() => {
+    if (Platform.OS === "ios" && Device.isDevice) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+  }, []);
+
   const handleOpenUniverseExam = useCallback(async () => {
+    triggerLightHaptic();
     if (!hasUserLessons) {
       Alert.alert("", t("universe.lessons.noneAvailable"));
       return;
@@ -1190,6 +1202,7 @@ export function UniverseLessonsScreen({
     hasUserLessons,
     refreshCustomerInfo,
     t,
+    triggerLightHaptic,
   ]);
 
   const filteredCards = useMemo(
@@ -1425,6 +1438,30 @@ export function UniverseLessonsScreen({
   const activeCard = filteredCards[activeIndex];
   const accentColor = getSphereSferaColor(activeCard?.sphere ?? "career", "dark");
 
+  const triggerBoundaryHaptic = useCallback(() => {
+    if (Platform.OS === "ios" && Device.isDevice) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    }
+  }, []);
+
+  const handleScrollEndDrag = useCallback(
+    (ev: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (filteredCards.length <= 1) return;
+      const maxOffset = (filteredCards.length - 1) * listPageHeight;
+      const y = ev.nativeEvent.contentOffset.y ?? 0;
+      const vy = ev.nativeEvent.velocity?.y ?? 0;
+      const EPS = 4;
+      const VEL_THRESHOLD = 0.15;
+
+      const tryingPastTop = y <= EPS && vy < -VEL_THRESHOLD;
+      const tryingPastBottom = y >= maxOffset - EPS && vy > VEL_THRESHOLD;
+      if (tryingPastTop || tryingPastBottom) {
+        triggerBoundaryHaptic();
+      }
+    },
+    [filteredCards.length, listPageHeight, triggerBoundaryHaptic],
+  );
+
   const shootingStars = useMemo(() =>
     Array.from({ length: 5 }, (_, i) => ({
       x: sr(i * 11 + 1) * SW,
@@ -1609,6 +1646,7 @@ export function UniverseLessonsScreen({
               decelerationRate="fast"
               showsVerticalScrollIndicator={false}
               onViewableItemsChanged={onViewableItemsChanged}
+              onScrollEndDrag={handleScrollEndDrag}
               viewabilityConfig={viewabilityConfig}
               getItemLayout={(_, index) => ({
                 length: listPageHeight,

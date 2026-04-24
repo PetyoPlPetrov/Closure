@@ -166,7 +166,6 @@ export function InAppNotification({
             <View style={styles.messageRow}>
               <ThemedText size="sm" style={[styles.message, { color: messageColor }]}>
                 {message}
-                {trailingIcon === 'auto-awesome' ? ' ✨' : ''}
               </ThemedText>
               {trailingIcon && trailingIcon !== 'auto-awesome' ? (
                 <MaterialIcons

@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Haptics from 'expo-haptics';
+import * as Device from 'expo-device';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, InteractionManager, Pressable, TouchableOpacity, View } from 'react-native';
@@ -161,6 +162,12 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
     setTimeout(() => setIsExpanded(false), 300);
   }, [expandProgress, editProgress, settingsProgress, personalizationProgress, isExpandedSV]);
 
+  const triggerLightHaptic = useCallback(() => {
+    if (Platform.OS === 'ios' && Device.isDevice) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+  }, []);
+
   const handleTriggerPress = useCallback(() => {
     const now = Date.now();
     if (now - lastPressTimeRef.current < 500) {
@@ -196,19 +203,22 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
   }, [expand, collapse, triggerScale, isExpandedSV, isReadySV, expandProgress]);
 
   const handleEditPress = useCallback(() => {
+    triggerLightHaptic();
     collapse();
     setTimeout(() => router.push('/(tabs)/spheres'), 150);
-  }, [collapse]);
+  }, [collapse, triggerLightHaptic]);
 
   const handleSettingsPress = useCallback(() => {
+    triggerLightHaptic();
     collapse();
     setTimeout(() => router.push('/(tabs)/settings'), 150);
-  }, [collapse]);
+  }, [collapse, triggerLightHaptic]);
 
   const handlePersonalizationPress = useCallback(() => {
+    triggerLightHaptic();
     collapse();
     setTimeout(() => router.push('/personalization'), 150);
-  }, [collapse]);
+  }, [collapse, triggerLightHaptic]);
 
   const triggerGlowStyle = useAnimatedStyle(() => ({
     shadowOpacity: 0.2 + expandProgress.value * 0.3,

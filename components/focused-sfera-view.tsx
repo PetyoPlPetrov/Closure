@@ -24,6 +24,8 @@ import {
 } from "@/utils/sphere-styles";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
+import * as Device from "expo-device";
+import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -212,7 +214,7 @@ function getEntityRingMetrics(
   const depthScale = getEntityDepthScale(slot);
   const baseEntityAvatarSize = focused
     ? 40
-    : Math.max(22, Math.round(sphereSize * 0.3));
+    : Math.max(20, Math.round(sphereSize * 0.28));
   const rawEntityAvatarSize = focused
     ? baseEntityAvatarSize
     : Math.max(10, Math.round(baseEntityAvatarSize * depthScale));
@@ -728,6 +730,7 @@ const EntityRing = React.memo(function EntityRing({
   avatarSizeFallback,
   glowColor,
   isFocused = false,
+  focusProgress,
   momentsVisibility,
   rotateOrbit = false,
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
@@ -751,6 +754,7 @@ const EntityRing = React.memo(function EntityRing({
   avatarSizeFallback: number;
   glowColor: string;
   isFocused?: boolean;
+  focusProgress: SharedValue<number>;
   momentsVisibility: SharedValue<number>;
   rotateOrbit?: boolean;
   orbitDurationMs?: number;
@@ -825,6 +829,7 @@ const EntityRing = React.memo(function EntityRing({
             borderWidth={borderWidth}
             glowColor={glowColor}
             isFocused={isFocused}
+            focusProgress={focusProgress}
             isTablet={isTablet}
             momentsVisibility={momentsVisibility}
             entityMemories={memories}
@@ -856,6 +861,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   borderWidth,
   glowColor,
   isFocused,
+  focusProgress,
   isTablet,
   momentsVisibility,
   entityMemories,
@@ -880,6 +886,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   borderWidth: number;
   glowColor: string;
   isFocused: boolean;
+  focusProgress: SharedValue<number>;
   isTablet: boolean;
   momentsVisibility: SharedValue<number>;
   entityMemories: IdealizedMemory[];
@@ -924,9 +931,9 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
       height: dynamicAvatarSize,
       overflow: "visible" as const,
       opacity: interpolate(
-        momentsVisibility.value,
+        focusProgress.value,
         [0, 1],
-        [0.55, 1],
+        [0.3, 1],
         Extrapolation.CLAMP,
       ),
       shadowOpacity: interpolate(
@@ -1304,7 +1311,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
         7000,
         withRepeat(
           withSequence(
-            withSpring(1.04, { damping: 12, stiffness: 80 }),
+            withSpring(1.06, { damping: 12, stiffness: 80 }),
             withSpring(1, { damping: 12, stiffness: 100 }),
             withDelay(7000, withTiming(1, { duration: 0 })),
           ),
@@ -1508,7 +1515,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     opacity: interpolate(
       focusProgress.value,
       [0, 1],
-      [isInitialView ? 0.55 : 0.8, 1],
+      [isInitialView ? 0.5 : 0.75, 1],
       Extrapolation.CLAMP,
     ),
     transform: [{ scale: spherePulseScale.value * firstTapFeedbackScale.value }],
@@ -1824,6 +1831,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             avatarSizeFallback={initialEntityMetrics.entityAvatarSize}
             glowColor={shadowColor}
             isFocused={isFocused}
+            focusProgress={focusProgress}
             momentsVisibility={momentsVisibilityProgress}
             rotateOrbit={rotateOrbitGate}
             orbitDurationMs={orbitDurationMs}
@@ -2651,6 +2659,9 @@ export function FocusedSferaView({
   const focusedSphereTapTimeRef = useRef<number>(0);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const memoriesHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const insightsHubPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const [displayMode, setDisplayMode] = useState<"defaultOrbit" | "memoryBalanceRings">(
     "defaultOrbit",
   );
@@ -2723,6 +2734,10 @@ export function FocusedSferaView({
   useEffect(
     () => () => {
       clearMemoriesHintTimer();
+      if (insightsHubPulseTimerRef.current) {
+        clearTimeout(insightsHubPulseTimerRef.current);
+        insightsHubPulseTimerRef.current = null;
+      }
     },
     [clearMemoriesHintTimer],
   );
@@ -3046,6 +3061,7 @@ export function FocusedSferaView({
   const leftChevronScale = useSharedValue(1);
   const rightChevronScale = useSharedValue(1);
   const memoryBalanceToggleScale = useSharedValue(1);
+  const insightsHubScale = useSharedValue(1);
   const hintOpacity = useSharedValue(0);
 
   const showDoubleTapHint = useCallback(() => {
@@ -3151,13 +3167,39 @@ export function FocusedSferaView({
     [goToSphere, handleCollapseSun, isSunExpanded, onSphereSelect, sunLoadComplete],
   );
 
+  const triggerLightHaptic = useCallback(() => {
+    if (Platform.OS === "ios" && Device.isDevice) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+  }, []);
+
   const handleMemoryBalanceToggle = useCallback(() => {
     if (!sunLoadComplete) return;
+    triggerLightHaptic();
     if (isSunExpanded) handleCollapseSun();
-    setDisplayMode((prev) =>
-      prev === "memoryBalanceRings" ? "defaultOrbit" : "memoryBalanceRings",
-    );
-  }, [sunLoadComplete, isSunExpanded, handleCollapseSun]);
+    const nextMode =
+      displayMode === "memoryBalanceRings" ? "defaultOrbit" : "memoryBalanceRings";
+    setDisplayMode(nextMode);
+    if (insightsHubPulseTimerRef.current) {
+      clearTimeout(insightsHubPulseTimerRef.current);
+      insightsHubPulseTimerRef.current = null;
+    }
+    insightsHubPulseTimerRef.current = setTimeout(() => {
+      cancelAnimation(insightsHubScale);
+      insightsHubScale.value = withSequence(
+        withTiming(1.07, { duration: 280, easing: Easing.out(Easing.sin) }),
+        withTiming(1, { duration: 360, easing: Easing.inOut(Easing.sin) }),
+      );
+      insightsHubPulseTimerRef.current = null;
+    }, 700);
+  }, [
+    sunLoadComplete,
+    isSunExpanded,
+    handleCollapseSun,
+    displayMode,
+    insightsHubScale,
+    triggerLightHaptic,
+  ]);
 
   const doubleTapHintAnimatedStyle = useAnimatedStyle(() => ({
     opacity: hintOpacity.value,
@@ -3171,6 +3213,9 @@ export function FocusedSferaView({
   }));
   const memoryBalanceToggleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: memoryBalanceToggleScale.value }],
+  }));
+  const insightsHubAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: insightsHubScale.value }],
   }));
   const orbitLayerStyle = useAnimatedStyle(() => {
     const sunFade = interpolate(sunExpanded.value, [0, 1], [1, 0], Extrapolation.CLAMP);
@@ -3477,34 +3522,36 @@ export function FocusedSferaView({
           }}
           pointerEvents="box-none"
         >
-          <Pressable
-            onPress={handleCircleAvatarPress}
-            onPressIn={handleAvatarPressInHideMemoryBalance}
-            onPressOut={handleAvatarPressOutRestoreMemoryBalance}
-            accessibilityRole="button"
-            accessibilityLabel={t("insights.wheelOfLife.title")}
-            accessibilityHint={t("insights.wheelOfLife.subtitle")}
-            style={{
-              flex: 1,
-              borderRadius: INSIGHTS_HUB_SIZE / 2,
-              backgroundColor: "rgba(186,104,200,0.22)",
-              borderWidth: 2,
-              borderColor: "rgba(186,104,200,0.65)",
-              justifyContent: "center",
-              alignItems: "center",
-              shadowColor: "#BA68C8",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.55,
-              shadowRadius: 10,
-              elevation: 10,
-            }}
-          >
-            <MaterialIcons
-              name="insights"
-              size={scaleFocused(44)}
-              color="#CE93D8"
-            />
-          </Pressable>
+          <Animated.View style={[{ flex: 1 }, insightsHubAnimatedStyle]}>
+            <Pressable
+              onPress={handleCircleAvatarPress}
+              onPressIn={handleAvatarPressInHideMemoryBalance}
+              onPressOut={handleAvatarPressOutRestoreMemoryBalance}
+              accessibilityRole="button"
+              accessibilityLabel={t("insights.wheelOfLife.title")}
+              accessibilityHint={t("insights.wheelOfLife.subtitle")}
+              style={{
+                flex: 1,
+                borderRadius: INSIGHTS_HUB_SIZE / 2,
+                backgroundColor: "rgba(186,104,200,0.22)",
+                borderWidth: 2,
+                borderColor: "rgba(186,104,200,0.65)",
+                justifyContent: "center",
+                alignItems: "center",
+                shadowColor: "#BA68C8",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.55,
+                shadowRadius: 10,
+                elevation: 10,
+              }}
+            >
+              <MaterialIcons
+                name="insights"
+                size={scaleFocused(44)}
+                color="#CE93D8"
+              />
+            </Pressable>
+          </Animated.View>
         </View>
       )}
 

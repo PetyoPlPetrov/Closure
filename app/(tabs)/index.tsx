@@ -42,7 +42,9 @@ import { showPaywallForAIAccess } from "@/utils/premium-access";
 import { subscribeBadgeRewardsChanged } from "@/utils/badge-rewards-events";
 import {
   getSferaSizeHintDismissedForever,
+  getSunnyVsCloudyHintDismissedForever,
   setSferaSizeHintDismissedForever,
+  setSunnyVsCloudyHintDismissedForever,
 } from "@/utils/sfera-size-hint-storage";
 import {
   getSphereGradientColors,
@@ -14813,10 +14815,59 @@ export default function HomeScreen() {
   /** False while not in MB; true while in MB — used to detect orbit → MB to re-show hint. */
   const prevMbForHintRef = useRef(false);
   const [sferaSizeHintVisible, setSferaSizeHintVisible] = useState(false);
+  const sferaSizeHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const [sunnyVsCloudyHintNeverShow, setSunnyVsCloudyHintNeverShow] = useState<
+    boolean | null
+  >(null);
+  const [sunnyVsCloudyHintVisible, setSunnyVsCloudyHintVisible] = useState(false);
+  const prevCanShowSunnyVsCloudyRef = useRef(false);
+  const sunnyVsCloudyHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   useEffect(() => {
     void getSferaSizeHintDismissedForever().then(setSferaSizeHintNeverShow);
+    void getSunnyVsCloudyHintDismissedForever().then(setSunnyVsCloudyHintNeverShow);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (sferaSizeHintTimerRef.current) {
+        clearTimeout(sferaSizeHintTimerRef.current);
+        sferaSizeHintTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const scheduleSferaSizeHintShow = useCallback(() => {
+    if (sferaSizeHintTimerRef.current) {
+      clearTimeout(sferaSizeHintTimerRef.current);
+      sferaSizeHintTimerRef.current = null;
+    }
+    sferaSizeHintTimerRef.current = setTimeout(() => {
+      setSferaSizeHintVisible(true);
+      sferaSizeHintTimerRef.current = null;
+    }, 1700);
+  }, []);
+
+  const lifeSunnyVsCloudySummary = useMemo(() => {
+    let sunny = 0;
+    let cloudy = 0;
+    idealizedMemories.forEach((memory) => {
+      sunny += (memory.goodFacts || []).length;
+      cloudy += (memory.hardTruths || []).length;
+    });
+    const total = sunny + cloudy;
+    const percentage = total === 0 ? 0 : (sunny / total) * 100;
+    return { sunny, cloudy, total, percentage };
+  }, [idealizedMemories]);
+
+  const isSunnyVsCloudyHintEligible = useMemo(
+    () => lifeSunnyVsCloudySummary.total > 0,
+    [lifeSunnyVsCloudySummary],
+  );
 
   useEffect(() => {
     const onFocusedOverviewSurface =
@@ -14838,6 +14889,10 @@ export default function HomeScreen() {
       if (leavingFocusedOverviewSurface) {
         prevCanShowFocusedOverviewRef.current = false;
       }
+      if (sferaSizeHintTimerRef.current) {
+        clearTimeout(sferaSizeHintTimerRef.current);
+        sferaSizeHintTimerRef.current = null;
+      }
       setSferaSizeHintVisible(false);
       return;
     }
@@ -14848,11 +14903,19 @@ export default function HomeScreen() {
       prevCanShowFocusedOverviewRef.current = false;
       prevMbForHintRef.current = false;
       setFocusedHomeMemoryBalance(null);
+      if (sferaSizeHintTimerRef.current) {
+        clearTimeout(sferaSizeHintTimerRef.current);
+        sferaSizeHintTimerRef.current = null;
+      }
       setSferaSizeHintVisible(false);
       return;
     }
 
     if (!readyForSferaSizeHint) {
+      if (sferaSizeHintTimerRef.current) {
+        clearTimeout(sferaSizeHintTimerRef.current);
+        sferaSizeHintTimerRef.current = null;
+      }
       setSferaSizeHintVisible(false);
       return;
     }
@@ -14860,6 +14923,10 @@ export default function HomeScreen() {
     if (focusedHomeMemoryBalance !== true) {
       if (focusedHomeMemoryBalance === false) {
         prevMbForHintRef.current = false;
+      }
+      if (sferaSizeHintTimerRef.current) {
+        clearTimeout(sferaSizeHintTimerRef.current);
+        sferaSizeHintTimerRef.current = null;
       }
       setSferaSizeHintVisible(false);
       return;
@@ -14871,12 +14938,12 @@ export default function HomeScreen() {
 
     if (!prevCanShowFocusedOverviewRef.current) {
       prevCanShowFocusedOverviewRef.current = true;
-      setSferaSizeHintVisible(true);
+      scheduleSferaSizeHintShow();
       return;
     }
 
     if (enteredMbFromNonMb) {
-      setSferaSizeHintVisible(true);
+      scheduleSferaSizeHintShow();
     }
   }, [
     sferaSizeHintNeverShow,
@@ -14888,17 +14955,113 @@ export default function HomeScreen() {
     isLoading,
     focusedIntroComplete,
     hasAnyMoments,
+    scheduleSferaSizeHintShow,
   ]);
+
+  useEffect(() => {
+    const onFocusedOverviewSurface =
+      isHomeTabFocused && homeViewMode === "focused" && !selectedSphere;
+    const leavingFocusedOverviewSurface =
+      !isHomeTabFocused ||
+      homeViewMode !== "focused" ||
+      selectedSphere !== null;
+    const readyForSunnyVsCloudyHint =
+      onFocusedOverviewSurface &&
+      !isLoading &&
+      focusedIntroComplete &&
+      hasAnyMoments &&
+      !focusedSunMenuExpanded &&
+      focusedHomeMemoryBalance === true &&
+      isSunnyVsCloudyHintEligible;
+
+    if (sunnyVsCloudyHintNeverShow !== false) {
+      if (leavingFocusedOverviewSurface) {
+        prevCanShowSunnyVsCloudyRef.current = false;
+      }
+      setSunnyVsCloudyHintVisible(false);
+      return;
+    }
+
+    if (leavingFocusedOverviewSurface) {
+      prevCanShowSunnyVsCloudyRef.current = false;
+      setSunnyVsCloudyHintVisible(false);
+      return;
+    }
+
+    if (!readyForSunnyVsCloudyHint || sferaSizeHintVisible) {
+      setSunnyVsCloudyHintVisible(false);
+      return;
+    }
+
+    if (!prevCanShowSunnyVsCloudyRef.current) {
+      prevCanShowSunnyVsCloudyRef.current = true;
+      setSunnyVsCloudyHintVisible(true);
+    }
+  }, [
+    sunnyVsCloudyHintNeverShow,
+    isHomeTabFocused,
+    homeViewMode,
+    selectedSphere,
+    isLoading,
+    focusedIntroComplete,
+    hasAnyMoments,
+    focusedSunMenuExpanded,
+    focusedHomeMemoryBalance,
+    isSunnyVsCloudyHintEligible,
+    sferaSizeHintVisible,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (sunnyVsCloudyHintTimerRef.current) {
+        clearTimeout(sunnyVsCloudyHintTimerRef.current);
+        sunnyVsCloudyHintTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const scheduleSunnyVsCloudyHintAfterDelay = useCallback(() => {
+    if (sunnyVsCloudyHintNeverShow !== false || !isSunnyVsCloudyHintEligible) {
+      return;
+    }
+
+    if (sunnyVsCloudyHintTimerRef.current) {
+      clearTimeout(sunnyVsCloudyHintTimerRef.current);
+      sunnyVsCloudyHintTimerRef.current = null;
+    }
+
+    sunnyVsCloudyHintTimerRef.current = setTimeout(() => {
+      setSunnyVsCloudyHintVisible(true);
+      sunnyVsCloudyHintTimerRef.current = null;
+    }, 1200);
+  }, [sunnyVsCloudyHintNeverShow, isSunnyVsCloudyHintEligible]);
 
   const handleSferaSizeHintClose = useCallback(() => {
     setSferaSizeHintVisible(false);
-  }, []);
+    scheduleSunnyVsCloudyHintAfterDelay();
+  }, [scheduleSunnyVsCloudyHintAfterDelay]);
 
   const handleSferaSizeHintDontShowAgain = useCallback(() => {
     void setSferaSizeHintDismissedForever(true);
     setSferaSizeHintNeverShow(true);
     setSferaSizeHintVisible(false);
+    scheduleSunnyVsCloudyHintAfterDelay();
+  }, [scheduleSunnyVsCloudyHintAfterDelay]);
+
+  const handleSunnyVsCloudyHintClose = useCallback(() => {
+    setSunnyVsCloudyHintVisible(false);
   }, []);
+
+  const handleSunnyVsCloudyHintDontShowAgain = useCallback(() => {
+    void setSunnyVsCloudyHintDismissedForever(true);
+    setSunnyVsCloudyHintNeverShow(true);
+    setSunnyVsCloudyHintVisible(false);
+  }, []);
+
+  const sunnyVsCloudyHintMessage = useMemo(() => {
+    const sunnyPercentageLabel = Math.round(lifeSunnyVsCloudySummary.percentage);
+    return `You are doing great ${"\u2600\uFE0F"} ${sunnyPercentageLabel}% of your moments feel sunny. Keep going, you are growing every day.`;
+  }, [lifeSunnyVsCloudySummary]);
 
   const messageTop = 180; // Position for lesson notification (below streak badge)
 
@@ -18789,6 +18952,13 @@ export default function HomeScreen() {
                 dismissLabel={t("guidePrompt.dismiss")}
                 onClose={handleSferaSizeHintClose}
                 onDontShowAgain={handleSferaSizeHintDontShowAgain}
+              />
+            ) : sunnyVsCloudyHintVisible ? (
+              <SferaSizeHintBanner
+                message={sunnyVsCloudyHintMessage}
+                dismissLabel={t("guidePrompt.dismiss")}
+                onClose={handleSunnyVsCloudyHintClose}
+                onDontShowAgain={handleSunnyVsCloudyHintDontShowAgain}
               />
             ) : null
           }
