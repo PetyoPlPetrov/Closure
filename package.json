@@ -9,6 +9,7 @@
     "prebuild": "expo prebuild",
     "postprebuild": "node ./scripts/create-splash-logo.js",
     "clean:ios": "node ./scripts/clean-xcode-build.js",
+    "clean:ios:storage": "node ./scripts/cleanup-ios-storage.js",
     "clean:all": "npm run clean:ios && rm -rf ios/build android/build android/app/build",
     "android": "expo run:android",
     "ios": "expo run:ios",

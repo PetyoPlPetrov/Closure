@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import * as Device from 'expo-device';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, InteractionManager, Pressable, TouchableOpacity, View } from 'react-native';
+import { AppState, InteractionManager, Platform, Pressable, TouchableOpacity, View } from 'react-native';
 import Animated, {
   type SharedValue,
   useAnimatedStyle,

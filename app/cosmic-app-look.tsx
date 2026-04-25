@@ -1,4 +1,3 @@
-import { ConstellationBackground } from "@/components/constellation-background";
 import { SliderRow } from "@/components/slider-row";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
@@ -8,12 +7,8 @@ import { useLargeDevice } from "@/hooks/use-large-device";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { useTranslate } from "@/utils/languages/use-translate";
 import {
-  MAX_CONSTELLATION_AMOUNT,
-  MAX_CONSTELLATION_OPACITY,
   MAX_COSMIC_BACKGROUND_OPACITY,
   MAX_ORBIT_DURATION_MS,
-  MIN_CONSTELLATION_AMOUNT,
-  MIN_CONSTELLATION_OPACITY,
   MIN_COSMIC_BACKGROUND_OPACITY,
   MIN_ORBIT_DURATION_MS,
   useVisualSettings,
@@ -21,9 +16,7 @@ import {
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import { useMemo } from "react";
-import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View, type TextStyle, type ViewStyle } from "react-native";
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+import { ScrollView, StyleSheet, TouchableOpacity, View, type TextStyle, type ViewStyle } from "react-native";
 
 export default function CosmicAppLookScreen() {
   const colorScheme = useColorScheme();
@@ -34,10 +27,6 @@ export default function CosmicAppLookScreen() {
   const {
     orbitDurationMs,
     setOrbitDurationMs,
-    constellationAmount,
-    setConstellationAmount,
-    constellationOpacity,
-    setConstellationOpacity,
     cosmicBackgroundOpacity,
     setCosmicBackgroundOpacity,
   } = useVisualSettings();
@@ -87,12 +76,6 @@ export default function CosmicAppLookScreen() {
 
   return (
     <TabScreenContainer>
-      <ConstellationBackground
-        width={SCREEN_WIDTH}
-        height={SCREEN_HEIGHT}
-        constellationAmount={constellationAmount}
-        constellationOpacity={constellationOpacity}
-      />
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity
@@ -126,32 +109,6 @@ export default function CosmicAppLookScreen() {
               max={MAX_ORBIT_DURATION_MS}
               onValueChange={(v) => setOrbitDurationMs(MAX_ORBIT_DURATION_MS + MIN_ORBIT_DURATION_MS - v)}
               valueLabel={`${Math.round(orbitDurationMs / 1000)}s / full rotation`}
-              colorScheme={colorScheme ?? "dark"}
-              colors={colors}
-              fontScale={fontScale}
-            />
-            <SliderRow
-              label={t("settings.personalization.constellationAmount")}
-              value={constellationAmount}
-              min={MIN_CONSTELLATION_AMOUNT}
-              max={MAX_CONSTELLATION_AMOUNT}
-              onValueChange={setConstellationAmount}
-              valueLabel={String(constellationAmount)}
-              colorScheme={colorScheme ?? "dark"}
-              colors={colors}
-              fontScale={fontScale}
-            />
-            <SliderRow
-              label={t("settings.personalization.constellationOpacity")}
-              value={constellationOpacity}
-              min={MIN_CONSTELLATION_OPACITY}
-              max={MAX_CONSTELLATION_OPACITY}
-              onValueChange={setConstellationOpacity}
-              valueLabel={
-                constellationOpacity === 0
-                  ? t("settings.personalization.cosmicBackgroundOff")
-                  : String(constellationOpacity)
-              }
               colorScheme={colorScheme ?? "dark"}
               colors={colors}
               fontScale={fontScale}

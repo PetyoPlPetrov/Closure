@@ -70,7 +70,9 @@ import {
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/native";
+import * as Device from "expo-device";
 import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
@@ -631,6 +633,13 @@ const FloatingAvatar = React.memo(
         setEntityWheelGateToastVisible(false);
         entityWheelGateToastTimerRef.current = null;
       }, 5000);
+    }, []);
+    const triggerNoMomentsHaptic = useCallback(() => {
+      if (Platform.OS === "ios" && Device.isDevice) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(
+          () => {},
+        );
+      }
     }, []);
     const dismissEntityWheelGateToast = useCallback(() => {
       if (entityWheelGateToastTimerRef.current) {
@@ -4774,8 +4783,9 @@ const FloatingAvatar = React.memo(
                     icons.map((item, index) => {
                       const x = SCREEN_WIDTH / 2 - spacing + index * spacing;
                       const y = iconY;
-                      const isDisabled =
-                        item.count === 0 || expandedMomentId !== null;
+                      const hasNoMoments = item.count === 0;
+                      const isPressBlocked = expandedMomentId !== null;
+                      const isDisabled = hasNoMoments || isPressBlocked;
 
                       return (
                         <Animated.View
@@ -4858,9 +4868,12 @@ const FloatingAvatar = React.memo(
 
                           <Pressable
                             onPress={() => {
-                              if (!isDisabled) {
-                                setSelectedMomentType(item.type);
+                              if (isPressBlocked) return;
+                              if (hasNoMoments) {
+                                triggerNoMomentsHaptic();
+                                return;
                               }
+                              setSelectedMomentType(item.type);
                             }}
                             onPressIn={() => {
                               if (!isDisabled) {
@@ -4894,7 +4907,7 @@ const FloatingAvatar = React.memo(
                                 );
                               }
                             }}
-                            disabled={isDisabled}
+                            disabled={isPressBlocked}
                             style={{
                               width: "100%",
                               height: "100%",

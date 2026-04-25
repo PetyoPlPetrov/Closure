@@ -904,6 +904,11 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   const t = useTranslate();
   const scale = useSharedValue(1);
   const lastTap = useRef(0);
+  const triggerEntityTapHaptic = useCallback(() => {
+    if (Platform.OS === "ios" && Device.isDevice) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+  }, []);
 
   // One-shot pulse when this entity is randomly chosen for periodic pulse
   useEffect(() => {
@@ -972,6 +977,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
         }}
         onPress={() => {
           if (entityId) {
+            triggerEntityTapHaptic();
             const now = Date.now();
             const isDoubleTap = now - lastTap.current < 300;
             lastTap.current = now;
@@ -2898,6 +2904,12 @@ export function FocusedSferaView({
   const focusedSphere = SPHERE_LIST[focusedIdx];
   const isMemoryBalanceMode =
     selectedSphere === null && displayMode === "memoryBalanceRings";
+  // Run expensive orbit GPU/CPU animations only when the orbit view is the active visible mode.
+  const orbitViewAnimationsEnabled =
+    overviewAnimationsEnabled &&
+    sunLoadComplete &&
+    !isSunExpanded &&
+    !isMemoryBalanceMode;
   useEffect(() => {
     const target =
       selectedSphere === null && displayMode === "memoryBalanceRings" ? 1 : 0;
@@ -3358,7 +3370,7 @@ export function FocusedSferaView({
         avatarCenterY={avatarCenterY}
         colorScheme={colorScheme}
         sunnyBackground={momentColors.sunny.background}
-        sparklesEnabled={overviewAnimationsEnabled && pulsingAnimations}
+        sparklesEnabled={orbitViewAnimationsEnabled && pulsingAnimations}
       />
 
       {/* ─── Cosmic pulse rings for focused sphere — rendered at root level to avoid container clipping on real iOS devices ─── */}
@@ -3372,11 +3384,9 @@ export function FocusedSferaView({
         offsetY={ORBIT_CY + ORBIT_R}
         sphereSize={FOCUSED_SIZE * individualModeScale}
         enabled={
-          overviewAnimationsEnabled &&
+          orbitViewAnimationsEnabled &&
           pulsingAnimations &&
-          !isMemoryBalanceMode &&
-          !isSunExpanded &&
-          sunLoadComplete
+          !isMemoryBalanceMode
         }
       />
 
@@ -3445,7 +3455,7 @@ export function FocusedSferaView({
               isSunMenuOpen={isSunExpanded}
               individualModeScale={individualModeScale}
               entityAvatarScale={individualEntityAvatarScale}
-              animationsEnabled={overviewAnimationsEnabled}
+              animationsEnabled={orbitViewAnimationsEnabled}
             />
           </OrbitSphereItem>
         ))}
