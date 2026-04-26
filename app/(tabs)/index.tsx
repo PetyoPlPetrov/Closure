@@ -25,6 +25,7 @@ import { onEventsTabPress } from "@/utils/events-tab-press";
 import {
   getGuideDismissedForever,
   getReadSections,
+  setGuideDismissedForever,
 } from "@/utils/guide-storage";
 import { onHomeTabPress } from "@/utils/home-tab-press";
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
@@ -14349,15 +14350,33 @@ export default function HomeScreen() {
     router.push("/guide");
   }, []);
 
+  const handleGuideDismissForever = useCallback(() => {
+    setWalkthroughVisible(false);
+    walkthroughAfterOnboardingRef.current = false;
+    void setGuideDismissedForever();
+  }, []);
+
   const guideWalkthroughModal = (
     <WalkthroughModal
       visible={walkthroughVisible}
       onDismiss={handleWalkthroughDismiss}
+      onDismissForever={handleGuideDismissForever}
       onOpenGuide={handleGuideOpen}
       sections={SECTIONS.map((s) => ({
         id: s.id,
         icon: s.icon,
-        titleKey: s.titleKey,
+        titleKey:
+          s.id === "overview"
+            ? "guide.section.overview.shortTitle"
+            : s.id === "recordingMemories"
+              ? "guide.section.recordingMemories.shortTitle"
+              : s.id === "tools"
+                ? "guide.section.tools.shortTitle"
+                : s.id === "notifications"
+                  ? "guide.section.notifications.shortTitle"
+                  : s.id === "customizations"
+                    ? "guide.section.customizations.shortTitle"
+                    : "guide.section.account.shortTitle",
         isDone: guideReadSections.has(s.id),
       }))}
     />

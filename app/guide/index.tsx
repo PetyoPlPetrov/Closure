@@ -43,6 +43,22 @@ export default function GuideScreen() {
     }, []),
   );
 
+  const getSectionShortTitleKey = useCallback(
+    (sectionId: (typeof SECTIONS)[number]["id"]) =>
+      sectionId === "overview"
+        ? "guide.section.overview.shortTitle"
+        : sectionId === "recordingMemories"
+          ? "guide.section.recordingMemories.shortTitle"
+          : sectionId === "tools"
+            ? "guide.section.tools.shortTitle"
+            : sectionId === "notifications"
+              ? "guide.section.notifications.shortTitle"
+              : sectionId === "customizations"
+                ? "guide.section.customizations.shortTitle"
+                : "guide.section.account.shortTitle",
+    [],
+  );
+
   const styles = useMemo(
     () =>
       StyleSheet.create<{
@@ -164,7 +180,7 @@ export default function GuideScreen() {
                   color={colors.primary}
                 />
                 <ThemedText size="l" weight="medium">
-                  {t(section.titleKey)}
+                  {t(getSectionShortTitleKey(section.id))}
                 </ThemedText>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 * fontScale }}>

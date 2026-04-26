@@ -1,4 +1,3 @@
-import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
@@ -6,15 +5,9 @@ import { useTranslate } from "@/utils/languages/use-translate";
 import type { Translations } from "@/utils/languages/translations";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useMemo } from "react";
-import {
-  Modal,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
-} from "react-native";
+import { Fragment, useMemo } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text, Modal, StyleSheet, TouchableOpacity, View } from "react-native";
 
 type SectionItem = {
   id: string;
@@ -26,6 +19,7 @@ type SectionItem = {
 type WalkthroughModalProps = {
   visible: boolean;
   onDismiss: () => void;
+  onDismissForever: () => void;
   onOpenGuide: () => void;
   sections: SectionItem[];
 };
@@ -33,35 +27,37 @@ type WalkthroughModalProps = {
 export function WalkthroughModal({
   visible,
   onDismiss,
+  onDismissForever,
   onOpenGuide,
   sections,
 }: WalkthroughModalProps) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
+  const insets = useSafeAreaInsets();
   const colors = Colors[colorScheme ?? "dark"];
   const t = useTranslate();
+  const nextSectionIndex = sections.findIndex((section) => !section.isDone);
 
   const styles = useMemo(
     () =>
       StyleSheet.create({
         overlay: {
           flex: 1,
-          backgroundColor: "rgba(0, 0, 0, 0.6)",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: 20 * fontScale,
-          paddingTop: 80 * fontScale,
+          justifyContent: "flex-start",
+          paddingHorizontal: 16 * fontScale,
         },
         container: {
           backgroundColor:
             colorScheme === "dark" ? colors.background : "#ffffff",
-          borderRadius: 20 * fontScale,
-          padding: 24 * fontScale,
+          borderRadius: 16 * fontScale,
+          paddingVertical: 10 * fontScale,
+          paddingHorizontal: 12 * fontScale,
           width: "100%",
-          maxWidth: 360 * fontScale,
-          marginTop: 48 * fontScale,
+          maxWidth: 460 * fontScale,
+          marginTop: insets.top + 8 * fontScale,
           position: "relative",
           overflow: "hidden",
+          alignSelf: "center",
         },
         gradientBackground: {
           position: "absolute",
@@ -74,48 +70,142 @@ export function WalkthroughModal({
         content: {
           position: "relative",
           zIndex: 1,
-          gap: 16 * fontScale,
+          gap: 10 * fontScale,
+        },
+        headerRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        },
+        titleRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8 * fontScale,
         },
         iconContainer: {
-          width: 64 * fontScale,
-          height: 64 * fontScale,
-          borderRadius: 32 * fontScale,
+          width: 36 * fontScale,
+          height: 36 * fontScale,
+          borderRadius: 18 * fontScale,
           backgroundColor:
             colorScheme === "dark"
               ? "rgba(100, 150, 255, 0.2)"
               : "rgba(100, 150, 255, 0.15)",
           justifyContent: "center",
           alignItems: "center",
-          alignSelf: "center",
+          alignSelf: "flex-start",
         },
-        title: {
-          textAlign: "center",
-        },
-        message: {
-          textAlign: "center",
-          lineHeight: 22 * fontScale,
-        },
-        sectionRow: {
+        actionRow: {
           flexDirection: "row",
           alignItems: "center",
-          gap: 12 * fontScale,
-          paddingVertical: 6 * fontScale,
+          gap: 8 * fontScale,
         },
-        primaryButton: {
-          height: 48 * fontScale,
+        headerTitle: {
+          fontSize: 15 * fontScale,
+          fontWeight: "700",
+          color: colors.text,
+          letterSpacing: 0.2 * fontScale,
+        },
+        iconButton: {
+          width: 34 * fontScale,
+          height: 34 * fontScale,
+          borderRadius: 17 * fontScale,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.08)"
+              : "rgba(0, 0, 0, 0.05)",
+        },
+        progressTrack: {
+          display: "none",
+        },
+        iconStrip: {
+          flexDirection: "row",
+          alignItems: "center",
+        },
+        labelsRow: {
+          flexDirection: "row",
+          alignItems: "flex-start",
+          marginTop: 6 * fontScale,
+        },
+        sectionLabelCell: {
+          flex: 1,
+          minWidth: 0,
+          alignItems: "center",
+        },
+        sectionIconBadge: {
+          width: 32 * fontScale,
+          height: 32 * fontScale,
+          borderRadius: 16 * fontScale,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.06)"
+              : "rgba(0, 0, 0, 0.05)",
+        },
+        sectionConnector: {
+          flex: 1,
+          height: 2 * fontScale,
+          marginHorizontal: 6 * fontScale,
+          borderRadius: 999,
+        },
+        sectionLabel: {
+          fontSize: 11 * fontScale,
+          fontWeight: "600",
+          textAlign: "center",
+          lineHeight: 13 * fontScale,
+          includeFontPadding: false,
+          width: "100%",
+        },
+        dismissForeverButton: {
+          alignSelf: "auto",
+          paddingVertical: 7 * fontScale,
+          paddingHorizontal: 14 * fontScale,
           borderRadius: 12 * fontScale,
-          alignItems: "center",
-          justifyContent: "center",
-          paddingHorizontal: 24 * fontScale,
-          backgroundColor: colors.primary,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.08)"
+              : "rgba(0, 0, 0, 0.05)",
+          borderWidth: 1,
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.14)"
+              : "rgba(0, 0, 0, 0.1)",
         },
-        dismissLink: {
-          alignItems: "center",
-          justifyContent: "center",
+        dismissForeverText: {
+          fontSize: 12 * fontScale,
+          fontWeight: "700",
+          color: colors.textMuted,
+          letterSpacing: 0.2 * fontScale,
+        },
+        openGuideButton: {
+          alignSelf: "auto",
           paddingVertical: 8 * fontScale,
+          paddingHorizontal: 18 * fontScale,
+          borderRadius: 12 * fontScale,
+          backgroundColor: colors.primary,
+          borderWidth: 1,
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(255,255,255,0.22)"
+              : "rgba(0,0,0,0.08)",
+        },
+        openGuideText: {
+          fontSize: 12 * fontScale,
+          fontWeight: "700",
+          color: "#FFFFFF",
+          letterSpacing: 0.2 * fontScale,
+        },
+        ctaRow: {
+          marginTop: 4 * fontScale,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10 * fontScale,
         },
       }),
-    [fontScale, colorScheme, colors.background, colors.primary],
+    [fontScale, colorScheme, colors.background, colors.primary, insets.top],
   );
 
   return (
@@ -127,135 +217,174 @@ export function WalkthroughModal({
       presentationStyle="overFullScreen"
       statusBarTranslucent
     >
-      <TouchableWithoutFeedback onPress={onDismiss}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.container}>
-              {/* Gradient background */}
-              <LinearGradient
-                colors={
-                  colorScheme === "dark"
-                    ? [
-                        "rgba(100, 150, 255, 0.15)",
-                        "rgba(100, 150, 255, 0.08)",
-                        "rgba(100, 150, 255, 0.12)",
-                      ]
-                    : [
-                        "rgba(100, 150, 255, 0.12)",
-                        "rgba(100, 150, 255, 0.06)",
-                        "rgba(100, 150, 255, 0.1)",
-                      ]
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.gradientBackground}
-              />
+      <View style={styles.overlay} pointerEvents="box-none">
+        <View style={styles.container}>
+          {/* Gradient background */}
+          <LinearGradient
+            colors={
+              colorScheme === "dark"
+                ? [
+                    "rgba(100, 150, 255, 0.15)",
+                    "rgba(100, 150, 255, 0.08)",
+                    "rgba(100, 150, 255, 0.12)",
+                  ]
+                : [
+                    "rgba(100, 150, 255, 0.12)",
+                    "rgba(100, 150, 255, 0.06)",
+                    "rgba(100, 150, 255, 0.1)",
+                  ]
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gradientBackground}
+          />
 
-              {/* Border */}
-              <View
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  borderRadius: 20 * fontScale,
-                  borderWidth: 1.5,
-                  borderColor:
-                    colorScheme === "dark"
-                      ? "rgba(100, 150, 255, 0.4)"
-                      : "rgba(100, 150, 255, 0.3)",
-                }}
-              />
+          {/* Border */}
+          <View
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              borderRadius: 20 * fontScale,
+              borderWidth: 1.5,
+              borderColor:
+                colorScheme === "dark"
+                  ? "rgba(100, 150, 255, 0.4)"
+                  : "rgba(100, 150, 255, 0.3)",
+            }}
+          />
 
-              {/* Close button */}
-              <TouchableOpacity
-                onPress={onDismiss}
-                activeOpacity={0.7}
-                hitSlop={12}
-                style={{
-                  position: "absolute",
-                  top: 16 * fontScale,
-                  right: 16 * fontScale,
-                  zIndex: 2,
-                  width: 32 * fontScale,
-                  height: 32 * fontScale,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <MaterialIcons
-                  name="close"
-                  size={22 * fontScale}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-
-              <View style={styles.content}>
-                {/* Icon */}
+          <View style={styles.content}>
+            <View style={styles.headerRow}>
+              <View style={styles.titleRow}>
                 <View style={styles.iconContainer}>
                   <MaterialIcons
                     name="menu-book"
-                    size={32 * fontScale}
+                    size={20 * fontScale}
                     color={colors.primaryLight}
                   />
                 </View>
-
-                {/* Title */}
-                <ThemedText
-                  size="xl"
-                  weight="bold"
-                  letterSpacing="s"
-                  style={styles.title}
-                >
-                  {t("guidePrompt.title")}
-                </ThemedText>
-
-                {/* Message */}
-                <ThemedText size="sm" weight="normal" style={styles.message}>
-                  {t("guidePrompt.message")}
-                </ThemedText>
-
-                {/* Sections checklist */}
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  scrollEnabled={false}
-                >
-                  {sections.map((section) => (
-                    <View key={section.id} style={styles.sectionRow}>
-                      <MaterialIcons
-                        name={section.isDone ? "check-circle" : "radio-button-unchecked"}
-                        size={20 * fontScale}
-                        color={section.isDone ? colors.primary : colors.textDisabled}
-                      />
-                      <MaterialIcons
-                        name={section.icon}
-                        size={20 * fontScale}
-                        color={colors.text}
-                      />
-                      <ThemedText size="sm" weight="medium">
-                        {t(section.titleKey)}
-                      </ThemedText>
-                    </View>
-                  ))}
-                </ScrollView>
-
-                {/* Open Guide button */}
+                <Text style={styles.headerTitle}>{t("guidePrompt.title")}</Text>
+              </View>
+              <View style={styles.actionRow}>
                 <TouchableOpacity
-                  style={styles.primaryButton}
-                  onPress={onOpenGuide}
-                  activeOpacity={0.8}
+                  style={styles.iconButton}
+                  onPress={onDismiss}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("guidePrompt.dismiss")}
                 >
-                  <ThemedText size="l" weight="bold" style={{ color: "#ffffff" }}>
-                    {t("guidePrompt.openGuide")}
-                  </ThemedText>
+                  <MaterialIcons
+                    name="close"
+                    size={18 * fontScale}
+                    color={colors.text}
+                  />
                 </TouchableOpacity>
-
               </View>
             </View>
-          </TouchableWithoutFeedback>
+
+            <View style={styles.iconStrip}>
+              {sections.map((section, index) => (
+                <Fragment key={section.id}>
+                  <View
+                    style={[
+                      styles.sectionIconBadge,
+                      {
+                        backgroundColor: section.isDone
+                          ? colorScheme === "dark"
+                            ? "rgba(34, 197, 94, 0.22)"
+                            : "rgba(34, 197, 94, 0.16)"
+                          : nextSectionIndex !== -1 &&
+                              sections[nextSectionIndex]?.id === section.id
+                            ? colorScheme === "dark"
+                              ? "rgba(245, 158, 11, 0.24)"
+                              : "rgba(245, 158, 11, 0.2)"
+                            : colorScheme === "dark"
+                              ? "rgba(125, 181, 255, 0.14)"
+                              : "rgba(78, 141, 214, 0.12)",
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name={section.isDone ? "check-circle" : section.icon}
+                      size={18 * fontScale}
+                      color={
+                        section.isDone
+                          ? "#22C55E"
+                          : nextSectionIndex !== -1 &&
+                              sections[nextSectionIndex]?.id === section.id
+                            ? "#F59E0B"
+                            : colors.text
+                      }
+                    />
+                  </View>
+                  {index < sections.length - 1 ? (
+                    <View
+                      style={[
+                        styles.sectionConnector,
+                        {
+                          backgroundColor: section.isDone
+                            ? "#22C55E"
+                            : nextSectionIndex !== -1 &&
+                                sections[nextSectionIndex]?.id === section.id
+                              ? "rgba(245, 158, 11, 0.65)"
+                              : colorScheme === "dark"
+                                ? "rgba(125, 181, 255, 0.32)"
+                                : "rgba(78, 141, 214, 0.3)",
+                        },
+                      ]}
+                    />
+                  ) : null}
+                </Fragment>
+              ))}
+            </View>
+            <View style={styles.labelsRow}>
+              {sections.map((section) => (
+                <View
+                  key={`${section.id}-label`}
+                  style={styles.sectionLabelCell}
+                  accessibilityLabel={t(section.titleKey)}
+                >
+                  <Text
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                    style={[
+                      styles.sectionLabel,
+                      {
+                        color: section.isDone ? "#22C55E" : colors.primaryLight,
+                      },
+                    ]}
+                  >
+                    {t(section.titleKey)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.ctaRow}>
+              <TouchableOpacity
+                style={styles.dismissForeverButton}
+                onPress={onDismissForever}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={t("guidePrompt.dismiss")}
+              >
+                <Text style={styles.dismissForeverText}>{t("guidePrompt.dismiss")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.openGuideButton}
+                onPress={onOpenGuide}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={t("guidePrompt.openGuide")}
+              >
+                <Text style={styles.openGuideText}>{t("guidePrompt.openGuide")}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-      </TouchableWithoutFeedback>
+      </View>
     </Modal>
   );
 }

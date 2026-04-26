@@ -291,16 +291,22 @@ export interface Translations {
   "guide.markDone": string;
   "guide.markedDone": string;
   "guide.section.overview.title": string;
+  "guide.section.overview.shortTitle": string;
   "guide.section.overview.description": string;
   "guide.section.recordingMemories.title": string;
+  "guide.section.recordingMemories.shortTitle": string;
   "guide.section.recordingMemories.description": string;
   "guide.section.tools.title": string;
+  "guide.section.tools.shortTitle": string;
   "guide.section.tools.description": string;
   "guide.section.notifications.title": string;
+  "guide.section.notifications.shortTitle": string;
   "guide.section.notifications.description": string;
   "guide.section.customizations.title": string;
+  "guide.section.customizations.shortTitle": string;
   "guide.section.customizations.description": string;
   "guide.section.account.title": string;
+  "guide.section.account.shortTitle": string;
   "guide.section.account.description": string;
   "guide.remindOnOpen": string;
   "guide.remindOnOpenDescription": string;
@@ -4198,21 +4204,27 @@ const translations: Record<Language, Translations> = {
     "guide.markDone": "Mark as done",
     "guide.markedDone": "Done",
     "guide.section.overview.title": "The 3 Missions",
+    "guide.section.overview.shortTitle": "Missions",
     "guide.section.overview.description":
       "Sferas is built around three missions that work together: examining what the past has taught you, preserving the good moments you'd otherwise forget, and using both to move forward with intention. Swipe through each mission to understand how they connect.",
     "guide.section.recordingMemories.title": "Recording Memories",
+    "guide.section.recordingMemories.shortTitle": "Memories",
     "guide.section.recordingMemories.description":
       "You can add memories in two ways: use the central AI button for a guided conversation, or switch to Manual edit mode and write or change memories directly. Swipe through both options below.",
     "guide.section.tools.title": "Sferas Tools",
+    "guide.section.tools.shortTitle": "Tools",
     "guide.section.tools.description":
       "These features turn what you’re aiming for into concrete steps: Universe Lessons, daily exams, insights, and each entity’s wheel — revisit wisdom, test yourself, see balance, and grow in the areas that matter.",
     "guide.section.notifications.title": "Notifications & Nudges",
+    "guide.section.notifications.shortTitle": "Nudges",
     "guide.section.notifications.description":
       "Set up reminders for your entities, moment nudges, and event-based notifications to stay on track.",
     "guide.section.customizations.title": "Customizations",
+    "guide.section.customizations.shortTitle": "Styles",
     "guide.section.customizations.description":
       "Personalize the look and feel of the app — themes, moment colors, and animation settings.",
     "guide.section.account.title": "Account & Data",
+    "guide.section.account.shortTitle": "Account",
     "guide.section.account.description":
       "Manage your data with backup and restore tools, or manually edit your entities and memories.",
     "guide.remindOnOpen": "Remind me to complete the guide",
@@ -9004,21 +9016,27 @@ const translations: Record<Language, Translations> = {
     "guide.markDone": "Маркирай като прочетено",
     "guide.markedDone": "Прочетено",
     "guide.section.overview.title": "3-те Мисии",
+    "guide.section.overview.shortTitle": "Мисии",
     "guide.section.overview.description":
       "Sferas е изградена около три мисии, които работят заедно: изследване на това, което миналото ви е научило, запазване на добрите моменти, които иначе бихте забравили, и използване на двете, за да вървите напред с намерение. Плъзнете през всяка мисия, за да разберете как се свързват.",
     "guide.section.recordingMemories.title": "Записване на спомени",
+    "guide.section.recordingMemories.shortTitle": "Спомени",
     "guide.section.recordingMemories.description":
       "Можете да добавяте спомени по два начина: с централния AI бутон за воден разговор или като превключите към ръчен режим и пишете или редактирате директно. Плъзнете през двете опции по-долу.",
     "guide.section.tools.title": "Инструменти Sferas",
+    "guide.section.tools.shortTitle": "Инструменти",
     "guide.section.tools.description":
       "Тези възможности превръщат това, към което се стремите, в конкретни стъпки: уроци от вселената, дневен изпит, прозрения и колелото на всеки обект — да преговорите мъдростта си, да проверявате себе си, да виждате баланса и да растете там, където има значение.",
     "guide.section.notifications.title": "Известия и напомняния",
+    "guide.section.notifications.shortTitle": "Известия",
     "guide.section.notifications.description":
       "Настройте напомняния за вашите сфери, напомняния за моменти и известия, базирани на събития.",
     "guide.section.customizations.title": "Персонализация",
+    "guide.section.customizations.shortTitle": "Визия",
     "guide.section.customizations.description":
       "Персонализирайте облика на приложението — теми, цветове на моментите и настройки за анимации.",
     "guide.section.account.title": "Акаунт и данни",
+    "guide.section.account.shortTitle": "Акаунт",
     "guide.section.account.description":
       "Управлявайте данните си с инструменти за архивиране и възстановяване или редактирайте ръчно.",
     "guide.remindOnOpen": "Напомни ми да завърша ръководството",
