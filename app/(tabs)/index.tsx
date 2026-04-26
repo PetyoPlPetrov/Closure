@@ -25,7 +25,6 @@ import { onEventsTabPress } from "@/utils/events-tab-press";
 import {
   getGuideDismissedForever,
   getReadSections,
-  setGuideDismissedForever,
 } from "@/utils/guide-storage";
 import { onHomeTabPress } from "@/utils/home-tab-press";
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
@@ -10631,36 +10630,24 @@ const SparkledDot = React.memo(function SparkledDot({
   const scale = useSharedValue(0.7);
 
   React.useEffect(() => {
+    const settleDuration = Math.max(600, Math.min(duration, 1800));
+
     // Scale up animation
     scale.value = withDelay(
       delay,
       withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 }),
     );
 
-    // Fade in first, then start pulsing with better visibility
+    // Fade in once and stay static to avoid continuous GPU work.
     opacity.value = withDelay(
       delay,
-      withTiming(
-        0.7,
-        {
-          duration: 600,
-          easing: Easing.out(Easing.ease),
-        },
-        (finished) => {
-          if (finished) {
-            // After fade in completes, start pulsing (between 0.4 and 0.7 for better visibility)
-            opacity.value = withRepeat(
-              withTiming(0.4, { duration, easing: Easing.inOut(Easing.ease) }),
-              -1,
-              true,
-            );
-          }
-        },
-      ),
+      withTiming(0.55, {
+        duration: settleDuration,
+        easing: Easing.out(Easing.ease),
+      }),
     );
 
     return () => {
-      // Cancel infinite opacity pulse animation on cleanup
       cancelAnimation(opacity);
       cancelAnimation(scale);
     };
@@ -14362,18 +14349,11 @@ export default function HomeScreen() {
     router.push("/guide");
   }, []);
 
-  const handleGuideDismissForever = useCallback(async () => {
-    await setGuideDismissedForever();
-    setWalkthroughVisible(false);
-    walkthroughAfterOnboardingRef.current = false;
-  }, []);
-
   const guideWalkthroughModal = (
     <WalkthroughModal
       visible={walkthroughVisible}
       onDismiss={handleWalkthroughDismiss}
       onOpenGuide={handleGuideOpen}
-      onDismissForever={handleGuideDismissForever}
       sections={SECTIONS.map((s) => ({
         id: s.id,
         icon: s.icon,

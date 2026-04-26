@@ -337,25 +337,18 @@ const SparkledDot = React.memo(function SparkledDot({
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.7);
   React.useEffect(() => {
+    const settleDuration = Math.max(600, Math.min(duration, 1800));
+
     scale.value = withDelay(
       delay,
       withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 }),
     );
     opacity.value = withDelay(
       delay,
-      withTiming(
-        0.7,
-        { duration: 600, easing: Easing.out(Easing.ease) },
-        (finished) => {
-          if (finished) {
-            opacity.value = withRepeat(
-              withTiming(0.4, { duration, easing: Easing.inOut(Easing.ease) }),
-              -1,
-              true,
-            );
-          }
-        },
-      ),
+      withTiming(0.55, {
+        duration: settleDuration,
+        easing: Easing.out(Easing.ease),
+      }),
     );
   }, [delay, duration, opacity, scale]);
   const animatedStyle = useAnimatedStyle(() => ({
@@ -1686,7 +1679,7 @@ const OrbitalEventCard = React.memo(function OrbitalEventCard({
       const unclipped = p >= 0.999;
       return {
         maxHeight: unclipped ? 1e4 : h * p,
-        overflow: (unclipped ? "visible" : "hidden") as const,
+        overflow: unclipped ? ("visible" as const) : ("hidden" as const),
       };
     }
     return {};

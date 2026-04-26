@@ -186,6 +186,14 @@ export function AIModal({
   );
   const [freeAIDailyLimit, setFreeAIDailyLimit] = useState(3);
 
+  const handleAttemptClose = () => {
+    if (inputText.trim().length > 0 || aiResponse) {
+      setShowCloseConfirm(true);
+      return;
+    }
+    onClose();
+  };
+
   // Wrapper for setText that enforces max length limit
   const setInputTextWithLimit = (text: string) => {
     if (text.length > MAX_INPUT_LENGTH) {
@@ -2054,9 +2062,9 @@ export function AIModal({
       visible={visible}
       transparent
       animationType="none"
-      onRequestClose={onClose}
+      onRequestClose={handleAttemptClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={styles.overlay} onPress={handleAttemptClose}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{
@@ -2110,14 +2118,13 @@ export function AIModal({
                         size="l"
                         weight="semibold"
                         style={styles.headerTitle}
-                        numberOfLines={1}
                       >
                         {t("ai.title") || "Create a memory with Sferas AI"}
                       </ThemedText>
                     </View>
                     <ThemedText size="sm" style={styles.headerSubtitle}>
                       {t("ai.subtitle") ||
-                        "Share your story and Sfera AI will form a memory with moments and lessons"}
+                        "Share your story and Sferas AI will form a memory with moments and lessons"}
                     </ThemedText>
                     {currentView !== "input" &&
                       remainingAIRequests !== null &&
@@ -2161,17 +2168,7 @@ export function AIModal({
                       ))}
                   </View>
                   <Pressable
-                    onPress={() => {
-                      // Check if there's any progress to lose
-                      if (
-                        inputText.trim().length > 0 ||
-                        aiResponse
-                      ) {
-                        setShowCloseConfirm(true);
-                      } else {
-                        onClose();
-                      }
-                    }}
+                    onPress={handleAttemptClose}
                     style={styles.closeButton}
                   >
                     <MaterialIcons

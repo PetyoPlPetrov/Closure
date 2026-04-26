@@ -8,12 +8,11 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
-import { useEventInAppNotificationPreference } from '@/utils/EventInAppNotificationPreferenceProvider';
-import { useTranslate } from '@/utils/languages/use-translate';
 import {
-  getAllScheduledEventReminders,
-  type EventReminderInfo,
-} from '@/utils/sfera-events';
+  getSunnyVsCloudyHintDismissedForever,
+  setSunnyVsCloudyHintDismissedForever,
+} from '@/utils/sfera-size-hint-storage';
+import { useTranslate } from '@/utils/languages/use-translate';
 
 export default function NotificationsScreen() {
   const t = useTranslate();
@@ -34,55 +33,16 @@ export default function NotificationsScreen() {
   );
   const styles = useMemo(() => createStyles(palette, fontScale), [palette, fontScale]);
 
-  const eventInAppPref = useEventInAppNotificationPreference();
-
-  const [eventReminders, setEventReminders] = useState<EventReminderInfo[]>([]);
-  const [loadingReminders, setLoadingReminders] = useState(true);
-
-  const loadEventReminders = useCallback(async () => {
-    setLoadingReminders(true);
-    try {
-      const reminders = await getAllScheduledEventReminders();
-      setEventReminders(reminders);
-    } catch (error) {
-      console.error('[Notifications] Failed to load event reminders:', error);
-    } finally {
-      setLoadingReminders(false);
-    }
-  }, []);
+  const [guidePromptEnabled, setGuidePromptEnabled] = useState(true);
 
   // Refresh reminders when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      void loadEventReminders();
-    }, [loadEventReminders])
+      getSunnyVsCloudyHintDismissedForever().then((dismissed) => {
+        setGuidePromptEnabled(!dismissed);
+      });
+    }, [])
   );
-
-  const renderEventRemindersSection = () => {
-    return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => router.push('/event-reminders')}
-        activeOpacity={0.8}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flex: 1 }}>
-            <ThemedText size="l" weight="bold">
-              {t('notifications.eventReminders.title')}
-            </ThemedText>
-            <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
-              {loadingReminders
-                ? t('common.loading')
-                : eventReminders.length === 0
-                ? t('notifications.eventReminders.noScheduled')
-                : t('notifications.eventReminders.count', { count: eventReminders.length })}
-            </ThemedText>
-          </View>
-          <MaterialIcons name="chevron-right" size={24 * fontScale} color={palette.text} />
-        </View>
-      </TouchableOpacity>
-    );
-  };
 
   const renderSectionHeader = (label: string) => (
     <View style={{ marginTop: 8, marginBottom: 4, paddingHorizontal: 4 }}>
@@ -101,15 +61,18 @@ export default function NotificationsScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
               <ThemedText size="l" weight="bold">
-                {t('settings.eventInAppNotifications.title')}
+                {t('notifications.guidePrompt.title')}
               </ThemedText>
               <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
-                {t('settings.eventInAppNotifications.description')}
+                {t('notifications.guidePrompt.description')}
               </ThemedText>
             </View>
             <Switch
-              value={eventInAppPref.enabled}
-              onValueChange={(v) => void eventInAppPref.setEnabled(v)}
+              value={guidePromptEnabled}
+              onValueChange={async (value) => {
+                await setSunnyVsCloudyHintDismissedForever(!value);
+                setGuidePromptEnabled(value);
+              }}
               trackColor={{
                 false: 'rgba(150,150,150,0.35)',
                 true: colors.primary,
@@ -123,7 +86,6 @@ export default function NotificationsScreen() {
       {/* Section 2: Push reminders */}
       {renderSectionHeader(t('notifications.section.pushReminders'))}
       <View style={styles.sectionGroup}>
-        {renderEventRemindersSection()}
         <TouchableOpacity
           style={styles.card}
           onPress={() => router.push('/moment-notifications')}

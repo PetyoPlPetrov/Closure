@@ -865,6 +865,8 @@ export interface Translations {
   "notifications.section.banners": string;
   "notifications.section.pushReminders": string;
   "notifications.section.people": string;
+  "notifications.guidePrompt.title": string;
+  "notifications.guidePrompt.description": string;
   "notifications.entityReminders.title": string;
   "notifications.entityReminders.description": string;
   "notifications.entityReminders.none": string;
@@ -4009,7 +4011,7 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.cleanupMemories.error":
       "Failed to clean up orphaned memories. Please try again.",
     "settings.notifications.title": "Notifications",
-    "settings.notifications.manage": "Manage notifications",
+    "settings.notifications.manage": "Sferas Notifications",
     "settings.feedback.title": "Feedback",
     "settings.feedback.addFeedback": "Add feedback",
     "settings.eventInAppNotifications.title": "In-app notifications for events",
@@ -4984,6 +4986,9 @@ const translations: Record<Language, Translations> = {
     "notifications.section.banners": "Banners & alerts",
     "notifications.section.pushReminders": "Push reminders",
     "notifications.section.people": "People",
+    "notifications.guidePrompt.title": "Life sunny moments insight",
+    "notifications.guidePrompt.description":
+      "Show the home insight banner with your overall sunny moments percentage.",
     "notifications.entityReminders.title": "People reminders",
     "notifications.entityReminders.description": "Custom reminders for friends, family & relationships",
     "notifications.entityReminders.none": "No reminders set yet",
@@ -5273,7 +5278,7 @@ const translations: Record<Language, Translations> = {
     // AI
     "ai.title": "Create a memory with Sferas AI",
     "ai.subtitle":
-      "Share your story and Sfera AI will form a memory with moments and lessons",
+      "Share your story and Sferas AI will form a memory with moments and lessons",
     "ai.placeholder.input":
       "Tell a story or memory about someone from your sferas...",
     "ai.placeholder.recording":
@@ -8818,7 +8823,7 @@ const translations: Record<Language, Translations> = {
     "settings.devTools.cleanupMemories.error":
       "Неуспешно изчистване на изолираните спомени. Моля, опитайте отново.",
     "settings.notifications.title": "Известия",
-    "settings.notifications.manage": "Управление на известия",
+    "settings.notifications.manage": "Sferas известия",
     "settings.feedback.title": "Обратна връзка",
     "settings.feedback.addFeedback": "Добави обратна връзка",
     "settings.eventInAppNotifications.title": "Вътреприложни известия за събития",
@@ -9799,6 +9804,9 @@ const translations: Record<Language, Translations> = {
     "notifications.section.banners": "Банери и известия",
     "notifications.section.pushReminders": "Push известия",
     "notifications.section.people": "Хора",
+    "notifications.guidePrompt.title": "Инсайт за слънчевите моменти в живота",
+    "notifications.guidePrompt.description":
+      "Показвай банера в Начало с общия процент слънчеви моменти.",
     "notifications.entityReminders.title": "Напомняния за хора",
     "notifications.entityReminders.description": "Персонални напомняния за приятели, семейство и връзки",
     "notifications.entityReminders.none": "Все още няма зададени напомняния",

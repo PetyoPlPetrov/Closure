@@ -309,27 +309,14 @@ const SparkledDot = React.memo(function SparkledDot({
       scale.value = 0.7;
       return;
     }
+    const settleDuration = Math.max(500, Math.min(duration, 1600));
     opacity.value = withDelay(
       delay,
-      withRepeat(
-        withSequence(
-          withTiming(0.7, { duration: duration / 2 }),
-          withTiming(0, { duration: duration / 2 }),
-        ),
-        -1,
-        false,
-      ),
+      withTiming(0.55, { duration: settleDuration, easing: Easing.out(Easing.ease) }),
     );
     scale.value = withDelay(
       delay,
-      withRepeat(
-        withSequence(
-          withTiming(1, { duration: duration / 2 }),
-          withTiming(0.7, { duration: duration / 2 }),
-        ),
-        -1,
-        false,
-      ),
+      withSpring(1, { damping: 12, stiffness: 150, mass: 0.5 }),
     );
     return () => {
       cancelAnimation(opacity);

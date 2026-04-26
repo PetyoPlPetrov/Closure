@@ -541,10 +541,6 @@ const DEFAULT_ENTITY_ORBIT_DURATION_MS = 60000;
 
 const SPARKLE_DOT_COUNT_PHONE = 24;
 const SPARKLE_DOT_COUNT_TABLET = 30;
-/** One 0→1 leg of the easing triangle; with reverse, full cycle ≈ 2× this. */
-const SPARKLE_DRIVER_MS = 8000;
-const SPARKLE_PHASE_SPREAD = 2.399963229728653;
-
 const SparkledDots = React.memo(function SparkledDots({
   avatarSize,
   avatarCenterX,
@@ -563,7 +559,6 @@ const SparkledDots = React.memo(function SparkledDots({
 }) {
   const { isTablet } = useLargeDevice();
   const [isReady, setIsReady] = useState(false);
-  const globalPhase = useSharedValue(0);
 
   useEffect(() => {
     const handle = InteractionManager.runAfterInteractions(() => {
@@ -571,26 +566,6 @@ const SparkledDots = React.memo(function SparkledDots({
     });
     return () => handle.cancel();
   }, []);
-
-  useEffect(() => {
-    if (!sparklesEnabled) {
-      cancelAnimation(globalPhase);
-      globalPhase.value = 0;
-      return;
-    }
-    globalPhase.value = 0;
-    globalPhase.value = withRepeat(
-      withTiming(1, {
-        duration: SPARKLE_DRIVER_MS,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true,
-    );
-    return () => {
-      cancelAnimation(globalPhase);
-    };
-  }, [sparklesEnabled, globalPhase]);
 
   const dots = useMemo(() => {
     const numDots = isTablet
@@ -618,9 +593,7 @@ const SparkledDots = React.memo(function SparkledDots({
       y = Math.max(padding, Math.min(SH - padding, y));
 
       const size = 2 + Math.random() * 2;
-      const phaseOffset = (i * SPARKLE_PHASE_SPREAD) % twoPi;
-
-      return { x, y, size, phaseOffset, id: i };
+      return { x, y, size, id: i };
     });
   }, [avatarSize, avatarCenterX, avatarCenterY, isTablet]);
 
@@ -636,10 +609,8 @@ const SparkledDots = React.memo(function SparkledDots({
           x={dot.x}
           y={dot.y}
           size={dot.size}
-          phaseOffset={dot.phaseOffset}
           colorScheme={colorScheme}
           sunnyBackground={sunnyBackground}
-          globalPhase={globalPhase}
         />
       ))}
     </>
@@ -650,19 +621,14 @@ const SparkledDot = React.memo(function SparkledDot({
   x,
   y,
   size,
-  phaseOffset,
   colorScheme,
   sunnyBackground,
-  globalPhase,
 }: {
   x: number;
   y: number;
   size: number;
-  /** Radians: offsets sin wave so dots twinkle out of phase. */
-  phaseOffset: number;
   colorScheme: "light" | "dark";
   sunnyBackground: string;
-  globalPhase: SharedValue<number>;
 }) {
   const glowColor = useMemo(() => {
     if (colorScheme === "dark") {
@@ -680,19 +646,8 @@ const SparkledDot = React.memo(function SparkledDot({
     return "rgba(100, 181, 246, 0.55)";
   }, [colorScheme, sunnyBackground]);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    const t = globalPhase.value;
-    const w = Math.sin(2 * Math.PI * t + phaseOffset);
-    const opacity = 0.3 + 0.28 * w;
-    const scale = 0.9 + 0.1 * w;
-    return {
-      opacity,
-      transform: [{ scale }],
-    };
-  });
-
   return (
-    <Animated.View
+    <View
       pointerEvents="none"
       style={[
         {
@@ -703,9 +658,9 @@ const SparkledDot = React.memo(function SparkledDot({
           height: size,
           borderRadius: size / 2,
           backgroundColor: glowColor,
+          opacity: 0.5,
           zIndex: 2,
         },
-        animatedStyle,
       ]}
     />
   );

@@ -27,7 +27,6 @@ type WalkthroughModalProps = {
   visible: boolean;
   onDismiss: () => void;
   onOpenGuide: () => void;
-  onDismissForever: () => void;
   sections: SectionItem[];
 };
 
@@ -35,7 +34,6 @@ export function WalkthroughModal({
   visible,
   onDismiss,
   onOpenGuide,
-  onDismissForever,
   sections,
 }: WalkthroughModalProps) {
   const colorScheme = useColorScheme();
@@ -253,16 +251,6 @@ export function WalkthroughModal({
                   </ThemedText>
                 </TouchableOpacity>
 
-                {/* Don't show again */}
-                <TouchableOpacity
-                  style={styles.dismissLink}
-                  onPress={onDismissForever}
-                  activeOpacity={0.7}
-                >
-                  <ThemedText size="sm" emphasis="medium">
-                    {t("guidePrompt.dismiss")}
-                  </ThemedText>
-                </TouchableOpacity>
               </View>
             </View>
           </TouchableWithoutFeedback>
