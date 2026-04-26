@@ -14662,7 +14662,6 @@ export default function HomeScreen() {
             setIsAnyEntityWheelActive(false);
             setAnimationsComplete(false);
             setShowMomentTypeSelector(false);
-            setHomeViewMode("focused");
             router.replace("/");
             hideLoader();
           }, 0);
@@ -14670,7 +14669,6 @@ export default function HomeScreen() {
       } else {
         if (tabPressNoOpRef.current) return;
         // Skip loader to avoid Modal touch-blocking bug on iOS
-        setHomeViewMode("focused");
         setShowMomentTypeSelector(false);
       }
     };

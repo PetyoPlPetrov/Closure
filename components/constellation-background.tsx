@@ -24,8 +24,8 @@ export const ConstellationBackground = React.memo(
     const amountNorm = Math.max(0, Math.min(1, constellationAmount / 10));
     const opacityNorm = Math.max(0, Math.min(1, constellationOpacity / 10));
     const densityNorm = Math.max(0.5, Math.min(2, starFieldMultiplier));
-    const baseDotCount = Math.round((260 + amountNorm * 240) * densityNorm);
-    const clusterDotCount = Math.round((220 + amountNorm * 240) * densityNorm);
+    const baseDotCount = Math.round((130 + amountNorm * 120) * densityNorm);
+    const clusterDotCount = Math.round((110 + amountNorm * 120) * densityNorm);
     const clusterCount = Math.max(6, Math.round(6 + amountNorm * 6));
 
     const dots = useMemo(() => {
