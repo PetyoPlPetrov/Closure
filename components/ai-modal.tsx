@@ -68,6 +68,7 @@ import {
     StyleSheet,
     TextInput,
     TouchableOpacity,
+    useWindowDimensions,
     View,
 } from "react-native";
 import Animated, {
@@ -114,6 +115,7 @@ export function AIModal({
   pendingResponse,
   goldenEventId = null,
 }: AIModalProps) {
+  const { width: windowWidth } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const { momentColors } = useMomentColors();
@@ -154,6 +156,7 @@ export function AIModal({
   const [showSpherePicker, setShowSpherePicker] = useState(false);
   const [showEntityPicker, setShowEntityPicker] = useState(false);
   const [showAddEntityForm, setShowAddEntityForm] = useState(false);
+  const headerTitleFontSize = (windowWidth <= 430 ? 18 : 20) * fontScale;
 
   // Form fields for adding new entity
   const [newEntityName, setNewEntityName] = useState("");
@@ -1531,6 +1534,8 @@ export function AIModal({
     headerTitle: {
       textAlign: "center",
       marginBottom: 4 * fontScale,
+      fontSize: headerTitleFontSize,
+      lineHeight: headerTitleFontSize * 1.2,
     },
     headerSubtitle: {
       textAlign: "center",
@@ -2115,16 +2120,18 @@ export function AIModal({
                       }}
                     >
                       <ThemedText
-                        size="l"
                         weight="semibold"
                         style={styles.headerTitle}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.92}
                       >
                         {t("ai.title") || "Create a memory with Sferas AI"}
                       </ThemedText>
                     </View>
                     <ThemedText size="sm" style={styles.headerSubtitle}>
                       {t("ai.subtitle") ||
-                        "Share your story and Sferas AI will form a memory with moments and lessons"}
+                        "Share your story and Sferas AI will form a memory with moments and lessons for you"}
                     </ThemedText>
                     {currentView !== "input" &&
                       remainingAIRequests !== null &&

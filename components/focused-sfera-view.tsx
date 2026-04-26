@@ -1127,24 +1127,35 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
   offsetY,
   sphereSize,
   enabled,
+  visible = true,
 }: {
   color: string;
   offsetX: number;
   offsetY: number;
   sphereSize: number;
   enabled: boolean;
+  visible?: boolean;
 }) {
-  if (!enabled) {
-    return null;
-  }
+  const visibility = useSharedValue(enabled && visible ? 1 : 0);
+  useEffect(() => {
+    visibility.value = withTiming(enabled && visible ? 1 : 0, {
+      duration: 430,
+      easing: Easing.inOut(Easing.cubic),
+    });
+  }, [enabled, visible, visibility]);
+  const fadeStyle = useAnimatedStyle(() => ({
+    opacity: visibility.value,
+  }));
+
+  if (!enabled && !visible) return null;
   const left = offsetX - sphereSize / 2;
   const top = offsetY - sphereSize / 2;
   return (
-    <>
+    <Animated.View pointerEvents="none" style={fadeStyle}>
       <CosmicRing delay={0} color={color} left={left} top={top} size={sphereSize} enabled={enabled} />
       <CosmicRing delay={1500} color={color} left={left} top={top} size={sphereSize} enabled={enabled} />
       <CosmicRing delay={3000} color={color} left={left} top={top} size={sphereSize} enabled={enabled} />
-    </>
+    </Animated.View>
   );
 });
 
@@ -2710,6 +2721,10 @@ export function FocusedSferaView({
 
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
   const N = SPHERE_LIST.length;
+  const sphereTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const [isSphereTransitioning, setIsSphereTransitioning] = useState(false);
   // Keep root aligned with TabScreenContainer; we shift spheres via ORBIT_CY instead.
   const rootMarginTop = 0;
 
@@ -2793,11 +2808,29 @@ export function FocusedSferaView({
 
   const goToSphere = useCallback(
     (newIdx: number) => {
+      if (sphereTransitionTimerRef.current) {
+        clearTimeout(sphereTransitionTimerRef.current);
+      }
+      setIsSphereTransitioning(true);
+      sphereTransitionTimerRef.current = setTimeout(() => {
+        setIsSphereTransitioning(false);
+        sphereTransitionTimerRef.current = null;
+      }, ORBIT_TRANSITION_DURATION_MS);
       setFocusedIdx(newIdx);
       focusedSphereTapTimeRef.current = 0;
       onFocusedSphereChange?.(newIdx);
     },
     [onFocusedSphereChange],
+  );
+
+  useEffect(
+    () => () => {
+      if (sphereTransitionTimerRef.current) {
+        clearTimeout(sphereTransitionTimerRef.current);
+        sphereTransitionTimerRef.current = null;
+      }
+    },
+    [],
   );
 
   // Left/right sfera regions: vertical drag. Right: up = prev, down = next. Left: up = next, down = prev. Center: horizontal swipe.
@@ -3343,6 +3376,7 @@ export function FocusedSferaView({
           pulsingAnimations &&
           !isMemoryBalanceMode
         }
+        visible={!isSphereTransitioning}
       />
 
       {/* ─── Sfera layer: crossfade between default orbit and memory-balance rings ─── */}
@@ -3690,10 +3724,10 @@ const styles = StyleSheet.create({
     elevation: 40,
   },
   chevronLeft: {
-    left: scaleFocused(6),
+    left: scaleFocused(-6),
   },
   chevronRight: {
-    right: scaleFocused(6),
+    right: scaleFocused(-6),
   },
   chevronPressable: {
     padding: scaleFocused(28),

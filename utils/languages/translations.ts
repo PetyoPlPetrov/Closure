@@ -5290,7 +5290,7 @@ const translations: Record<Language, Translations> = {
     // AI
     "ai.title": "Create a memory with Sferas AI",
     "ai.subtitle":
-      "Share your story and Sferas AI will form a memory with moments and lessons",
+      "Share your story and Sferas AI will form a memory with moments and lessons for you",
     "ai.placeholder.input":
       "Tell a story or memory about someone from your sferas...",
     "ai.placeholder.recording":
@@ -10115,7 +10115,7 @@ const translations: Record<Language, Translations> = {
     // AI
     "ai.title": "Създай спомен с AI",
     "ai.subtitle":
-      "Сподели своята история и AI ще създаде спомен с моменти и уроци",
+      "Сподели своята история и AI ще създаде спомен с моменти и уроци за теб",
     "ai.placeholder.input":
       "Разкажете история или спомен за някой от вашите сфери...",
     "ai.placeholder.recording":
