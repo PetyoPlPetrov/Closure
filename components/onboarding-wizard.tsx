@@ -23,6 +23,7 @@ import {
   getCachedOnboardingResponse,
   setCachedOnboardingResponse,
   setOnboardingCompleted,
+  setShowPostOnboardingAIWelcome,
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
 import { getSphere3DGradientColors, getSphereIconColor, getSphereShadowColor, getSphereSferaColor } from "@/utils/sphere-styles";
@@ -863,7 +864,8 @@ export function OnboardingWizard({
         await reloadAll();
         await clearCachedOnboardingResponse();
         await setOnboardingCompleted(true);
-        await setShowWalkthroughAfterOnboarding(true);
+        await setShowWalkthroughAfterOnboarding(false);
+        await setShowPostOnboardingAIWelcome(true);
         router.replace("/(tabs)");
       } catch (err) {
         void logError("OnboardingSave:handleSave", err, {

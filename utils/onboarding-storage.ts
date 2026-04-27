@@ -7,6 +7,12 @@ import type { AIOnboardingResponse } from "./ai-service";
 const ONBOARDING_COMPLETED_KEY = "@sferas:onboarding_completed";
 const SHOW_WALKTHROUGH_AFTER_ONBOARDING_KEY = "@sferas:show_walkthrough_after_onboarding";
 const CACHED_ONBOARDING_RESPONSE_KEY = "@sferas:cached_onboarding_response";
+const SHOW_POST_ONBOARDING_AI_WELCOME_KEY = "@sferas:show_post_onboarding_ai_welcome";
+let postOnboardingAIWelcomeDismissedThisSession = false;
+type GuideRecheckAfterWelcomeDismissListener = () => void;
+const guideRecheckAfterWelcomeDismissListeners = new Set<
+  GuideRecheckAfterWelcomeDismissListener
+>();
 
 export async function getOnboardingCompleted(): Promise<boolean> {
   try {
@@ -40,6 +46,52 @@ export async function setShowWalkthroughAfterOnboarding(value: boolean): Promise
   } catch {
     // ignore
   }
+}
+
+export async function getShowPostOnboardingAIWelcome(): Promise<boolean> {
+  try {
+    const value = await AsyncStorage.getItem(SHOW_POST_ONBOARDING_AI_WELCOME_KEY);
+    return value === "true";
+  } catch {
+    return false;
+  }
+}
+
+export async function setShowPostOnboardingAIWelcome(value: boolean): Promise<void> {
+  try {
+    await AsyncStorage.setItem(SHOW_POST_ONBOARDING_AI_WELCOME_KEY, value ? "true" : "false");
+  } catch {
+    // ignore
+  }
+}
+
+export function getPostOnboardingAIWelcomeDismissedThisSession(): boolean {
+  return postOnboardingAIWelcomeDismissedThisSession;
+}
+
+export function setPostOnboardingAIWelcomeDismissedThisSession(value: boolean): void {
+  postOnboardingAIWelcomeDismissedThisSession = value;
+}
+
+export function subscribeGuideRecheckAfterWelcomeDismiss(
+  listener: GuideRecheckAfterWelcomeDismissListener,
+): () => void {
+  guideRecheckAfterWelcomeDismissListeners.add(listener);
+  return () => {
+    guideRecheckAfterWelcomeDismissListeners.delete(listener);
+  };
+}
+
+export function emitGuideRecheckAfterWelcomeDismiss(delayMs = 1000): void {
+  setTimeout(() => {
+    guideRecheckAfterWelcomeDismissListeners.forEach((listener) => {
+      try {
+        listener();
+      } catch {
+        // ignore listener errors
+      }
+    });
+  }, delayMs);
 }
 
 /** Cached AI onboarding response (step 3) – restored when user reopens app after accidental close */

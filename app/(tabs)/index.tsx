@@ -34,7 +34,10 @@ import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import {
+  subscribeGuideRecheckAfterWelcomeDismiss,
+  getPostOnboardingAIWelcomeDismissedThisSession,
   getOnboardingCompleted,
+  getShowPostOnboardingAIWelcome,
   getShowWalkthroughAfterOnboarding,
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
@@ -14154,6 +14157,7 @@ export default function HomeScreen() {
 
   // Guide prompt modal state
   const [walkthroughVisible, setWalkthroughVisible] = useState(false);
+  const [guideRecheckTick, setGuideRecheckTick] = useState(0);
   const [guideReadSections, setGuideReadSections] = useState<Set<string>>(
     new Set(),
   );
@@ -14161,6 +14165,14 @@ export default function HomeScreen() {
   /** Last known onboarding flag from storage — used to clear a premature walkthroughCheckedRef when onboarding completes. */
   const prevOnboardingCompletedRef = useRef<boolean | null>(null);
   const walkthroughAfterOnboardingRef = useRef(false);
+
+  useEffect(() => {
+    const unsubscribe = subscribeGuideRecheckAfterWelcomeDismiss(() => {
+      walkthroughCheckedRef.current = false;
+      setGuideRecheckTick((prev) => prev + 1);
+    });
+    return unsubscribe;
+  }, []);
   // Tracks whether the FocusedSferaView initial load gate (splash + data) has finished.
   // The walkthrough modal must not appear until this is true.
   const [focusedIntroComplete, setFocusedIntroComplete] = useState(false);
@@ -14266,6 +14278,33 @@ export default function HomeScreen() {
         return;
       }
 
+      // Check if coming from onboarding - show guide prompt and clear flag
+      const showAfterOnboarding = await getShowWalkthroughAfterOnboarding();
+      if (cancelled) {
+        walkthroughCheckedRef.current = false;
+        return;
+      }
+
+      const showPostOnboardingAIWelcome = await getShowPostOnboardingAIWelcome();
+      const postOnboardingAIWelcomeDismissedThisSession =
+        getPostOnboardingAIWelcomeDismissedThisSession();
+      const shouldForcePostOnboardingAIWelcome =
+        onboardingCompleted &&
+        idealizedMemories.length === 0 &&
+        !postOnboardingAIWelcomeDismissedThisSession;
+      if (cancelled) return;
+      if (
+        shouldForcePostOnboardingAIWelcome ||
+        (showPostOnboardingAIWelcome &&
+          !postOnboardingAIWelcomeDismissedThisSession)
+      ) {
+        // Keep guide hidden while onboarding AI spotlight is active unless user
+        // explicitly dismissed it and requested guide prompt for this session.
+        setWalkthroughVisible(false);
+        walkthroughCheckedRef.current = false;
+        return;
+      }
+
       if (walkthroughCheckedRef.current) {
         return;
       }
@@ -14273,12 +14312,6 @@ export default function HomeScreen() {
       walkthroughCheckedRef.current = true;
       isFirstLaunchRef.current = false;
 
-      // Check if coming from onboarding - show guide prompt and clear flag
-      const showAfterOnboarding = await getShowWalkthroughAfterOnboarding();
-      if (cancelled) {
-        walkthroughCheckedRef.current = false;
-        return;
-      }
       if (showAfterOnboarding) {
         await setShowWalkthroughAfterOnboarding(false);
         walkthroughAfterOnboardingRef.current = true;
@@ -14332,6 +14365,7 @@ export default function HomeScreen() {
     isSplashVisible,
     focusedIntroComplete,
     homeViewMode,
+    guideRecheckTick,
     profiles.length,
     jobs.length,
     familyMembers.length,

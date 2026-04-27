@@ -333,21 +333,30 @@ export function EventsTabButton(props: BottomTabBarButtonProps) {
 }
 
 // Central AI button rendered between Spheres and Events tabs
-export function AITabButton({ size }: { size: number }) {
+export function AITabButton({
+  size,
+  spotlight = false,
+  onPressed,
+}: {
+  size: number;
+  spotlight?: boolean;
+  onPressed?: () => void;
+}) {
   const pressScale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
 
   useEffect(() => {
+    const peak = spotlight ? 1.14 : 1.08;
     pulseScale.value = withRepeat(
       withSequence(
-        withTiming(1.08, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        withTiming(peak, { duration: 700, easing: Easing.inOut(Easing.ease) }),
         withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
       ),
       -1,
       true,
     );
     return () => cancelAnimation(pulseScale);
-  }, [pulseScale]);
+  }, [pulseScale, spotlight]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value * pressScale.value }],
@@ -363,9 +372,10 @@ export function AITabButton({ size }: { size: number }) {
     );
     // Resume pulse after animation
     setTimeout(() => {
+      const peak = spotlight ? 1.14 : 1.08;
       pulseScale.value = withRepeat(
         withSequence(
-          withTiming(1.08, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+          withTiming(peak, { duration: 700, easing: Easing.inOut(Easing.ease) }),
           withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
         ),
         -1,
@@ -376,6 +386,7 @@ export function AITabButton({ size }: { size: number }) {
     if (Platform.OS === 'ios' && Device.isDevice) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
+    onPressed?.();
     emitAIButtonPress();
   };
 
@@ -393,11 +404,11 @@ export function AITabButton({ size }: { size: number }) {
           alignItems: 'center',
           shadowColor: '#64B5F6',
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.6,
-          shadowRadius: 12,
-          elevation: 10,
+          shadowOpacity: spotlight ? 0.9 : 0.6,
+          shadowRadius: spotlight ? 18 : 12,
+          elevation: spotlight ? 14 : 10,
           borderWidth: 1.5,
-          borderColor: 'rgba(100, 181, 246, 0.5)',
+          borderColor: spotlight ? 'rgba(110, 210, 255, 0.95)' : 'rgba(100, 181, 246, 0.5)',
         }}
       >
         <Animated.Text style={{ fontSize: size * 0.42, lineHeight: size * 0.5 }}>✨</Animated.Text>

@@ -1136,25 +1136,84 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
   enabled: boolean;
   visible?: boolean;
 }) {
+  const RINGS_FADE_OUT_MS = 430;
+  const RINGS_FADE_IN_MS = 760;
+  const [shouldRunRings, setShouldRunRings] = useState(enabled && visible);
+  const [ringCycleKey, setRingCycleKey] = useState(0);
+  const stopRingsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const visibility = useSharedValue(enabled && visible ? 1 : 0);
+
   useEffect(() => {
-    visibility.value = withTiming(enabled && visible ? 1 : 0, {
-      duration: 430,
+    if (stopRingsTimerRef.current) {
+      clearTimeout(stopRingsTimerRef.current);
+      stopRingsTimerRef.current = null;
+    }
+
+    if (enabled && visible) {
+      // Restart ring phase sequence from inner -> outer when rings become visible again.
+      setShouldRunRings(true);
+      setRingCycleKey((prev) => prev + 1);
+    } else if (shouldRunRings) {
+      // Keep rings alive during fade-out, then stop loops after fully hidden.
+      stopRingsTimerRef.current = setTimeout(() => {
+        setShouldRunRings(false);
+        stopRingsTimerRef.current = null;
+      }, RINGS_FADE_OUT_MS);
+    }
+
+    const showing = enabled && visible;
+    visibility.value = withTiming(showing ? 1 : 0, {
+      duration: showing ? RINGS_FADE_IN_MS : RINGS_FADE_OUT_MS,
       easing: Easing.inOut(Easing.cubic),
     });
-  }, [enabled, visible, visibility]);
+  }, [enabled, visible, visibility, shouldRunRings]);
+
+  useEffect(
+    () => () => {
+      if (stopRingsTimerRef.current) {
+        clearTimeout(stopRingsTimerRef.current);
+        stopRingsTimerRef.current = null;
+      }
+    },
+    [],
+  );
+
   const fadeStyle = useAnimatedStyle(() => ({
     opacity: visibility.value,
   }));
 
-  if (!enabled && !visible) return null;
+  if (!enabled && !visible && !shouldRunRings) return null;
   const left = offsetX - sphereSize / 2;
   const top = offsetY - sphereSize / 2;
   return (
     <Animated.View pointerEvents="none" style={fadeStyle}>
-      <CosmicRing delay={0} color={color} left={left} top={top} size={sphereSize} enabled={enabled} />
-      <CosmicRing delay={1500} color={color} left={left} top={top} size={sphereSize} enabled={enabled} />
-      <CosmicRing delay={3000} color={color} left={left} top={top} size={sphereSize} enabled={enabled} />
+      <CosmicRing
+        key={`cosmic-ring-0-${ringCycleKey}`}
+        delay={0}
+        color={color}
+        left={left}
+        top={top}
+        size={sphereSize}
+        enabled={enabled && shouldRunRings}
+      />
+      <CosmicRing
+        key={`cosmic-ring-1-${ringCycleKey}`}
+        delay={1500}
+        color={color}
+        left={left}
+        top={top}
+        size={sphereSize}
+        enabled={enabled && shouldRunRings}
+      />
+      <CosmicRing
+        key={`cosmic-ring-2-${ringCycleKey}`}
+        delay={3000}
+        color={color}
+        left={left}
+        top={top}
+        size={sphereSize}
+        enabled={enabled && shouldRunRings}
+      />
     </Animated.View>
   );
 });
