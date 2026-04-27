@@ -941,7 +941,7 @@ export function OnboardingWizard({
         textInput: {
           minHeight: 260 * fontScale,
           maxHeight: 320 * fontScale,
-          padding: 16 * fontScale,
+          padding: 12 * fontScale,
           paddingRight: 16 * fontScale + 64 * fontScale,
           borderRadius: 12 * fontScale,
           backgroundColor:
@@ -949,7 +949,8 @@ export function OnboardingWizard({
               ? "rgba(255, 255, 255, 0.05)"
               : "rgba(0, 0, 0, 0.05)",
           color: colors.text,
-          fontSize: 16 * fontScale,
+          fontSize: 15 * fontScale,
+          lineHeight: 21 * fontScale,
           textAlignVertical: "top",
           borderWidth: 1,
           borderColor:
@@ -1080,7 +1081,7 @@ export function OnboardingWizard({
             weight="bold"
             style={{ color: colorScheme === "dark" ? "#E8D5B7" : "#8B6914" }}
           >
-            {t("onboarding.language.title") ?? "Choose your language"}
+            {t("onboarding.language.title")}
           </ThemedText>
           <ThemedText
             size="m"
@@ -1092,8 +1093,7 @@ export function OnboardingWizard({
                   : "rgba(0, 0, 0, 0.6)",
             }}
           >
-            {t("onboarding.language.subtitle") ??
-              "You can change this later in Settings."}
+            {t("onboarding.language.subtitle")}
           </ThemedText>
         </View>
         <View style={[styles.content, { justifyContent: "center", gap: 16 * fontScale }]}>
@@ -1145,8 +1145,8 @@ export function OnboardingWizard({
     const slideData = [
       {
         illustration: null,
-        title: t("onboarding.hierarchy.whysferas.title") ?? "Why Sferas?",
-        body: t("onboarding.hierarchy.whysferas.body") ?? "Life moves fast — and it's easy to forget the lessons you've earned along the way, or to overlook the sunny moments that matter just as much as the hard ones.\n\nSferas helps you reflect, recap, and stay grounded. It also gently nudges you to keep in touch with the people you care about, so no friendship quietly slips away.\n\nLets introduce you Sferas.",
+        title: t("onboarding.hierarchy.whysferas.title"),
+        body: t("onboarding.hierarchy.whysferas.body"),
         extras: null,
       },
       {
@@ -1155,8 +1155,8 @@ export function OnboardingWizard({
             <StaticInsightsHub size={110 * fontScale} />
           </View>
         ),
-        title: t("onboarding.hierarchy.universe.title") ?? "Your Universe",
-        body: t("onboarding.hierarchy.universe.body") ?? "At the center is your Insights button — it gives you quick insights about your balance between sunny and cloudy moments in life. Sferas are the main areas of your life, orbiting around it.",
+        title: t("onboarding.hierarchy.universe.title"),
+        body: t("onboarding.hierarchy.universe.body"),
         extras: (
           <MiniOrbitDiagram colorScheme={(colorScheme ?? "dark") as "light" | "dark"} />
         ),
@@ -1165,16 +1165,16 @@ export function OnboardingWizard({
         illustration: (
           <MockSferaWithEntities colorScheme={(colorScheme ?? "dark") as "light" | "dark"} />
         ),
-        title: t("onboarding.hierarchy.entities.title") ?? "Sferas & Entities",
-        body: t("onboarding.hierarchy.entities.body") ?? "Each Sfera holds its own Entities. The Family Sfera holds your family members, Friends holds your close friends, Career holds your jobs, and so on.",
+        title: t("onboarding.hierarchy.entities.title"),
+        body: t("onboarding.hierarchy.entities.body"),
         extras: null,
       },
       {
         illustration: (
           <MockEntityWithMemories />
         ),
-        title: t("onboarding.hierarchy.memories.title") ?? "Memories & Moments",
-        body: t("onboarding.hierarchy.memories.body") ?? "Each Entity holds Memories. Every memory has Moments — sunny ones, cloudy ones, and lessons you've learned. The more sunny moments, the more the memory and entity avatar glow.",
+        title: t("onboarding.hierarchy.memories.title"),
+        body: t("onboarding.hierarchy.memories.body"),
         extras: null,
       },
     ];
@@ -1305,7 +1305,7 @@ export function OnboardingWizard({
             }}
             activeOpacity={0.7}
           >
-            <ThemedText size="l" weight="bold">{t("onboarding.back") ?? "Back"}</ThemedText>
+            <ThemedText size="l" weight="bold">{t("onboarding.back")}</ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
@@ -1325,7 +1325,7 @@ export function OnboardingWizard({
               style={[StyleSheet.absoluteFill, { borderRadius: 12 * fontScale }]}
             />
             <ThemedText size="l" weight="bold" style={{ color: "#FFFFFF" }}>
-              {t("onboarding.next") ?? "Next"}
+              {t("onboarding.next")}
             </ThemedText>
           </TouchableOpacity>
         </View>
@@ -1336,8 +1336,8 @@ export function OnboardingWizard({
   // Loading while AI processes — same stepper position as "tell your story" (not a separate step)
   if (isProcessing) {
     const loadingMessages = [
-      t("onboarding.sferaAnalyzing") ?? "Sfera AI is analyzing...",
-      t("onboarding.analyzing") ?? "Analyzing your story...",
+      t("onboarding.sferaAnalyzing"),
+      t("onboarding.analyzing"),
       t("ai.loading.thinking") ?? "AI is thinking...",
       t("ai.loading.processing") ?? "Processing memories...",
     ];
@@ -1346,7 +1346,7 @@ export function OnboardingWizard({
         <View style={styles.header}>
           {renderMainStepper(5)}
           <ThemedText size="xl" weight="bold">
-            {t("onboarding.analyzing") ?? "Analyzing your story..."}
+            {t("onboarding.analyzing")}
           </ThemedText>
         </View>
         <AILoadingView messages={loadingMessages} />
@@ -1403,7 +1403,7 @@ export function OnboardingWizard({
             weight="bold"
             style={{ color: colorScheme === "dark" ? "#E8D5B7" : "#8B6914" }}
           >
-            {t("onboarding.title") ?? "Introduce yourself to Sfera"}
+            {t("onboarding.title")}
           </ThemedText>
           {!keyboardVisible && (
             <>
@@ -1417,8 +1417,7 @@ export function OnboardingWizard({
                       : "rgba(0, 0, 0, 0.6)",
                 }}
               >
-                {t("onboarding.subtitle") ??
-                  "Let's personalize your life spheres. Tell us a few words about your world..."}
+                {t("onboarding.subtitle")}
               </ThemedText>
 
               {/* Sfera badges - dark bg, per-category icon colors (no border to avoid selected-state look) */}
@@ -1528,8 +1527,7 @@ export function OnboardingWizard({
               value={inputText}
               onChangeText={setInputTextWithLimit}
               placeholder={
-                t("onboarding.placeholder") ??
-                "Tell your story in a few sentences. For example:\n\nIn my family I have... we're close and...\n\nI work as... I've been there for...\n\nMy closest friends are... we met... and still...\n\nI love... on weekends I usually...\n\nI'm in a relationship with... we've been together for..."
+                t("onboarding.placeholder")
               }
               placeholderTextColor={
                 colorScheme === "dark"
@@ -1642,7 +1640,7 @@ export function OnboardingWizard({
                 style={[StyleSheet.absoluteFill, { borderRadius: 12 * fontScale }]}
               />
               <ThemedText size="l" weight="bold" style={{ color: "#FFFFFF" }}>
-                {t("onboarding.analyze") ?? "Analyze my story"}
+                {t("onboarding.analyze")}
               </ThemedText>
             </TouchableOpacity>
         </View>
@@ -1691,14 +1689,13 @@ export function OnboardingWizard({
             </View>
           </View>
           <ThemedText size="xl" weight="bold">
-            {t("onboarding.review") ?? "Review & edit your entities"}
+            {t("onboarding.review")}
           </ThemedText>
           <ThemedText
             size="m"
             style={{ marginTop: 8 * fontScale, opacity: 0.8 }}
           >
-            {t("onboarding.reviewSubtitle") ??
-              "These are initial suggestions—edit what you like and add more anytime later."}
+            {t("onboarding.reviewSubtitle")}
           </ThemedText>
         </View>
 

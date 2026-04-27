@@ -4318,13 +4318,13 @@ const translations: Record<Language, Translations> = {
 
     "onboarding.language.title": "Choose your language",
     "onboarding.language.subtitle": "You can change this later in Settings.",
-    "onboarding.title": "Introduce yourself to Sferas",
+    "onboarding.title": "Set up your Sferas",
     "onboarding.subtitle":
-      "Let's personalize your life spheres. Tell us a few words about your world...",
+      "Describe all Sfera Objects and add a few words about each one.",
     "onboarding.placeholder":
-      "In my family I have... we're close and...\n\nI work as... I've been there for...\n\nMy closest friends are... we met... and still...\n\nI love... on weekends I usually...\n\nI'm in a relationship with... we've been together for...",
-    "onboarding.analyze": "Analyze my story",
-    "onboarding.analyzing": "Analyzing your story...",
+      "My family has ... people. My brother is called .... He is ... years old, and he is very kind and supportive.\nMy best friend is ... and has always been there for me...\nI've been working at ... for 2 years. Before that I worked at ... for 3 years.\nI like hiking and the gym. In my free time I also do cooking classes and podcasts.\nI've been dating ... for 2 months. Before that I was single for 1 year after a ...-year relationship with my ex.",
+    "onboarding.analyze": "Set up all my Sferas",
+    "onboarding.analyzing": "Setting up your Sferas...",
     "onboarding.sferaAnalyzing": "Sfera AI is analyzing...",
     "onboarding.review": "Review & edit your entities",
     "onboarding.reviewSubtitle":
@@ -4341,12 +4341,12 @@ const translations: Record<Language, Translations> = {
     "onboarding.hierarchy.universe.title": "Your Universe",
     "onboarding.hierarchy.universe.body":
       "At the center is your Insights button — it gives you quick insights about your balance between sunny and cloudy moments in life. Sferas are the main areas of your life, orbiting around it.",
-    "onboarding.hierarchy.entities.title": "Sferas & Entities",
+    "onboarding.hierarchy.entities.title": "Sferas & Objects",
     "onboarding.hierarchy.entities.body":
-      "Each Sfera holds its own Entities. The Family Sfera holds your family members, Friends holds your close friends, Career holds your jobs, and so on.",
+      "Each Sfera holds its own Objects. The Family Sfera holds your family members, Friends holds your close friends, Career holds your jobs, and so on.",
     "onboarding.hierarchy.memories.title": "Memories & Moments",
     "onboarding.hierarchy.memories.body":
-      "Each Entity holds Memories. Every memory has Moments — sunny ones, cloudy ones, and lessons you've learned. The more sunny moments, the more the memory and entity avatar glow.",
+      "Each Object holds Memories. Every memory has Moments — sunny ones, cloudy ones, and lessons you've learned. The more sunny moments, the more the memory and object avatar glow.",
     "onboarding.hierarchy.whysferas.title": "Why Sferas?",
     "onboarding.hierarchy.whysferas.body":
       "Life moves fast — and it's easy to lose sight of the lessons you've earned, or to forget the sunny moments that matter just as much as the hard ones.\n\nSferas helps you reflect and recap what each chapter taught you. It also gently nudges you to stay in touch with the people you care about, so no friendship quietly drifts away.\n\nLets introduce you Sferas.",
@@ -9131,13 +9131,13 @@ const translations: Record<Language, Translations> = {
     "onboarding.language.title": "Изберете език",
     "onboarding.language.subtitle":
       "Можете да го промените по-късно в Настройки.",
-    "onboarding.title": "Представете се пред Sferas",
+    "onboarding.title": "Създайте своите Sferas",
     "onboarding.subtitle":
-      "Персонализираме вашите жизнени сфери. Кажете ни няколко думи за света ви...",
+      "Опишете всички Обекти в Sferas и добавете по няколко думи за всеки.",
     "onboarding.placeholder":
-      "В семейството ми има... ние сме близки и...\n\nРаботя като... там съм от...\n\nНай-добрите ми приятели са... срещнахме се... и все още...\n\nОбичам... в почивните дни обикновено...\n\nВъв връзка съм с... ние сме заедно от...",
-    "onboarding.analyze": "Анализирай историята ми",
-    "onboarding.analyzing": "Анализираме историята ви...",
+      "Обхванете всяка Sfera. Добавете всеки Обект с кратка бележка.\n\nСемейство:\n- Мама: подкрепяща, живее наблизо\n- Татко: практичен, обича планини\n\nКариера:\n- Продуктов дизайнер: 3 години, дистанционно\n\nПриятели:\n- Алекс: приятел от училище, чуваме се всяка седмица\n\nХобита:\n- Бягане: 3 пъти седмично\n\nВръзки:\n- Крис: партньор, много грижовен",
+    "onboarding.analyze": "Настрой всички мои Sferas",
+    "onboarding.analyzing": "Настройваме вашите Sferas...",
     "onboarding.sferaAnalyzing": "Sfera AI анализира...",
     "onboarding.review": "Преглед и редакция на записите",
     "onboarding.reviewSubtitle":

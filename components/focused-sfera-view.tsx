@@ -1384,8 +1384,15 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
         withSpring(1.06, { damping: 10, stiffness: 350 }),
         withSpring(1.0, { damping: 12, stiffness: 200 }),
       );
+      onSingleTapSameAsFocusedSphere?.();
     }
-  }, [isFocused, singleTapWhenFocused, onPress, firstTapFeedbackScale]);
+  }, [
+    isFocused,
+    singleTapWhenFocused,
+    onPress,
+    firstTapFeedbackScale,
+    onSingleTapSameAsFocusedSphere,
+  ]);
 
   const handleEntitySelect = useCallback(
     (entityId: string, sphere: LifeSphere) => {
@@ -1636,7 +1643,9 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
         />
       )}
       <Pressable
-        onPress={isFocused ? handleSpherePress : undefined}
+        // Focused-sphere taps are handled by the root absolute overlay so
+        // hit-testing matches the transformed visual circle on iOS.
+        onPress={isFocused ? undefined : handleSpherePress}
         style={{
           position: "absolute",
           left: 0,
@@ -3545,7 +3554,7 @@ export function FocusedSferaView({
             width: focusedTapSize,
             height: focusedTapSize,
             borderRadius: focusedTapSize / 2,
-            zIndex: 13,
+            zIndex: 30,
           }}
           onPress={handleFocusedSphereTapOverlay}
         />

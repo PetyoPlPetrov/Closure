@@ -103,11 +103,12 @@ export default function SettingsScreen() {
   const [initialOnboardingRequesting, setInitialOnboardingRequesting] =
     useState(false);
   const [versionInfo, setVersionInfo] = useState<AppVersionInfo | null>(null);
-  const isInitialOnboardingEnabled =
-    hasClearedDataForInitialOnboarding &&
-    !hasAppData &&
-    !isDeletingData &&
-    !initialOnboardingRequesting;
+  const isInitialOnboardingEnabled = __DEV__
+    ? !isDeletingData && !initialOnboardingRequesting
+    : hasClearedDataForInitialOnboarding &&
+      !hasAppData &&
+      !isDeletingData &&
+      !initialOnboardingRequesting;
 
   const requestInitialOnboarding = useCallback(async () => {
     if (!onboardingGate || !isInitialOnboardingEnabled) return;
