@@ -42,6 +42,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -50,6 +51,7 @@ import Animated, {
   runOnJS,
   SharedValue,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withDelay,
   withRepeat,
@@ -204,6 +206,21 @@ function getEntityDepthScale(slot: number): number {
   if (slot === 1) return 0.78; // right below
   return 0.78; // slot 4, left below
 }
+
+/**
+ * Per-slot size table indexed by integer slot (0..4).
+ * Used to linearly interpolate sphere size while a fractional focused index is in motion (live drag / chevron).
+ */
+const SLOT_SIZES: readonly number[] = [
+  FOCUSED_SIZE,
+  BG_SPHERE_SIZE_RIGHT_BELOW,
+  BG_SPHERE_SIZE_TOP_RIGHT,
+  BG_SPHERE_SIZE_TOP_LEFT,
+  BG_SPHERE_SIZE_LEFT_BELOW,
+];
+
+/** Per-slot depth scale for entity ring; same indexing as SLOT_SIZES. */
+const SLOT_DEPTH_SCALES: readonly number[] = [1, 0.78, 0.5, 0.62, 0.78];
 
 function getEntityRingMetrics(
   sphereSize: number,
@@ -395,10 +412,23 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
 }) {
   const { momentColors } = useMomentColors();
   const floatY = useSharedValue(0);
-  const wrapperStyle = useAnimatedStyle(() => ({
-    // Keep clouds/suns visible a bit longer during fade-out for a gentler transition.
-    opacity: Math.sqrt(Math.max(0, Math.min(1, visibility.value))),
-  }));
+  const wrapperStyle = useAnimatedStyle(() => {
+    // Cubic falloff (^3) — outgoing moments still drop fast, but the incoming sphere's
+    // suns/clouds start showing through earlier in the drag than ^5 allowed. This makes
+    // the moments a clearer leading visual cue that the focus is shifting.
+    //   visibility=1.00 → opacity=1.00 (fully focused, full glow)
+    //   visibility=0.90 → opacity≈0.73 (10% drag, fading but still strong)
+    //   visibility=0.80 → opacity≈0.51 (20% drag, clearly receding)
+    //   visibility=0.60 → opacity≈0.22 (40% drag, faint silhouette)
+    //   visibility=0.50 → opacity≈0.13 (halfway drag, just-visible glow)
+    //   visibility=0.30 → opacity≈0.03 (mostly gone)
+    //   visibility=0.00 → opacity=0    (unfocused)
+    // Symmetric on the incoming sphere: suns now start emerging around mid-drag instead
+    // of in the last sliver, mirroring the gentler outgoing fade.
+    const v = Math.max(0, Math.min(1, visibility.value));
+    const v2 = v * v;
+    return { opacity: v2 * v };
+  });
 
   useEffect(() => {
     if (!momentFloatEnabled) {
@@ -989,12 +1019,18 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
             </ThemedText>
           </View>
         )}
-        {isFocused && entityMemories.length > 0 ? (
+        {entityMemories.length > 0 ? (
+          // Render for ALL spheres (focused + unfocused). Visibility is driven by the
+          // continuous `focusnessSv` shared value, so during a horizontal drag the
+          // outgoing focused sphere fades the icons out while the incoming sphere
+          // fades them in proportionally — same scrub treatment as size, opacity,
+          // desaturation, etc. The bob (floatY) only runs for the JS-focused sphere
+          // so non-focused spheres don't pay the animation cost while invisible.
           <SmallFloatingMoments
             entityIndex={index}
             memories={entityMemories}
             visibility={momentsVisibility}
-            momentFloatEnabled={animationsEnabled}
+            momentFloatEnabled={isFocused && animationsEnabled}
           />
         ) : null}
       </Pressable>
@@ -1169,7 +1205,17 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
       duration: showing ? RINGS_FADE_IN_MS : RINGS_FADE_OUT_MS,
       easing: Easing.inOut(Easing.cubic),
     });
-  }, [enabled, visible, visibility, shouldRunRings]);
+    // Intentionally NOT depending on `shouldRunRings` here. If we did, the
+    // setShouldRunRings(true) above would re-trigger this effect, which would
+    // increment `ringCycleKey` a second time — that double-bump unmounts and
+    // remounts each <CosmicRing> with new keys, resetting their freshly-started
+    // ringOpacity animations back to 0 and producing a visible "appear → vanish
+    // → reappear" flicker the moment the new focused sfera takes over after a
+    // drag. The `else if (shouldRunRings)` closure is consistent because the
+    // only writer of `shouldRunRings` is this same effect.
+    // `visibility` is a SharedValue (stable ref); also intentionally omitted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, visible]);
 
   useEffect(
     () => () => {
@@ -1235,6 +1281,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   sphereIdx,
   sphere,
   focusedIdx,
+  focusedFracSv,
   entityUris,
   entityIds,
   entityNames,
@@ -1259,6 +1306,12 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   sphereIdx: number;
   sphere: { type: LifeSphere; icon: string };
   focusedIdx: number;
+  /**
+   * Fractional focused index driven by both chevron taps (withTiming) and live drag
+   * (panResponder). Values are continuous; when settled, equal `focusedIdx` modulo 5.
+   * Drives all per-frame visuals (position, size, focus brightness, entity ring metrics).
+   */
+  focusedFracSv: SharedValue<number>;
   entityUris: string[];
   entityIds: string[];
   entityNames: string[];
@@ -1284,10 +1337,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   animationsEnabled?: boolean;
 }) {
   const { isTablet } = useLargeDevice();
-  const target = getSphereTarget(sphereIdx, focusedIdx);
   const isFocused = sphereIdx === focusedIdx;
   const slot = (sphereIdx - focusedIdx + 5) % 5;
   const rotateOrbitGate = isFocused && animationsEnabled && isInitialView;
+  const target = getSphereTarget(sphereIdx, focusedIdx); // used for the unfocused tight tap target sizing
 
   const [randomPulseIndex, setRandomPulseIndex] = useState<number | null>(null);
 
@@ -1304,21 +1357,95 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     return () => clearInterval(id);
   }, [isFocused, entityCount, animationsEnabled]);
 
-  const angle = useSharedValue(target.angle);
-  const size = useSharedValue(target.size);
-  const focusProgress = useSharedValue(isFocused ? 1 : 0);
-  const momentsVisibilityProgress = useSharedValue(isFocused ? 1 : 0);
   const initialEntityMetrics = getEntityRingMetrics(
-    target.size,
+    SLOT_SIZES[slot],
     isFocused,
     slot,
     entityAvatarScale,
   );
-  const entityAvatarSizeSv = useSharedValue(initialEntityMetrics.entityAvatarSize);
-  const orbitRadiusSv = useSharedValue(initialEntityMetrics.orbitRadius);
   const spherePulseScale = useSharedValue(1);
   const lastPressTimeRef = useRef<number>(0);
   const firstTapFeedbackScale = useSharedValue(1);
+
+  /**
+   * All per-frame visuals are derived from `focusedFracSv` *inline* inside each
+   * `useAnimatedStyle` / `useDerivedValue` worklet (no intermediate chained derived values).
+   * Doing the slot math inline means each animated style explicitly subscribes to
+   * `focusedFracSv` itself, so a change unambiguously re-runs every consumer at the same
+   * frame — position, size, focus brightness, and entity ring metrics all move together
+   * during a live drag.
+   *
+   * The shared values declared below are only the ones that need to be passed as
+   * `SharedValue<number>` to `EntityRing` / `OrbitingEntity`.
+   */
+
+  /** Sphere diameter, linearly interpolated between adjacent slot sizes. */
+  const sizeSv = useDerivedValue(() => {
+    const v = sphereIdx - focusedFracSv.value;
+    const slotRaw = ((v % 5) + 5) % 5;
+    const slotA = Math.floor(slotRaw) % 5;
+    const slotB = (slotA + 1) % 5;
+    const t = slotRaw - Math.floor(slotRaw);
+    return SLOT_SIZES[slotA] * (1 - t) + SLOT_SIZES[slotB] * t;
+  }, [sphereIdx]);
+
+  /** "Focusness": 1 at slot 0, drops linearly to 0 by slot ±1. */
+  const focusnessSv = useDerivedValue(() => {
+    const v = sphereIdx - focusedFracSv.value;
+    const slotRaw = ((v % 5) + 5) % 5;
+    const dist = slotRaw <= 2.5 ? slotRaw : 5 - slotRaw;
+    return Math.max(0, Math.min(1, 1 - dist));
+  }, [sphereIdx]);
+
+  /**
+   * Floating entity avatar size — blends between the focused (constant 40pt) and unfocused
+   * (size·0.28·depthScale) formulas using `focusness` so there's no pop at the slot boundary.
+   */
+  const entityAvatarSizeSv = useDerivedValue(() => {
+    const v = sphereIdx - focusedFracSv.value;
+    const slotRaw = ((v % 5) + 5) % 5;
+    const slotA = Math.floor(slotRaw) % 5;
+    const slotB = (slotA + 1) % 5;
+    const t = slotRaw - Math.floor(slotRaw);
+    const sphereSize = SLOT_SIZES[slotA] * (1 - t) + SLOT_SIZES[slotB] * t;
+    const depth =
+      SLOT_DEPTH_SCALES[slotA] * (1 - t) + SLOT_DEPTH_SCALES[slotB] * t;
+    const baseUnfocused = Math.max(20, sphereSize * 0.28);
+    const rawUnfocused = Math.max(10, baseUnfocused * depth);
+    const dist = slotRaw <= 2.5 ? slotRaw : 5 - slotRaw;
+    const f = Math.max(0, Math.min(1, 1 - dist));
+    const focusedAvatar = 40;
+    return (focusedAvatar * f + rawUnfocused * (1 - f)) * entityAvatarScale;
+  }, [sphereIdx, entityAvatarScale]);
+
+  /**
+   * Orbit radius for entity ring — sphere size/2 + entity size/2 + focus-aware padding.
+   */
+  const orbitRadiusSv = useDerivedValue(() => {
+    const v = sphereIdx - focusedFracSv.value;
+    const slotRaw = ((v % 5) + 5) % 5;
+    const slotA = Math.floor(slotRaw) % 5;
+    const slotB = (slotA + 1) % 5;
+    const t = slotRaw - Math.floor(slotRaw);
+    const sphereSize = SLOT_SIZES[slotA] * (1 - t) + SLOT_SIZES[slotB] * t;
+    const depth =
+      SLOT_DEPTH_SCALES[slotA] * (1 - t) + SLOT_DEPTH_SCALES[slotB] * t;
+    const baseUnfocused = Math.max(20, sphereSize * 0.28);
+    const rawUnfocused = Math.max(10, baseUnfocused * depth);
+    const dist = slotRaw <= 2.5 ? slotRaw : 5 - slotRaw;
+    const f = Math.max(0, Math.min(1, 1 - dist));
+    const focusedAvatar = 40;
+    const avatarSize =
+      (focusedAvatar * f + rawUnfocused * (1 - f)) * entityAvatarScale;
+    const padding = 6 + 2 * f;
+    return sphereSize / 2 + avatarSize / 2 + padding;
+  }, [sphereIdx, entityAvatarScale]);
+
+  // Aliases for downstream consumers (EntityRing) that previously took separate
+  // focusProgress / momentsVisibility shared values. With the fractional model both
+  // are the same continuous focus signal; keep the variable names for readability.
+  const focusProgress = focusnessSv;
+  const momentsVisibilityProgress = focusnessSv;
 
   // Register pulse trigger with parent so the external tap target can fire it
   const triggerPulse = useCallback(() => {
@@ -1406,93 +1533,19 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     [onEntitySelect],
   );
 
-  useLayoutEffect(() => {
-    const next = getSphereTarget(sphereIdx, focusedIdx);
-    const nextIsFocused = sphereIdx === focusedIdx;
-    const nextSlot = (sphereIdx - focusedIdx + 5) % 5;
-    const nextEntityMetrics = getEntityRingMetrics(
-      next.size,
-      nextIsFocused,
-      nextSlot,
-      entityAvatarScale,
-    );
-    cancelAnimation(angle);
-    cancelAnimation(size);
-    cancelAnimation(entityAvatarSizeSv);
-    cancelAnimation(orbitRadiusSv);
-    // Normalize current angle to [0, 360) to avoid drift after many cycles
-    const raw = angle.value;
-    const normalized = ((raw % 360) + 360) % 360;
-    let delta = next.angle - normalized;
-    if (delta > 180) delta -= 360;
-    else if (delta < -180) delta += 360;
-    const targetAngle = raw + delta;
-    angle.value = withTiming(targetAngle, {
-      duration: ORBIT_TRANSITION_DURATION_MS,
-      easing: Easing.inOut(Easing.cubic),
-    }, (finished) => {
-      "worklet";
-      if (finished) {
-        const v = angle.value;
-        angle.value = ((v % 360) + 360) % 360;
-      }
-    });
-    size.value = withTiming(next.size, {
-      duration: ORBIT_TRANSITION_DURATION_MS,
-      easing: Easing.inOut(Easing.cubic),
-    });
-    entityAvatarSizeSv.value = withTiming(nextEntityMetrics.entityAvatarSize, {
-      duration: ORBIT_TRANSITION_DURATION_MS,
-      easing: Easing.inOut(Easing.cubic),
-    });
-    orbitRadiusSv.value = withTiming(nextEntityMetrics.orbitRadius, {
-      duration: ORBIT_TRANSITION_DURATION_MS,
-      easing: Easing.inOut(Easing.cubic),
-    });
-  }, [
-    sphereIdx,
-    focusedIdx,
-    angle,
-    size,
-    entityAvatarScale,
-    entityAvatarSizeSv,
-    orbitRadiusSv,
-  ]);
-
-  useLayoutEffect(() => {
-    cancelAnimation(focusProgress);
-    if (isFocused) {
-      focusProgress.value = withTiming(1, {
-        duration: 480,
-        easing: Easing.inOut(Easing.quad),
-      });
-    } else {
-      // Start dimming shortly after movement begins so outgoing focused sphere does not "drop" immediately.
-      focusProgress.value = withDelay(
-        120,
-        withTiming(0, {
-          duration: 620,
-          easing: Easing.inOut(Easing.quad),
-        }),
-      );
-    }
-  }, [isFocused, focusProgress]);
-
-  useLayoutEffect(() => {
-    // Keep clouds/suns fade synced with motion start (no extra delay).
-    cancelAnimation(momentsVisibilityProgress);
-    momentsVisibilityProgress.value = withTiming(isFocused ? 1 : 0, {
-      duration: 520,
-      easing: Easing.inOut(Easing.quad),
-    });
-  }, [isFocused, momentsVisibilityProgress]);
-
   const CONTAINER_HALF = SPHERE_CONTAINER_SIZE / 2;
 
   const containerStyle = useAnimatedStyle(() => {
-    const totalAngle = angle.value;
-    const normalizedAngle = ((totalAngle % 360) + 360) % 360;
-    const rad = (totalAngle * Math.PI) / 180;
+    // Read the derived focus value first so this animated style is on the SAME
+    // reactivity chain as sphereStyle / iconWrapStyle / desaturationOverlayStyle.
+    // (Defensive against any case where the babel auto-tracker misses prop-passed
+    // SharedValues accessed deep inside conditionals; routing through derived values
+    // guarantees every per-frame property re-runs together with the gesture.)
+    const focusness = focusnessSv.value;
+    const v = sphereIdx - focusedFracSv.value;
+    const slotRaw = ((v % 5) + 5) % 5;
+    const normalizedAngle = slotRaw * SLOT_ANGLE; // already in [0, 360)
+    const rad = (normalizedAngle * Math.PI) / 180;
     const centerX = ORBIT_CX + ORBIT_R * Math.sin(rad);
     const centerY = ORBIT_CY + ORBIT_R * Math.cos(rad);
     // Depth from actual position on orbit (angle), not from slot — avoids "grow then move" pop on swipe
@@ -1514,6 +1567,11 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     } else {
       orbitStyleOffsetY = -28 + ((normalizedAngle - 288) / 72) * 28;
     }
+    // Spheres closest to focus (slot 0 / wrapping near slot 5) draw above the rest
+    // so both the outgoing and incoming focused sphere stay on top during a drag.
+    // Using `focusness` here also explicitly keeps this style subscribed to the same
+    // derived chain as sphereStyle / iconWrapStyle.
+    const isNearFocus = focusness > 0.5;
     // When sun menu is open: scale to 0 and fully hide (0.94 left ~6% visible — too noticeable)
     const sunShrink = 1 - sunExpanded.value;
     return {
@@ -1522,7 +1580,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       top: 0,
       width: SPHERE_CONTAINER_SIZE,
       height: SPHERE_CONTAINER_SIZE,
-      zIndex: isFocused ? 30 : 10,
+      zIndex: isNearFocus ? 30 : 10,
       opacity: 1 - sunExpanded.value,
       transform: [
         { translateX: centerX - CONTAINER_HALF },
@@ -1552,10 +1610,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
 
   const sphereStyle = useAnimatedStyle(() => ({
     position: "absolute",
-    left: CONTAINER_HALF - size.value / 2,
-    top: CONTAINER_HALF - size.value / 2,
-    width: size.value,
-    height: size.value,
+    left: CONTAINER_HALF - sizeSv.value / 2,
+    top: CONTAINER_HALF - sizeSv.value / 2,
+    width: sizeSv.value,
+    height: sizeSv.value,
     opacity: interpolate(
       focusProgress.value,
       [0, 1],
@@ -1599,7 +1657,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     opacity: interpolate(focusProgress.value, [0, 1], [0.62, 1], Extrapolation.CLAMP),
     transform: [
       {
-        scale: Math.max(0.42, size.value / FOCUSED_SIZE),
+        scale: Math.max(0.42, sizeSv.value / FOCUSED_SIZE),
       },
     ],
   }));
@@ -2103,7 +2161,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
           >
             {sphere === "relationships"
               ? t("sferaInsight.addPeopleAndMemories")
-              : t("sferaInsight.addMemories")}
+              : t("sferaInsight.noMemories")}
           </ThemedText>
         </LinearGradient>
       </Pressable>
@@ -2149,7 +2207,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
                 fontWeight: "600",
               }}
             >
-              {t("sferaInsight.addMemories")}
+              {t("sferaInsight.noMemories")}
             </ThemedText>
           </LinearGradient>
         </Pressable>
@@ -2800,6 +2858,15 @@ export function FocusedSferaView({
 
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
   const N = SPHERE_LIST.length;
+  /**
+   * Continuous fractional focused-index. Drives all per-frame sphere visuals
+   * (position on orbit, size, focus brightness, entity ring metrics).
+   * - During a horizontal drag in the center region, the panResponder writes
+   *   `focusedIdx + clampedDragFraction` here every frame so the orbit follows the finger.
+   * - On chevron tap / drag-release-with-snap, `goToSphere` animates this with
+   *   `withTiming` along the shortest orbit path, then settles back to an integer.
+   */
+  const focusedFracSv = useSharedValue(initialFocusedIdx);
   const sphereTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -2868,9 +2935,40 @@ export function FocusedSferaView({
     }
   }, [isSunExpanded, sunExpanded]);
 
+  /**
+   * When the parent restores a previously-selected sphere (e.g. coming back from a tab),
+   * smoothly animate the orbit to it instead of jumping. The very first mount uses the
+   * initial value as-is so there is no animation on cold start.
+   * Intentionally only reacts to `initialFocusedIdx` changes — local user-driven changes go
+   * through `goToSphere` / the gesture handler and must not retrigger this effect.
+   */
+  const isInitialFocusedIdxMountRef = useRef(true);
   useEffect(() => {
+    if (isInitialFocusedIdxMountRef.current) {
+      isInitialFocusedIdxMountRef.current = false;
+      return;
+    }
+    cancelAnimation(focusedFracSv);
+    const current = focusedFracSv.value;
+    let delta = initialFocusedIdx - current;
+    while (delta > N / 2) delta -= N;
+    while (delta < -N / 2) delta += N;
+    focusedFracSv.value = withTiming(
+      current + delta,
+      { duration: ORBIT_TRANSITION_DURATION_MS, easing: Easing.inOut(Easing.cubic) },
+      (finished) => {
+        "worklet";
+        if (finished) {
+          const v = focusedFracSv.value;
+          focusedFracSv.value = ((Math.round(v) % N) + N) % N;
+        }
+      },
+    );
     setFocusedIdx(initialFocusedIdx);
-  }, [initialFocusedIdx]);
+    // Intentionally omit focusedIdx from deps: this effect is the *external* sync path
+    // and must not re-run when the user themselves changes the focused sphere via
+    // gesture / chevron (those go through goToSphere, which already animates focusedFracSv).
+  }, [initialFocusedIdx, focusedFracSv, N]);
 
   const sunLoadStartedRef = useRef(false);
   useEffect(() => {
@@ -2885,21 +2983,58 @@ export function FocusedSferaView({
     markIntroComplete();
   }, [splashDone, sferaDataReady, selectedSphere, overallSunnyPercentage, markIntroComplete]);
 
-  const goToSphere = useCallback(
+  const beginSphereTransition = useCallback(() => {
+    if (sphereTransitionTimerRef.current) {
+      clearTimeout(sphereTransitionTimerRef.current);
+    }
+    setIsSphereTransitioning(true);
+    sphereTransitionTimerRef.current = setTimeout(() => {
+      setIsSphereTransitioning(false);
+      sphereTransitionTimerRef.current = null;
+    }, ORBIT_TRANSITION_DURATION_MS);
+  }, []);
+
+  const applyFocusedIndex = useCallback(
     (newIdx: number) => {
-      if (sphereTransitionTimerRef.current) {
-        clearTimeout(sphereTransitionTimerRef.current);
-      }
-      setIsSphereTransitioning(true);
-      sphereTransitionTimerRef.current = setTimeout(() => {
-        setIsSphereTransitioning(false);
-        sphereTransitionTimerRef.current = null;
-      }, ORBIT_TRANSITION_DURATION_MS);
       setFocusedIdx(newIdx);
       focusedSphereTapTimeRef.current = 0;
       onFocusedSphereChange?.(newIdx);
     },
     [onFocusedSphereChange],
+  );
+
+  /**
+   * Programmatic focus change (chevron tap, sphere tap, drag release with snap).
+   * Animates `focusedFracSv` along the shortest orbit path with `withTiming`, then settles
+   * to the new integer index. JS-side state (`focusedIdx`) updates synchronously so labels,
+   * pagination dots, and entity data switch immediately while the visual still glides.
+   *
+   * Caller should pass a 0..N-1 index; wrap-around is taken into account here.
+   */
+  const goToSphere = useCallback(
+    (newIdx: number) => {
+      beginSphereTransition();
+
+      cancelAnimation(focusedFracSv);
+      const current = focusedFracSv.value;
+      let delta = newIdx - current;
+      while (delta > N / 2) delta -= N;
+      while (delta < -N / 2) delta += N;
+      focusedFracSv.value = withTiming(
+        current + delta,
+        { duration: ORBIT_TRANSITION_DURATION_MS, easing: Easing.inOut(Easing.cubic) },
+        (finished) => {
+          "worklet";
+          if (finished) {
+            const v = focusedFracSv.value;
+            focusedFracSv.value = ((Math.round(v) % N) + N) % N;
+          }
+        },
+      );
+
+      applyFocusedIndex(newIdx);
+    },
+    [N, focusedFracSv, beginSphereTransition, applyFocusedIndex],
   );
 
   useEffect(
@@ -2914,6 +3049,145 @@ export function FocusedSferaView({
 
   // Left/right sfera regions: vertical drag. Right: up = prev, down = next. Left: up = next, down = prev. Center: horizontal swipe.
   const SIDE_REGION_WIDTH = 0.35; // left 35%, right 35%; center 30% uses horizontal
+  /**
+   * Distance (in pixels) the finger must travel horizontally to fully transition to the next
+   * sphere (orbit advances by exactly one slot). Tuned so a comfortable swipe completes the
+   * transition; partial drags scrub the visual proportionally.
+   */
+  const HORIZONTAL_SWIPE_FULL_DIST = SW * 0.55;
+  /**
+   * Keep some remaining distance for release-settle so quick flicks don't appear to "snap"
+   * directly to the target sphere with almost no visible timing animation.
+   */
+  const HORIZONTAL_SWIPE_MAX_SCRUB = 0.82;
+  /**
+   * Smooth follow params for drag updates:
+   * - FOLLOW: move a fraction toward finger-mapped target each update
+   * - MAX_STEP: hard safety cap for very sparse update bursts on quick flicks
+   */
+  const HORIZONTAL_SWIPE_FOLLOW = 0.28;
+  const HORIZONTAL_SWIPE_MAX_STEP_PER_UPDATE = 0.16;
+
+  /**
+   * Snapshot of `focusedIdx` at the moment the horizontal pan starts. Read inside the gesture
+   * worklets so the running animation is reproducible from the gesture's pure dx.
+   * Updated from JS via `runOnJS` (or read via worklet trickery is unnecessary because the
+   * gesture re-evaluates this on every onBegin).
+   */
+  const dragStartFocusedIdxSv = useSharedValue(initialFocusedIdx);
+
+  // ───────────────── Center horizontal swipe (live UI-thread scrub) ─────────────────
+  // Why GestureDetector + Gesture.Pan instead of PanResponder:
+  // PanResponder only fires JS-thread callbacks, so writes to `focusedFracSv.value` arrive on
+  // the UI thread one frame later. With reanimated's auto-batching some animated styles
+  // (sizeSv chain) caught the update on the next frame while others (containerStyle reading
+  // the prop SV directly) didn't always re-run in time, producing the stuck-position effect.
+  // Gesture.Pan().onUpdate runs on the UI thread, so writes are immediate and every animated
+  // style re-evaluates in the same frame — position, size, brightness, entity ring all scrub
+  // together with the finger.
+  const horizontalPanGesture = useMemo(() => {
+    return Gesture.Pan()
+      // Only steal the gesture once the finger has clearly committed to horizontal motion.
+      // `failOffsetY` ensures vertical-leaning drags (chevron/side-region fling) fall through
+      // to the legacy PanResponder below.
+      .activeOffsetX([-6, 6])
+      .failOffsetY([-25, 25])
+      .enabled(sunLoadComplete)
+      .onBegin(() => {
+        "worklet";
+        cancelAnimation(focusedFracSv);
+        // Snapshot the live (possibly fractional) value so the orbit can be grabbed
+        // mid-animation without snapping. Subsequent onUpdate writes add the drag offset
+        // to this snapshot, preserving the user's apparent "starting position".
+        dragStartFocusedIdxSv.value = focusedFracSv.value;
+      })
+      .onUpdate((g) => {
+        "worklet";
+        // Negative translationX (drag left) advances to next sphere; clamp to ±1 so one
+        // gesture moves at most one slot — predictable carousel feel. The live write to
+        // `focusedFracSv` propagates synchronously to every derived value (size, focusness,
+        // entity ring radius/avatar) and to `containerStyle`'s position, so all spheres
+        // slide along the orbit in lockstep with the finger.
+        const raw = -g.translationX / HORIZONTAL_SWIPE_FULL_DIST;
+        const clamped = raw < -1 ? -1 : raw > 1 ? 1 : raw;
+        const mappedTarget =
+          dragStartFocusedIdxSv.value + clamped * HORIZONTAL_SWIPE_MAX_SCRUB;
+        const current = focusedFracSv.value;
+        const deltaToTarget = mappedTarget - current;
+        const followedDelta = deltaToTarget * HORIZONTAL_SWIPE_FOLLOW;
+        const clampedDelta =
+          followedDelta > HORIZONTAL_SWIPE_MAX_STEP_PER_UPDATE
+            ? HORIZONTAL_SWIPE_MAX_STEP_PER_UPDATE
+            : followedDelta < -HORIZONTAL_SWIPE_MAX_STEP_PER_UPDATE
+              ? -HORIZONTAL_SWIPE_MAX_STEP_PER_UPDATE
+              : followedDelta;
+        const next = current + clampedDelta;
+        focusedFracSv.value = next;
+      })
+      .onEnd((g) => {
+        "worklet";
+        const startFrac = dragStartFocusedIdxSv.value;
+        const offset = focusedFracSv.value - startFrac;
+        const SNAP_OFFSET = 0.35;
+        const SNAP_VELOCITY = 500; // px/sec — gesture-handler velocities are in px/s
+        let dir = 0;
+        if (offset > SNAP_OFFSET || g.velocityX < -SNAP_VELOCITY) dir = 1;
+        else if (offset < -SNAP_OFFSET || g.velocityX > SNAP_VELOCITY) dir = -1;
+        // Resolve the snap point to a real integer sphere index. Round the start to its
+        // nearest int (handles "drag interrupted a chevron animation" cleanly).
+        const startInt = Math.round(startFrac);
+        if (dir !== 0) {
+          const newIdx = ((startInt + dir) % N + N) % N;
+          // Keep release settle entirely on the UI thread so there's no JS handoff jump.
+          const current = focusedFracSv.value;
+          let delta = newIdx - current;
+          while (delta > N / 2) delta -= N;
+          while (delta < -N / 2) delta += N;
+          runOnJS(beginSphereTransition)();
+          const releaseDuration = Math.max(
+            240,
+            Math.min(520, Math.round(ORBIT_TRANSITION_DURATION_MS * Math.abs(delta))),
+          );
+          focusedFracSv.value = withTiming(
+            current + delta,
+            { duration: releaseDuration, easing: Easing.out(Easing.cubic) },
+            (finished) => {
+              "worklet";
+              if (finished) {
+                const v = focusedFracSv.value;
+                focusedFracSv.value = ((Math.round(v) % N) + N) % N;
+                runOnJS(applyFocusedIndex)(newIdx);
+              }
+            },
+          );
+        } else {
+          // Not enough drag — settle back to the nearest integer (usually `startInt`).
+          focusedFracSv.value = withTiming(startInt, {
+            duration: 240,
+            easing: Easing.out(Easing.cubic),
+          });
+        }
+      })
+      .onFinalize(() => {
+        "worklet";
+        // No-op: onEnd handles success path, withTiming above handles cancel-path snap-back.
+      });
+  }, [
+    sunLoadComplete,
+    focusedFracSv,
+    dragStartFocusedIdxSv,
+    HORIZONTAL_SWIPE_FULL_DIST,
+    HORIZONTAL_SWIPE_MAX_SCRUB,
+    HORIZONTAL_SWIPE_FOLLOW,
+    HORIZONTAL_SWIPE_MAX_STEP_PER_UPDATE,
+    N,
+    beginSphereTransition,
+    applyFocusedIndex,
+  ]);
+
+  // ───────────────── Side-region vertical swipe (kept on PanResponder) ─────────────────
+  // Vertical drags on the left/right thirds still use PanResponder because they only need to
+  // detect a directional fling on release; there's nothing scrubbing during the gesture.
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -2924,22 +3198,9 @@ export function FocusedSferaView({
           const inSideRegion =
             startX < SW * SIDE_REGION_WIDTH ||
             startX > SW * (1 - SIDE_REGION_WIDTH);
-          let shouldSet = false;
-          if (inSideRegion) {
-            // Side regions are reserved for vertical navigation only.
-            // This prevents taps on top-right / top-left orbit entities from being misread as horizontal swipes.
-            shouldSet =
-              Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5);
-          } else {
-            // Center region handles horizontal swipes.
-            shouldSet =
-              Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5);
-          }
-          return shouldSet;
+          if (!inSideRegion) return false;
+          return Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5);
         },
-        onPanResponderGrant: () => {},
-        onPanResponderTerminate: () => {},
-        // Only capture in side regions so taps on center entity avatars are never stolen.
         onMoveShouldSetPanResponderCapture: (_, g) => {
           const startX = g.moveX - g.dx;
           const inSideRegion =
@@ -2953,7 +3214,8 @@ export function FocusedSferaView({
           const isLeftRegion = startX < SW * SIDE_REGION_WIDTH;
           const isRightRegion = startX > SW * (1 - SIDE_REGION_WIDTH);
           const inSideRegion = isLeftRegion || isRightRegion;
-          if (inSideRegion && Math.abs(g.dy) > Math.abs(g.dx)) {
+          if (!inSideRegion) return;
+          if (Math.abs(g.dy) > Math.abs(g.dx)) {
             // Vertical: right sfera = up prev / down next; left sfera = reversed (up next / down prev)
             if (g.dy < -50)
               goToSphere(
@@ -2963,10 +3225,6 @@ export function FocusedSferaView({
               goToSphere(
                 isLeftRegion ? (focusedIdx - 1 + N) % N : (focusedIdx + 1) % N,
               );
-          } else if (!inSideRegion) {
-            // Horizontal only from center region: left = next, right = prev
-            if (g.dx < -50) goToSphere((focusedIdx + 1) % N);
-            else if (g.dx > 50) goToSphere((focusedIdx - 1 + N) % N);
           }
         },
       }),
@@ -3022,6 +3280,23 @@ export function FocusedSferaView({
     focusedSphere.type,
     colorScheme,
   );
+
+  /**
+   * Hides the cosmic pulse rings the moment the user starts scrubbing the orbit.
+   * They are decorative and tied to the *resting* focused sphere — having them
+   * radiate from a sfera that's actively sliding away looks busy and competes
+   * with the size/brightness scrub. Driven straight from `focusedFracSv` on the
+   * UI thread (same chain as everything else that reacts to the drag) so the
+   * fade is frame-perfect with the finger.
+   *
+   * Threshold of ~2% of a slot is just outside the floating-point jitter at the
+   * resting integer values — anything past that and we're scrubbing.
+   */
+  const cosmicRingsDragHideStyle = useAnimatedStyle(() => {
+    const v = focusedFracSv.value;
+    const dist = Math.abs(v - Math.round(v));
+    return { opacity: Math.max(0, Math.min(1, 1 - dist * 50)) };
+  });
 
   const memoryCountBySphere = useMemo(() => {
     const result = {} as Record<LifeSphere, number>;
@@ -3377,10 +3652,11 @@ export function FocusedSferaView({
   }
 
   return (
-    <View
-      style={[styles.root, { marginTop: rootMarginTop }]}
-      {...panResponder.panHandlers}
-    >
+    <GestureDetector gesture={horizontalPanGesture}>
+      <View
+        style={[styles.root, { marginTop: rootMarginTop }]}
+        {...panResponder.panHandlers}
+      >
       <ConstellationBackground
         width={SW}
         height={SH}
@@ -3449,22 +3725,25 @@ export function FocusedSferaView({
       />
 
       {/* ─── Cosmic pulse rings for focused sphere — rendered at root level to avoid container clipping on real iOS devices ─── */}
-      <CosmicPulseRings
-        color={
-          colorScheme === "dark"
-            ? focusedShadowColor
-            : "rgba(100,100,100,0.3)"
-        }
-        offsetX={ORBIT_CX}
-        offsetY={ORBIT_CY + ORBIT_R}
-        sphereSize={FOCUSED_SIZE * individualModeScale}
-        enabled={
-          orbitViewAnimationsEnabled &&
-          pulsingAnimations &&
-          !isMemoryBalanceMode
-        }
-        visible={!isSphereTransitioning}
-      />
+      {/* Wrapper hides the rings while the orbit is being dragged or settling; the rings only belong to the resting focused sfera. */}
+      <Animated.View pointerEvents="none" style={cosmicRingsDragHideStyle}>
+        <CosmicPulseRings
+          color={
+            colorScheme === "dark"
+              ? focusedShadowColor
+              : "rgba(100,100,100,0.3)"
+          }
+          offsetX={ORBIT_CX}
+          offsetY={ORBIT_CY + ORBIT_R}
+          sphereSize={FOCUSED_SIZE * individualModeScale}
+          enabled={
+            orbitViewAnimationsEnabled &&
+            pulsingAnimations &&
+            !isMemoryBalanceMode
+          }
+          visible={!isSphereTransitioning}
+        />
+      </Animated.View>
 
       {/* ─── Sfera layer: crossfade between default orbit and memory-balance rings ─── */}
       <Animated.View
@@ -3489,6 +3768,7 @@ export function FocusedSferaView({
               sphereIdx={i}
               sphere={sphere}
               focusedIdx={focusedIdx}
+              focusedFracSv={focusedFracSv}
               entityUris={orbitEntityDataBySphere[sphere.type].imageUris}
               entityIds={orbitEntityDataBySphere[sphere.type].entityIds}
               entityNames={orbitEntityDataBySphere[sphere.type].entityNames}
@@ -3762,7 +4042,8 @@ export function FocusedSferaView({
         </>
       )}
 
-    </View>
+      </View>
+    </GestureDetector>
   );
 }
 

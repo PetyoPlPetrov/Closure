@@ -2131,7 +2131,7 @@ export function AIModal({
                     </View>
                     <ThemedText size="sm" style={styles.headerSubtitle}>
                       {t("ai.subtitle") ||
-                        "Share your story and Sferas AI will form a memory with moments and lessons for you"}
+                        "Share what happened in your own words—we'll shape it into moments and lessons you can revisit."}
                     </ThemedText>
                     {currentView !== "input" &&
                       remainingAIRequests !== null &&
@@ -2252,7 +2252,7 @@ export function AIModal({
                         maxLength={MAX_INPUT_LENGTH}
                         placeholder={
                           t("ai.placeholder.input") ||
-                          "Tell a story or memory about someone from your sferas..."
+                          "Tell a story—a person, a hobby, or a moment from your life..."
                         }
                         placeholderTextColor={
                           colors.textMediumEmphasis || colors.text + "80"

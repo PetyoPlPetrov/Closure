@@ -10,11 +10,13 @@ import {
   getReadSections,
   setGuideDismissedForever,
 } from "@/utils/guide-storage";
+import { emitGuideRecheckAfterWelcomeDismiss } from "@/utils/onboarding-storage";
 import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   DimensionValue,
   ScrollView,
   StyleSheet,
@@ -33,13 +35,25 @@ export default function GuideScreen() {
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
   const [readSections, setReadSections] = useState<Set<string>>(new Set());
-  // remindOnOpen = true means the modal will show on app open (dismissedForever = false)
+  /** Same flag as `@sferas:guide_dismissed_forever` — OFF means user chose don't remind (modal or switch). */
   const [remindOnOpen, setRemindOnOpen] = useState(false);
+  const [guidePrefsLoaded, setGuidePrefsLoaded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      getReadSections().then(setReadSections);
-      getGuideDismissedForever().then((dismissed) => setRemindOnOpen(!dismissed));
+      let cancelled = false;
+      setGuidePrefsLoaded(false);
+      void Promise.all([getReadSections(), getGuideDismissedForever()]).then(
+        ([read, dismissedForever]) => {
+          if (cancelled) return;
+          setReadSections(read);
+          setRemindOnOpen(!dismissedForever);
+          setGuidePrefsLoaded(true);
+        },
+      );
+      return () => {
+        cancelled = true;
+      };
     }, []),
   );
 
@@ -208,19 +222,24 @@ export default function GuideScreen() {
               {t("guide.remindOnOpenDescription")}
             </ThemedText>
           </View>
-          <Switch
-            value={remindOnOpen}
-            onValueChange={async (value) => {
-              if (value) {
-                await clearGuideDismissedForever();
-              } else {
-                await setGuideDismissedForever();
-              }
-              setRemindOnOpen(value);
-            }}
-            trackColor={{ false: "rgba(150,150,150,0.35)", true: colors.primary }}
-            thumbColor="#FFFFFF"
-          />
+          {guidePrefsLoaded ? (
+            <Switch
+              value={remindOnOpen}
+              onValueChange={async (value) => {
+                if (value) {
+                  await clearGuideDismissedForever();
+                  emitGuideRecheckAfterWelcomeDismiss(0);
+                } else {
+                  await setGuideDismissedForever();
+                }
+                setRemindOnOpen(value);
+              }}
+              trackColor={{ false: "rgba(150,150,150,0.35)", true: colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          ) : (
+            <ActivityIndicator color={colors.primary} />
+          )}
         </View>
       </ScrollView>
     </TabScreenContainer>

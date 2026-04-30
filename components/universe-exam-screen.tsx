@@ -42,6 +42,7 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Dimensions,
   Keyboard,
   KeyboardAvoidingView,
@@ -410,6 +411,15 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
     } else if (!visible) {
       setRemainingExamTries(null);
     }
+  }, [visible, hasLessons, refreshRemainingExamTries]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active" && visible && hasLessons) {
+        void refreshRemainingExamTries();
+      }
+    });
+    return () => sub.remove();
   }, [visible, hasLessons, refreshRemainingExamTries]);
 
   const handleSubmit = useCallback(async () => {

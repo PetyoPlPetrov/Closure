@@ -370,6 +370,8 @@ export interface Translations {
   "guidePrompt.message": string;
   "guidePrompt.openGuide": string;
   "guidePrompt.dismiss": string;
+  /** Header close — hides this prompt only; does not change Settings. */
+  "guidePrompt.close": string;
 
   // Onboarding
   "onboarding.language.title": string;
@@ -4228,7 +4230,8 @@ const translations: Record<Language, Translations> = {
     "guide.section.account.description":
       "Manage your data with backup and restore tools, or manually edit your entities and memories.",
     "guide.remindOnOpen": "Remind me to complete the guide",
-    "guide.remindOnOpenDescription": "Show a prompt on app open until you've read all sections.",
+    "guide.remindOnOpenDescription":
+      "Show a prompt on app open until every section is marked done—after that, no banner appears. Off matches “Don't show again” on the home banner; turn it on to bring reminders back while unfinished sections remain. Completed sections are unchanged.",
     "guide.bullet.pastLessons.title": "Learn from the Past",
     "guide.bullet.pastLessons.description":
       "Every experience teaches us something — but lessons are easy to forget. Over time we romanticize the past, the hard-earned wisdom fades, and we find ourselves making the same mistakes again. Sferas gives each lesson a permanent home. Write it down, revisit it whenever you need a reminder, or let Sferas send it back to you at the right moment. The lesson stays. The pattern breaks.",
@@ -4315,6 +4318,7 @@ const translations: Record<Language, Translations> = {
     "guidePrompt.message": "Learn how to get the most out of Sferas.",
     "guidePrompt.openGuide": "Open Guide",
     "guidePrompt.dismiss": "Don't show again",
+    "guidePrompt.close": "Close",
 
     "onboarding.language.title": "Choose your language",
     "onboarding.language.subtitle": "You can change this later in Settings.",
@@ -5290,9 +5294,9 @@ const translations: Record<Language, Translations> = {
     // AI
     "ai.title": "Create a memory with Sferas AI",
     "ai.subtitle":
-      "Share your story and Sferas AI will form a memory with moments and lessons for you",
+      "Share what happened in your own words—we'll shape it into moments and lessons you can revisit.",
     "ai.placeholder.input":
-      "Tell a story or memory about someone from your sferas...",
+      "Tell a story—a person, a hobby, or a moment from your life...",
     "ai.placeholder.recording":
       "[Voice recording - speech-to-text integration needed]",
     "ai.listening": "Listening...",
@@ -9040,7 +9044,8 @@ const translations: Record<Language, Translations> = {
     "guide.section.account.description":
       "Управлявайте данните си с инструменти за архивиране и възстановяване или редактирайте ръчно.",
     "guide.remindOnOpen": "Напомни ми да завърша ръководството",
-    "guide.remindOnOpenDescription": "Показвай напомняне при отваряне на приложението, докато не прочетете всички раздели.",
+    "guide.remindOnOpenDescription":
+      "Показвай напомняне при отваряне на приложението, докато всеки раздел не е отбелязан като готов—след това банерът не се показва. Изключено е същото като „Не показвай отново“ от началния банер; включете отново, за да се показва напомнянето, докато има незавършени раздели. Завършените раздели не се нулират.",
     "guide.bullet.pastLessons.title": "Учете от миналото",
     "guide.bullet.pastLessons.description":
       "Всяко преживяване ни учи на нещо — но уроците лесно се забравят. С времето романтизираме миналото, трудно извоюваната мъдрост избледнява и се оказваме, че правим същите грешки отново. Sferas дава на всеки урок постоянен дом. Запишете го, прегледайте го когато имате нужда от напомняне, или оставете Sferas да ви го върне в точния момент. Урокът остава. Моделът се прекъсва.",
@@ -9127,6 +9132,7 @@ const translations: Record<Language, Translations> = {
     "guidePrompt.message": "Научете как да извлечете максимума от Sferas.",
     "guidePrompt.openGuide": "Отвори ръководството",
     "guidePrompt.dismiss": "Не показвай отново",
+    "guidePrompt.close": "Затвори",
 
     "onboarding.language.title": "Изберете език",
     "onboarding.language.subtitle":
@@ -10115,9 +10121,9 @@ const translations: Record<Language, Translations> = {
     // AI
     "ai.title": "Създай спомен с AI",
     "ai.subtitle":
-      "Сподели своята история и AI ще създаде спомен с моменти и уроци за теб",
+      "Сподели какво се случи с твоите думи — ще го подредим в моменти и уроци, към които да се връщаш.",
     "ai.placeholder.input":
-      "Разкажете история или спомен за някой от вашите сфери...",
+      "Разкажете история — за човек, хоби или момент от живота ви...",
     "ai.placeholder.recording":
       "[Гласов запис - необходима интеграция за реч към текст]",
     "ai.listening": "Слушам...",

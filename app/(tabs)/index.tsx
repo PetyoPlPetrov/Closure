@@ -14384,10 +14384,10 @@ export default function HomeScreen() {
     router.push("/guide");
   }, []);
 
-  const handleGuideDismissForever = useCallback(() => {
+  const handleGuideDismissForever = useCallback(async () => {
+    await setGuideDismissedForever();
     setWalkthroughVisible(false);
     walkthroughAfterOnboardingRef.current = false;
-    void setGuideDismissedForever();
   }, []);
 
   const guideWalkthroughModal = (

@@ -274,7 +274,7 @@ export function WalkthroughModal({
                   onPress={onDismiss}
                   activeOpacity={0.7}
                   accessibilityRole="button"
-                  accessibilityLabel={t("guidePrompt.dismiss")}
+                  accessibilityLabel={t("guidePrompt.close")}
                 >
                   <MaterialIcons
                     name="close"
