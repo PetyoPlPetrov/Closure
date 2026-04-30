@@ -746,11 +746,13 @@ const EntityRing = React.memo(function EntityRing({
         return;
       }
       if (!isFocused || !entityId) return;
+      // Keep orbit-entity single tap behavior aligned with focused sphere:
+      // first tap should always show the global "double tap to open" affordance.
+      onSingleTapSameAsFocusedSphere?.();
       if (memoryCount === 0) {
         onNeedMemoriesHint?.(entityId);
         return;
       }
-      onSingleTapSameAsFocusedSphere?.();
     },
     [isFocused, onEntitySelect, onSingleTapSameAsFocusedSphere, onNeedMemoriesHint, sphere],
   );
@@ -930,6 +932,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
           height: "100%",
           borderRadius: 999,
         }}
+        hitSlop={isFocused ? 18 : 10}
         onPress={() => {
           if (entityId) {
             triggerEntityTapHaptic();
@@ -1220,7 +1223,9 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
 
 // ───────────────────── Animated sphere (orbital transition: spheres slide along orbit like beads on a string) ─────────────────────
 
-const SPHERE_CONTAINER_SIZE = scaleFocused(320); // Fits orbit extent
+// Large touch canvas so orbiting entity avatars remain hittable on all sides.
+// Visual positioning still stays centered because we translate by CONTAINER_HALF.
+const SPHERE_CONTAINER_SIZE = scaleFocused(420);
 // Debug tuning: eased timing gives gentler start and better visual sync between outgoing/incoming sferas.
 const ORBIT_TRANSITION_DURATION_MS = 650;
 
@@ -1517,6 +1522,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       top: 0,
       width: SPHERE_CONTAINER_SIZE,
       height: SPHERE_CONTAINER_SIZE,
+      zIndex: isFocused ? 30 : 10,
       opacity: 1 - sunExpanded.value,
       transform: [
         { translateX: centerX - CONTAINER_HALF },
@@ -1625,7 +1631,9 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   return (
     <Animated.View
       style={containerStyle}
-      pointerEvents={isSunMenuOpen ? "none" : "auto"}
+      // Let only child pressables handle touches; avoid this container blocking
+      // orbit entity taps when sphere containers overlap near screen edges.
+      pointerEvents={isSunMenuOpen ? "none" : "box-none"}
     >
       {/* Tight tap target for unfocused spheres — sits over the visual only. */}
       {!isFocused && (
@@ -1642,10 +1650,13 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
           }}
         />
       )}
-      <Pressable
-        // Focused-sphere taps are handled by the root absolute overlay so
-        // hit-testing matches the transformed visual circle on iOS.
-        onPress={isFocused ? undefined : handleSpherePress}
+      <View
+        // Keep this visual wrapper non-interactive.
+        // Taps are handled by:
+        // - the tight unfocused-sphere target above
+        // - the focused-sphere absolute overlay at root level
+        // This prevents accidental taps on unfocused spheres "behind" orbit entities.
+        pointerEvents="box-none"
         style={{
           position: "absolute",
           left: 0,
@@ -1879,7 +1890,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             animationsEnabled={animationsEnabled}
           />
         </Animated.View>
-      </Pressable>
+      </View>
     </Animated.View>
   );
 });
@@ -2913,15 +2924,21 @@ export function FocusedSferaView({
           const inSideRegion =
             startX < SW * SIDE_REGION_WIDTH ||
             startX > SW * (1 - SIDE_REGION_WIDTH);
+          let shouldSet = false;
           if (inSideRegion) {
-            // Accept vertical drag OR horizontal swipe from side regions
-            return (
-              (Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5)) ||
-              (Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5))
-            );
+            // Side regions are reserved for vertical navigation only.
+            // This prevents taps on top-right / top-left orbit entities from being misread as horizontal swipes.
+            shouldSet =
+              Math.abs(g.dy) > 20 && Math.abs(g.dy) > Math.abs(g.dx * 1.5);
+          } else {
+            // Center region handles horizontal swipes.
+            shouldSet =
+              Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5);
           }
-          return Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy * 1.5);
+          return shouldSet;
         },
+        onPanResponderGrant: () => {},
+        onPanResponderTerminate: () => {},
         // Only capture in side regions so taps on center entity avatars are never stolen.
         onMoveShouldSetPanResponderCapture: (_, g) => {
           const startX = g.moveX - g.dx;
@@ -2946,8 +2963,8 @@ export function FocusedSferaView({
               goToSphere(
                 isLeftRegion ? (focusedIdx - 1 + N) % N : (focusedIdx + 1) % N,
               );
-          } else {
-            // Horizontal anywhere (center or side): left = next, right = prev
+          } else if (!inSideRegion) {
+            // Horizontal only from center region: left = next, right = prev
             if (g.dx < -50) goToSphere((focusedIdx + 1) % N);
             else if (g.dx > 50) goToSphere((focusedIdx - 1 + N) % N);
           }
@@ -2981,7 +2998,9 @@ export function FocusedSferaView({
     selectedSphere !== null ? IPAD_INDIVIDUAL_CARD_SCALE : 1;
   const individualEntityAvatarScale =
     selectedSphere !== null ? IPAD_INDIVIDUAL_ENTITY_AVATAR_SCALE : 1;
-  const focusedTapSize = FOCUSED_SIZE * individualModeScale;
+  // Keep focused-sphere overlay tight to the center sphere only,
+  // so it doesn't steal taps from orbiting entity avatars.
+  const focusedTapSize = FOCUSED_SIZE * individualModeScale * 0.78;
   const focusedLabelTop = IS_IPAD
     ? Math.min(
         ORBIT_CY + ORBIT_R + FOCUSED_LABEL_GAP * 3.4,
@@ -3798,7 +3817,9 @@ const styles = StyleSheet.create({
     right: scaleFocused(-6),
   },
   chevronPressable: {
-    padding: scaleFocused(28),
+    // Keep chevrons tappable without covering orbiting entity avatars.
+    width: scaleFocused(44),
+    height: scaleFocused(44),
     justifyContent: "center",
     alignItems: "center",
   },

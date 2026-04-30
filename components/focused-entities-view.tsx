@@ -911,9 +911,12 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   }, [advanceInsightOnJS, modeIdx, numEntities, numModes, progress, animationsEnabled, isAutoLoopPaused]);
   const cardPanResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onStartShouldSetPanResponderCapture: () => false, // child Pressables (bell, dots) still get capture phase
-      onMoveShouldSetPanResponder: () => true,
+      // Do not claim touches on start; allow nearby orbit avatars to receive taps.
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      // Claim only intentional horizontal drags for card insight navigation.
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 12 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.3,
       onMoveShouldSetPanResponderCapture: () => false,
       onPanResponderRelease: (_, gs) => {
         if (Math.abs(gs.dx) > 20 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5) {
