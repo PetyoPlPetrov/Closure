@@ -4034,8 +4034,8 @@ const translations: Record<Language, Translations> = {
     "settings.usability.showHints": "Usability hints",
     "settings.usability.stopPulsingAnimations": "Pulsing animations",
     "settings.usability.stopPulsingAnimationsDescription":
-      "When enabled, the insight and AI Sfera buttons on the Sferas tab will pulse.",
-    "settings.usability.splashAnimation": "Splash animation",
+      "When enabled, pulsing effects are shown on the bottom tabs and the Sferas AI button.",
+    "settings.usability.splashAnimation": "App launch animation",
     "settings.usability.splashAnimationDescription":
       "When enabled, shows the animated intro screen on app launch.",
     "settings.aiInsights.title": "AI Insights",
@@ -8854,8 +8854,8 @@ const translations: Record<Language, Translations> = {
     "settings.usability.showHints": "Подсказки за използване",
     "settings.usability.stopPulsingAnimations": "Пулсиращи анимации",
     "settings.usability.stopPulsingAnimationsDescription":
-      "Когато е включено, бутоните за инсайти и AI сфера в раздела Sferas ще пулсират.",
-    "settings.usability.splashAnimation": "Splash анимация",
+      "Когато е включено, пулсиращите ефекти се показват на долните табове и бутона Sferas AI.",
+    "settings.usability.splashAnimation": "Анимация при стартиране",
     "settings.usability.splashAnimationDescription":
       "Когато е включено, показва анимирания начален екран при стартиране на приложението.",
     "settings.aiInsights.title": "AI Инсайти",

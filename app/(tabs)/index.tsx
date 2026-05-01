@@ -15032,7 +15032,13 @@ export default function HomeScreen() {
       return;
     }
 
-    if (!readyForSunnyVsCloudyHint || sferaSizeHintVisible) {
+    // Keep sunny/cloudy hint behind the size hint priority queue:
+    // while size-hint is visible OR waiting on its delayed show timer, sunny must not appear.
+    if (
+      !readyForSunnyVsCloudyHint ||
+      sferaSizeHintVisible ||
+      sferaSizeHintTimerRef.current !== null
+    ) {
       setSunnyVsCloudyHintVisible(false);
       return;
     }

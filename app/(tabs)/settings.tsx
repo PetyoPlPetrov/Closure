@@ -128,7 +128,9 @@ export default function SettingsScreen() {
     () =>
       StyleSheet.create<{
         content: ViewStyle;
-        title: TextStyle;
+        header: ViewStyle;
+        headerButton: ViewStyle;
+        headerTitle: TextStyle;
         section: ViewStyle;
         sectionTitle: TextStyle;
         aiToggleRow: ViewStyle;
@@ -156,9 +158,25 @@ export default function SettingsScreen() {
           alignSelf: "center",
           width: "100%",
         },
-        title: {
-          marginTop: 50,
-          marginBottom: 8 * fontScale,
+        header: {
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 16 * fontScale,
+          paddingTop: 50,
+          paddingBottom: 12 * fontScale,
+          maxWidth: maxContentWidth as DimensionValue,
+          alignSelf: "center",
+          width: "100%",
+        },
+        headerButton: {
+          minWidth: 44,
+          minHeight: 44,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        headerTitle: {
+          flex: 1,
+          textAlign: "center",
         },
         section: {
           gap: 16 * fontScale,
@@ -1848,14 +1866,32 @@ export default function SettingsScreen() {
 
   return (
     <TabScreenContainer>
+      <View style={styles.header}>
+        {router.canGoBack() ? (
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            hitSlop={12}
+          >
+            <MaterialIcons
+              name="arrow-back-ios"
+              size={24 * fontScale}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerButton} />
+        )}
+        <ThemedText size="l" weight="bold" style={styles.headerTitle}>
+          {t("settings.title")}
+        </ThemedText>
+        <View style={styles.headerButton} />
+      </View>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <ThemedText size="xl" weight="bold" style={styles.title}>
-          {t("settings.title")}
-        </ThemedText>
-
         {/* SUBSCRIPTION */}
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>

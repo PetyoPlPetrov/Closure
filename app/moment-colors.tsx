@@ -731,15 +731,13 @@ export default function MomentColorsScreen() {
     [],
   );
 
-  const onScrollEndDrag = useCallback(
+  const onCarouselScroll = useCallback(
     (e: { nativeEvent: { contentOffset: { x: number } } }) => {
       const x = e.nativeEvent.contentOffset.x;
       const nearestIdx = carouselSnapOffsets.reduce((best, offset, idx) =>
         Math.abs(offset - x) < Math.abs(carouselSnapOffsets[best] - x) ? idx : best,
       0);
-      setSelectedIndex(nearestIdx);
-      const targetOffset = carouselSnapOffsets[nearestIdx];
-      carouselRef.current?.scrollToOffset({ offset: targetOffset, animated: false });
+      setSelectedIndex((prev) => (prev === nearestIdx ? prev : nearestIdx));
     },
     [carouselSnapOffsets],
   );
@@ -947,7 +945,8 @@ export default function MomentColorsScreen() {
               snapToOffsets={carouselSnapOffsets}
               snapToAlignment="start"
               decelerationRate="fast"
-              onScrollEndDrag={onScrollEndDrag}
+              scrollEventThrottle={16}
+              onScroll={onCarouselScroll}
               onMomentumScrollEnd={onMomentumScrollEnd}
               renderItem={({ item, index }) => (
                 <MomentCarouselCard
