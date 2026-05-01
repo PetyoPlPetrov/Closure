@@ -60,6 +60,139 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeMomentText(text?: string): string {
+  return (text ?? "").trim().replace(/\s+/g, " ");
+}
+
+function getLongestWordLength(text: string): number {
+  if (!text) return 0;
+  return text.split(" ").reduce((longest, word) => Math.max(longest, word.length), 0);
+}
+
+function getDynamicSunSize(text: string | undefined, isLargeDevice: boolean, fallbackText?: string): number {
+  const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
+  const textLength = normalizedText.length;
+  const estimatedLines = Math.max(1, Math.ceil(textLength / 14));
+  const longestWordLength = getLongestWordLength(normalizedText);
+
+  // Keep the sun comfortably larger than its text so multiline copy has breathing room.
+  const baseSunSize = isLargeDevice ? 220 : 180;
+  const lineBonus = (estimatedLines - 1) * (isLargeDevice ? 36 : 40);
+  const lengthBonus = Math.floor(textLength * (isLargeDevice ? 1.1 : 1.35));
+  const longestWordBonus = Math.max(0, longestWordLength - 10) * (isLargeDevice ? 3 : 4);
+
+  const maxSunSize = isLargeDevice ? 460 : 420;
+  return clamp(baseSunSize + lineBonus + lengthBonus + longestWordBonus, baseSunSize, maxSunSize);
+}
+
+function getSunTextLayout(sunSize: number, text: string, fallbackText: string) {
+  const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
+  const textLength = normalizedText.length;
+  const longestWordLength = getLongestWordLength(normalizedText);
+  const estimatedLines = Math.max(1, Math.ceil(textLength / 14));
+
+  // The sun's inner circle in the SVG is 96 on a 160 viewBox.
+  const innerCircleDiameter = (sunSize / 160) * 96;
+  const usableTextBoxSize = innerCircleDiameter * 0.78;
+
+  const fontSizeFromLongestWord = longestWordLength > 0
+    ? usableTextBoxSize / (longestWordLength * 0.58)
+    : 14;
+  const fontSizeFromEstimatedLines = usableTextBoxSize / Math.max(1.8, estimatedLines * 1.25);
+  const fontSize = clamp(
+    Math.min(fontSizeFromLongestWord, fontSizeFromEstimatedLines, 14),
+    8.5,
+    14,
+  );
+
+  return {
+    fontSize,
+    lineHeight: Math.round(fontSize * 1.18),
+    textBoxSize: usableTextBoxSize,
+  };
+}
+
+function getDynamicCloudDimensions(text: string | undefined, isLargeDevice: boolean, fallbackText?: string) {
+  const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
+  const textLength = normalizedText.length;
+  const estimatedLines = Math.max(1, Math.ceil(textLength / 28));
+  const longestWordLength = getLongestWordLength(normalizedText);
+
+  const baseWidth = isLargeDevice ? 480 : 320;
+  const baseHeight = isLargeDevice ? 150 : 100;
+  const widthFromLength = Math.floor(textLength * (isLargeDevice ? 0.55 : 0.75));
+  const widthFromLongestWord = Math.max(0, longestWordLength - 12) * (isLargeDevice ? 7 : 9);
+  const heightFromLines = (estimatedLines - 1) * (isLargeDevice ? 24 : 26);
+
+  return {
+    width: clamp(baseWidth + widthFromLength + widthFromLongestWord, baseWidth, isLargeDevice ? 700 : 620),
+    height: clamp(baseHeight + heightFromLines, baseHeight, isLargeDevice ? 290 : 260),
+  };
+}
+
+function getCloudTextLayout(cloudWidth: number, cloudHeight: number, text: string, fallbackText: string) {
+  const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
+  const textLength = normalizedText.length;
+  const longestWordLength = getLongestWordLength(normalizedText);
+  const estimatedLines = Math.max(1, Math.ceil(textLength / 28));
+  const boxWidth = cloudWidth * 0.68;
+  const boxHeight = cloudHeight * 0.64;
+
+  const fontSizeFromWidth = longestWordLength > 0 ? boxWidth / (longestWordLength * 0.56) : 16;
+  const fontSizeFromHeight = boxHeight / Math.max(1.8, estimatedLines * 1.22);
+  const fontSize = clamp(
+    Math.min(fontSizeFromWidth, fontSizeFromHeight, 17),
+    10,
+    17,
+  );
+
+  return {
+    width: boxWidth,
+    maxHeight: boxHeight,
+    fontSize,
+    lineHeight: Math.round(fontSize * 1.2),
+  };
+}
+
+function getDynamicLessonSize(text: string | undefined, isLargeDevice: boolean, fallbackText?: string): number {
+  const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
+  const textLength = normalizedText.length;
+  const estimatedLines = Math.max(1, Math.ceil(textLength / 20));
+  const longestWordLength = getLongestWordLength(normalizedText);
+
+  const baseSize = isLargeDevice ? 180 : 130;
+  const lineBonus = (estimatedLines - 1) * (isLargeDevice ? 20 : 24);
+  const lengthBonus = Math.floor(textLength * (isLargeDevice ? 0.9 : 1.1));
+  const longestWordBonus = Math.max(0, longestWordLength - 10) * (isLargeDevice ? 2 : 3);
+
+  return clamp(baseSize + lineBonus + lengthBonus + longestWordBonus, baseSize, isLargeDevice ? 340 : 300);
+}
+
+function getLessonTextLayout(lessonSize: number, text: string, fallbackText: string) {
+  const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
+  const textLength = normalizedText.length;
+  const longestWordLength = getLongestWordLength(normalizedText);
+  const estimatedLines = Math.max(1, Math.ceil(textLength / 20));
+  const boxWidth = lessonSize * 0.74;
+  const boxHeight = lessonSize * 0.42;
+
+  const fontSizeFromWidth = longestWordLength > 0 ? boxWidth / (longestWordLength * 0.56) : 12;
+  const fontSizeFromHeight = boxHeight / Math.max(1.8, estimatedLines * 1.2);
+  const fontSize = clamp(Math.min(fontSizeFromWidth, fontSizeFromHeight, 12), 8.5, 12);
+
+  return {
+    width: boxWidth,
+    minHeight: Math.min(32, boxHeight * 0.46),
+    maxHeight: boxHeight,
+    fontSize,
+    lineHeight: Math.round(fontSize * 1.18),
+  };
+}
+
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 // Blinking cursor indicator component
@@ -161,6 +294,10 @@ function AnimatedCloud({
 
   // Show icon immediately when cloud is empty and has placeholder (no delay)
   const showApplyIcon = !cloud.text && cloud.placeholder && !viewOnly;
+  const cloudTextLayout = useMemo(
+    () => getCloudTextLayout(cloudWidth, cloudHeight, cloud.text, placeholder),
+    [cloudWidth, cloudHeight, cloud.text, placeholder],
+  );
 
   // Register animated values so PanResponder can access current position
   useEffect(() => {
@@ -244,6 +381,8 @@ function AnimatedCloud({
         {
           top: 0,
           left: 0,
+          width: cloudWidth,
+          height: cloudHeight,
         },
         animatedStyle,
       ]}
@@ -321,7 +460,15 @@ function AnimatedCloud({
               onTextChange(cloud.id, text);
             }
           }}
-          style={styles.cloudTextInput}
+          style={[
+            styles.cloudTextInput,
+            {
+              fontSize: cloudTextLayout.fontSize,
+              lineHeight: cloudTextLayout.lineHeight,
+              width: cloudTextLayout.width,
+              maxHeight: cloudTextLayout.maxHeight,
+            },
+          ]}
           placeholder={placeholder}
           placeholderTextColor="rgba(255,255,255,0.4)"
           multiline
@@ -413,6 +560,10 @@ function AnimatedSun({
 
   // Show icon immediately when sun is empty and has placeholder (no delay)
   const showApplyIcon = !sun.text && sun.placeholder && !viewOnly;
+  const sunTextLayout = useMemo(
+    () => getSunTextLayout(Math.min(sunWidth, sunHeight), sun.text, placeholder),
+    [sunWidth, sunHeight, sun.text, placeholder],
+  );
 
   // Register animated values so PanResponder can access current position
   useEffect(() => {
@@ -614,17 +765,13 @@ function AnimatedSun({
             }
           }}
           style={[styles.sunTextInput, {
-            fontSize: 12,
+            fontSize: sunTextLayout.fontSize,
+            lineHeight: sunTextLayout.lineHeight,
             fontWeight: '700',
             textAlign: 'center',
             textAlignVertical: 'center',
-            // Calculate width to fit within the inner circle (radius 48 in viewBox 160)
-            // Inner circle diameter = (sunWidth / 160) * 96
-            // Use 80% of diameter for safe text area
-            width: (sunWidth / 160) * 96 * 0.8,
-            // Use maxHeight instead of height to allow text to size naturally
-            // Container's justifyContent: 'center' will handle vertical centering
-            maxHeight: (sunHeight / 160) * 96 * 0.8,
+            width: sunTextLayout.textBoxSize,
+            maxHeight: sunTextLayout.textBoxSize,
             padding: 0,
             margin: 0,
           }]}
@@ -730,6 +877,11 @@ function AnimatedLesson({
 
   // Show icon immediately when lesson is empty and has placeholder (no delay)
   const showApplyIcon = !lesson.text && placeholder && !viewOnly;
+  const lessonPlaceholderText = getPlaceholderText();
+  const lessonTextLayout = useMemo(
+    () => getLessonTextLayout(Math.min(lessonWidth, lessonHeight), lesson.text, lessonPlaceholderText),
+    [lessonWidth, lessonHeight, lesson.text, lessonPlaceholderText],
+  );
 
   // Register animated values so PanResponder can access current position
   useEffect(() => {
@@ -810,6 +962,8 @@ function AnimatedLesson({
         {
           top: 0,
           left: 0,
+          width: lessonWidth,
+          height: lessonHeight,
         },
         animatedStyle,
       ]}
@@ -851,12 +1005,13 @@ function AnimatedLesson({
             ref={inputRef}
             style={{
               color: lessonText,
-              fontSize: 11,
+              fontSize: lessonTextLayout.fontSize,
               textAlign: 'center',
               fontWeight: '700',
-              maxWidth: lessonWidth * 0.85,
-              minHeight: 30,
-              lineHeight: 14,
+              width: lessonTextLayout.width,
+              minHeight: lessonTextLayout.minHeight,
+              maxHeight: lessonTextLayout.maxHeight,
+              lineHeight: lessonTextLayout.lineHeight,
             }}
             value={lesson.text}
             onChangeText={(text) => onTextChange(lesson.id, text)}
@@ -1279,16 +1434,17 @@ export default function AddIdealizedMemoryScreen() {
   }, [navigation]);
 
   // Function to get initial cloud position (center of screen with small random offset)
-  const getInitialCloudPosition = useCallback(() => {
+  const getInitialCloudPosition = useCallback((text = '', fallbackText = '') => {
     // Get screen dimensions
     const screenW = Dimensions.get('window').width;
     const screenH = Dimensions.get('window').height;
+    const dynamicCloud = getDynamicCloudDimensions(text, isLargeDevice, fallbackText);
     
     // Center vertically on screen
-    const centerY = (screenH / 2) - (cloudHeight / 2);
+    const centerY = (screenH / 2) - (dynamicCloud.height / 2);
     
     // Center horizontally on screen
-    const centerX = (screenW / 2) - (cloudWidth / 2);
+    const centerX = (screenW / 2) - (dynamicCloud.width / 2);
     
     // Add small random offset (5-10 pixels) to prevent exact stacking
     const offsetX = (Math.random() - 0.5) * 10; // -5 to +5 pixels
@@ -1298,20 +1454,21 @@ export default function AddIdealizedMemoryScreen() {
       x: centerX + offsetX,
       y: centerY + offsetY,
     };
-  }, [cloudWidth, cloudHeight]);
+  }, [isLargeDevice]);
 
   // Function to get initial sun position (center of screen with small random offset)
-  const getInitialSunPosition = useCallback(() => {
+  const getInitialSunPosition = useCallback((text = '', fallbackText = '') => {
     // Get screen dimensions
     const screenW = Dimensions.get('window').width;
     const screenH = Dimensions.get('window').height;
     const padding = 20;
+    const sunSize = getDynamicSunSize(text, isLargeDevice, fallbackText);
     
     // Center vertically on screen
-    const centerY = (screenH / 2) - (sunHeight / 2);
+    const centerY = (screenH / 2) - (sunSize / 2);
     
     // Center horizontally on screen
-    const centerX = (screenW / 2) - (sunWidth / 2);
+    const centerX = (screenW / 2) - (sunSize / 2);
     
     // Add small random offset (5-10 pixels) to prevent exact stacking
     const offsetX = (Math.random() - 0.5) * 10; // -5 to +5 pixels
@@ -1323,9 +1480,9 @@ export default function AddIdealizedMemoryScreen() {
     
     // Clamp to ensure sun is within viewport
     const minX = padding;
-    const maxX = screenW - sunWidth - padding;
+    const maxX = screenW - sunSize - padding;
     const minY = padding;
-    const maxY = screenH - sunHeight - padding;
+    const maxY = screenH - sunSize - padding;
     
     x = Math.max(minX, Math.min(maxX, x));
     y = Math.max(minY, Math.min(maxY, y));
@@ -1334,18 +1491,17 @@ export default function AddIdealizedMemoryScreen() {
       x,
       y,
     };
-  }, [sunWidth, sunHeight]);
+  }, [isLargeDevice]);
 
   // Function to get initial lesson position (center of screen with small random offset)
-  const getInitialLessonPosition = useCallback(() => {
+  const getInitialLessonPosition = useCallback((text = '', fallbackText = '') => {
     // Get screen dimensions
     const screenW = Dimensions.get('window').width;
     const screenH = Dimensions.get('window').height;
     const padding = 20;
-
-    // Lesson dimensions - larger to accommodate template text
-    const lessonWidth = isLargeDevice ? 180 : 130;
-    const lessonHeight = isLargeDevice ? 180 : 130;
+    const dynamicLessonSize = getDynamicLessonSize(text, isLargeDevice, fallbackText);
+    const lessonWidth = dynamicLessonSize;
+    const lessonHeight = dynamicLessonSize;
 
     // Center vertically on screen
     const centerY = (screenH / 2) - (lessonHeight / 2);
@@ -1404,12 +1560,14 @@ export default function AddIdealizedMemoryScreen() {
         const screenW = Dimensions.get('window').width;
         const screenH = Dimensions.get('window').height;
         const padding = 20;
-        const minX = padding;
-        const maxX = screenW - cloudWidth - padding;
-        const minY = padding;
-        const maxY = screenH - cloudHeight - padding;
         
         const initialCloudsData = existingMemory.hardTruths.map((truth) => {
+          const dynamicCloud = getDynamicCloudDimensions(truth.text, isLargeDevice);
+          const minX = padding;
+          const maxX = screenW - dynamicCloud.width - padding;
+          const minY = padding;
+          const maxY = screenH - dynamicCloud.height - padding;
+
           // Use saved positions if available, otherwise calculate default position
           if (truth.x !== undefined && truth.y !== undefined) {
             // Clamp saved positions to ensure they're within viewport
@@ -1423,7 +1581,7 @@ export default function AddIdealizedMemoryScreen() {
             };
           } else {
             // Fallback to center position if no saved positions
-            const initialPos = getInitialCloudPosition();
+            const initialPos = getInitialCloudPosition(truth.text);
             return {
               id: truth.id,
               text: truth.text,
@@ -1442,12 +1600,14 @@ export default function AddIdealizedMemoryScreen() {
         const screenW = Dimensions.get('window').width;
         const screenH = Dimensions.get('window').height;
         const padding = 20;
-        const minX = padding;
-        const maxX = screenW - sunWidth - padding;
-        const minY = padding;
-        const maxY = screenH - sunHeight - padding;
         
         const initialSunsData = existingMemory.goodFacts.map((fact) => {
+          const dynamicSunSize = getDynamicSunSize(fact.text, isLargeDevice);
+          const minX = padding;
+          const maxX = screenW - dynamicSunSize - padding;
+          const minY = padding;
+          const maxY = screenH - dynamicSunSize - padding;
+
           // Use saved positions if available, otherwise calculate default position
           if (fact.x !== undefined && fact.y !== undefined) {
             // Clamp saved positions to ensure they're within viewport
@@ -1461,7 +1621,7 @@ export default function AddIdealizedMemoryScreen() {
             };
           } else {
             // Fallback to center position if no saved positions
-            const initialPos = getInitialSunPosition();
+            const initialPos = getInitialSunPosition(fact.text);
             return {
               id: fact.id,
               text: fact.text,
@@ -1480,14 +1640,16 @@ export default function AddIdealizedMemoryScreen() {
         const screenW = Dimensions.get('window').width;
         const screenH = Dimensions.get('window').height;
         const padding = 20;
-        const lessonWidth = isLargeDevice ? 180 : 130;
-        const lessonHeight = isLargeDevice ? 180 : 130;
-        const minX = padding;
-        const maxX = screenW - lessonWidth - padding;
-        const minY = padding;
-        const maxY = screenH - lessonHeight - padding;
 
         const initialLessonsData = existingMemory.lessonsLearned.map((lesson) => {
+          const dynamicLessonSize = getDynamicLessonSize(lesson.text, isLargeDevice);
+          const lessonWidth = dynamicLessonSize;
+          const lessonHeight = dynamicLessonSize;
+          const minX = padding;
+          const maxX = screenW - lessonWidth - padding;
+          const minY = padding;
+          const maxY = screenH - lessonHeight - padding;
+
           // Use saved positions if available, otherwise calculate default position
           if (lesson.x !== undefined && lesson.y !== undefined) {
             // Clamp saved positions to ensure they're within viewport
@@ -1501,7 +1663,7 @@ export default function AddIdealizedMemoryScreen() {
             };
           } else {
             // Fallback to center position if no saved positions
-            const initialPos = getInitialLessonPosition();
+            const initialPos = getInitialLessonPosition(lesson.text);
             return {
               id: lesson.id,
               text: lesson.text,
@@ -1518,7 +1680,7 @@ export default function AddIdealizedMemoryScreen() {
     };
 
     runLoad();
-  }, [existingMemory, cloudWidth, cloudHeight, sunWidth, sunHeight, getInitialCloudPosition, getInitialSunPosition, getInitialLessonPosition, isLargeDevice]);
+  }, [existingMemory, getInitialCloudPosition, getInitialSunPosition, getInitialLessonPosition, isLargeDevice]);
   
   // Track button positions for animation
   const plusButtonRef = useRef<View>(null);
@@ -1869,8 +2031,10 @@ export default function AddIdealizedMemoryScreen() {
       return;
     }
     
+    const placeholder = getHardTruthSuggestion(memoryLabel, language);
     // All clouds appear at the same center position
-    const initialPos = getInitialCloudPosition();
+    const initialPos = getInitialCloudPosition('', placeholder);
+    const initialCloudDimensions = getDynamicCloudDimensions('', isLargeDevice, placeholder);
     
     // Determine start position for animation - use "Add Hard Truth" plus button position
     let startPos: { x: number; y: number };
@@ -1897,9 +2061,9 @@ export default function AddIdealizedMemoryScreen() {
       x: initialPos.x,
       y: initialPos.y,
       // Start position: center cloud on the plus button
-      startX: startPos.x - (cloudWidth / 2), // Center cloud horizontally
-      startY: startPos.y - (cloudHeight / 2), // Center cloud vertically
-      placeholder: getHardTruthSuggestion(memoryLabel, language), // Smart suggestion based on memory title
+      startX: startPos.x - (initialCloudDimensions.width / 2), // Center cloud horizontally
+      startY: startPos.y - (initialCloudDimensions.height / 2), // Center cloud vertically
+      placeholder, // Smart suggestion based on memory title
     };
     setClouds((prev) => [...prev, newCloud]);
     // Set the newly created cloud ID to trigger auto-focus
@@ -1936,8 +2100,10 @@ export default function AddIdealizedMemoryScreen() {
       return;
     }
     
+    const placeholder = getGoodFactSuggestion(memoryLabel, language);
     // All suns appear at the same center position
-    const initialPos = getInitialSunPosition();
+    const initialPos = getInitialSunPosition('', placeholder);
+    const initialSunSize = getDynamicSunSize('', isLargeDevice, placeholder);
     
     // Determine start position for animation - use "Add Good Fact" plus button position
     let startPos: { x: number; y: number };
@@ -1962,9 +2128,9 @@ export default function AddIdealizedMemoryScreen() {
       x: initialPos.x,
       y: initialPos.y,
       // Start position: center sun on the plus button
-      startX: startPos.x - (sunWidth / 2), // Center sun horizontally
-      startY: startPos.y - (sunHeight / 2), // Center sun vertically
-      placeholder: getGoodFactSuggestion(memoryLabel, language), // Smart suggestion based on memory title
+      startX: startPos.x - (initialSunSize / 2), // Center sun horizontally
+      startY: startPos.y - (initialSunSize / 2), // Center sun vertically
+      placeholder, // Smart suggestion based on memory title
     };
     setSuns((prev) => [...prev, newSun]);
     // Set the newly created sun ID to trigger auto-focus
@@ -2001,8 +2167,10 @@ export default function AddIdealizedMemoryScreen() {
       return;
     }
 
+    const placeholder = getLessonSuggestion(memoryLabel, language);
     // All lessons appear at the same center position
-    const initialPos = getInitialLessonPosition();
+    const initialPos = getInitialLessonPosition('', placeholder);
+    const initialLessonSize = getDynamicLessonSize('', isLargeDevice, placeholder);
 
     // Determine start position for animation - use lightbulb button position
     let startPos: { x: number; y: number };
@@ -2021,8 +2189,8 @@ export default function AddIdealizedMemoryScreen() {
       startPos = { x: buttonX, y: buttonY };
     }
 
-    const lessonWidth = isLargeDevice ? 180 : 130;
-    const lessonHeight = isLargeDevice ? 180 : 130;
+    const lessonWidth = initialLessonSize;
+    const lessonHeight = initialLessonSize;
 
     const newLesson = {
       id: Date.now().toString() + Math.random().toString(),
@@ -2032,7 +2200,7 @@ export default function AddIdealizedMemoryScreen() {
       // Start position: center lesson on the lightbulb button
       startX: startPos.x - (lessonWidth / 2), // Center lesson horizontally
       startY: startPos.y - (lessonHeight / 2), // Center lesson vertically
-      placeholder: getLessonSuggestion(memoryLabel, language), // Smart suggestion based on memory title
+      placeholder, // Smart suggestion based on memory title
     };
     setLessons((prev) => [...prev, newLesson]);
     // Set the newly created lesson ID to trigger auto-focus
@@ -2091,12 +2259,7 @@ export default function AddIdealizedMemoryScreen() {
 
         // Calculate dynamic cloud size for current cloud
         const currentCloud = clouds.find((c) => c.id === cloudId);
-        const textLength = currentCloud?.text?.length || 0;
-        const baseCloudWidth = isLargeDevice ? 480 : 320;
-        const baseCloudHeight = isLargeDevice ? 150 : 100;
-        const estimatedLines = Math.ceil(textLength / 30);
-        const dynamicCloudHeight = Math.min(250, Math.max(baseCloudHeight, baseCloudHeight + (estimatedLines - 1) * 25));
-        const dynamicCloudWidth = Math.min(600, Math.max(baseCloudWidth, baseCloudWidth + Math.floor(textLength * 0.5)));
+        const dynamicCloud = getDynamicCloudDimensions(currentCloud?.text, isLargeDevice, currentCloud?.placeholder);
 
         // Calculate new position
         let newX = start.x + gesture.dx;
@@ -2104,9 +2267,9 @@ export default function AddIdealizedMemoryScreen() {
 
         // Clamp to viewport bounds
         const minX = padding;
-        const maxX = screenW - dynamicCloudWidth - padding;
+        const maxX = screenW - dynamicCloud.width - padding;
         const minY = padding;
-        const maxY = screenH - dynamicCloudHeight - padding;
+        const maxY = screenH - dynamicCloud.height - padding;
 
         newX = Math.max(minX, Math.min(maxX, newX));
         newY = Math.max(minY, Math.min(maxY, newY));
@@ -2164,9 +2327,7 @@ export default function AddIdealizedMemoryScreen() {
 
         // Calculate dynamic sun size for current sun
         const currentSun = suns.find((s) => s.id === sunId);
-        const textLength = currentSun?.text?.length || 0;
-        const baseSunSize = isLargeDevice ? 200 : 160;
-        const dynamicSunSize = Math.min(350, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.2)));
+        const dynamicSunSize = getDynamicSunSize(currentSun?.text, isLargeDevice, currentSun?.placeholder);
 
         // Calculate new position
         let newX = start.x + gesture.dx;
@@ -2233,9 +2394,7 @@ export default function AddIdealizedMemoryScreen() {
 
         // Calculate dynamic lesson size based on current lesson's text
         const currentLesson = lessons.find((l) => l.id === lessonId);
-        const textToMeasure = currentLesson?.text || currentLesson?.placeholder || '';
-        const baseSize = isLargeDevice ? 180 : 130;
-        const dynamicSize = Math.min(300, Math.max(baseSize, baseSize + Math.floor(textToMeasure.length * 1.2)));
+        const dynamicSize = getDynamicLessonSize(currentLesson?.text, isLargeDevice, currentLesson?.placeholder);
         const lessonWidth = dynamicSize;
         const lessonHeight = dynamicSize;
 
@@ -3198,14 +3357,7 @@ export default function AddIdealizedMemoryScreen() {
         const inputRef = cloudInputRefs.current[cloud.id]!;
         const shouldAutoFocus = newlyCreatedCloudId === cloud.id;
 
-        // Calculate dynamic cloud size based on text length
-        const baseCloudWidth = isLargeDevice ? 480 : 320;
-        const baseCloudHeight = isLargeDevice ? 150 : 100;
-        // Increase height based on text length (approximate lines)
-        const textLength = cloud.text?.length || 0;
-        const estimatedLines = Math.ceil(textLength / 30); // Roughly 30 chars per line
-        const dynamicCloudHeight = Math.min(250, Math.max(baseCloudHeight, baseCloudHeight + (estimatedLines - 1) * 25));
-        const dynamicCloudWidth = Math.min(600, Math.max(baseCloudWidth, baseCloudWidth + Math.floor(textLength * 0.5)));
+        const dynamicCloud = getDynamicCloudDimensions(cloud.text, isLargeDevice, cloud.placeholder);
 
         return (
           <AnimatedCloud
@@ -3215,8 +3367,8 @@ export default function AddIdealizedMemoryScreen() {
             styles={styles}
             colors={colors}
             cloudyBackground={momentColors.cloudy.background}
-            cloudWidth={dynamicCloudWidth}
-            cloudHeight={dynamicCloudHeight}
+            cloudWidth={dynamicCloud.width}
+            cloudHeight={dynamicCloud.height}
             placeholder={cloud.placeholder || t('memory.hardTruth.placeholder')}
             onTextChange={(id, text) => {
               setClouds((prev) =>
@@ -3263,12 +3415,7 @@ export default function AddIdealizedMemoryScreen() {
         const inputRef = sunInputRefs.current[sun.id]!;
         const shouldAutoFocus = newlyCreatedSunId === sun.id;
 
-        // Calculate dynamic sun size based on text length
-        const baseSunSize = isLargeDevice ? 200 : 160;
-        const textLength = sun.text?.length || 0;
-        // Suns grow in a circular fashion - both width and height increase equally
-        // Increase growth rate to 1.2px per character for more noticeable scaling
-        const dynamicSunSize = Math.min(350, Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.2)));
+        const dynamicSunSize = getDynamicSunSize(sun.text, isLargeDevice, sun.placeholder);
 
         return (
           <AnimatedSun
@@ -3324,10 +3471,7 @@ export default function AddIdealizedMemoryScreen() {
         const shouldAutoFocus = newlyCreatedLessonId === lesson.id;
 
         // Calculate dynamic lesson size based on text or placeholder length
-        const textToMeasure = lesson.text || lesson.placeholder || '';
-        const baseSize = isLargeDevice ? 180 : 130;
-        // Increase size based on text length - increased to 1.2px per character for better visibility
-        const dynamicSize = Math.min(300, Math.max(baseSize, baseSize + Math.floor(textToMeasure.length * 1.2)));
+        const dynamicSize = getDynamicLessonSize(lesson.text, isLargeDevice, lesson.placeholder);
         const lessonWidth = dynamicSize;
         const lessonHeight = dynamicSize;
 
