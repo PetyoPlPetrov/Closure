@@ -27,6 +27,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { SECTIONS } from "@/utils/guide-data";
+import { logGuideNav } from "@/utils/guide-nav-debug";
 
 export default function GuideScreen() {
   const colorScheme = useColorScheme();
@@ -41,6 +42,7 @@ export default function GuideScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      logGuideNav("guide index focused");
       let cancelled = false;
       setGuidePrefsLoaded(false);
       void Promise.all([getReadSections(), getGuideDismissedForever()]).then(
@@ -49,6 +51,10 @@ export default function GuideScreen() {
           setReadSections(read);
           setRemindOnOpen(!dismissedForever);
           setGuidePrefsLoaded(true);
+          logGuideNav("guide index prefs loaded", {
+            readSectionCount: read.size,
+            dismissedForever,
+          });
         },
       );
       return () => {
@@ -177,6 +183,7 @@ export default function GuideScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {SECTIONS.map((section) => {
           const isRead = readSections.has(section.id);
@@ -184,7 +191,24 @@ export default function GuideScreen() {
             <TouchableOpacity
               key={section.id}
               style={styles.dropdown}
-              onPress={() => router.push(`/guide/${section.id}`)}
+              onPress={() => {
+                const href = {
+                  pathname: "/guide/[sectionId]" as const,
+                  params: { sectionId: section.id },
+                };
+                logGuideNav("list row onPress → router.push", {
+                  sectionId: section.id,
+                  href,
+                });
+                try {
+                  router.push(href);
+                  logGuideNav("router.push returned (no sync throw)");
+                } catch (err) {
+                  logGuideNav("router.push threw", {
+                    error: err instanceof Error ? err.message : String(err),
+                  });
+                }
+              }}
               activeOpacity={0.7}
             >
               <View style={styles.dropdownContent}>

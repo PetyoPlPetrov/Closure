@@ -6,21 +6,26 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { getReadSections, markSectionRead } from "@/utils/guide-storage";
 import { useTranslate } from "@/utils/languages/use-translate";
-import type { GuideBullet } from "@/utils/guide-data";
+import { type GuideBullet } from "@/utils/guide-data";
+import { resolveGuideSectionFromParams } from "@/utils/guide-resolve-section";
+import { parseYoutubeVideoId } from "@/utils/youtube-video-id";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { router, useLocalSearchParams } from "expo-router";
+import { logGuideNav } from "@/utils/guide-nav-debug";
+import { router, useLocalSearchParams, usePathname } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Image,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import { SECTIONS } from "@/utils/guide-data";
+import YoutubeIframe from "react-native-youtube-iframe";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_H_PADDING = 16;
@@ -39,6 +44,35 @@ function BulletCard({
   t: (key: any) => string;
   colors: any;
 }) {
+  const needsMediaLoader =
+    !bullet.hideMedia && !!(bullet.videoSource || bullet.imageSource);
+  const [mediaLoading, setMediaLoading] = useState(needsMediaLoader);
+
+  useEffect(() => {
+    setMediaLoading(
+      !bullet.hideMedia && !!(bullet.videoSource || bullet.imageSource),
+    );
+  }, [bullet.titleKey]);
+
+  const mediaLoaderOverlay =
+    mediaLoading && needsMediaLoader ? (
+      <View
+        style={{
+          ...StyleSheet.absoluteFillObject,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(12, 16, 24, 0.72)"
+              : "rgba(248, 249, 252, 0.88)",
+        }}
+        accessibilityRole="progressbar"
+        accessibilityLabel={t("guide.introVideoLoading")}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    ) : null;
+
   return (
     <View style={{ width: CARD_WIDTH, marginHorizontal: CARD_H_PADDING }}>
       {/* Image / GIF placeholder */}
@@ -52,6 +86,7 @@ function BulletCard({
             marginBottom: 16 * fontScale,
             backgroundColor:
               colorScheme === "dark" ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.04)",
+            position: "relative",
           }}
         >
           <Video
@@ -64,7 +99,11 @@ function BulletCard({
             shouldPlay
             isLooping
             isMuted
+            onLoadStart={() => setMediaLoading(true)}
+            onReadyForDisplay={() => setMediaLoading(false)}
+            onError={() => setMediaLoading(false)}
           />
+          {mediaLoaderOverlay}
         </View>
       ) : !bullet.hideMedia && bullet.imageSource ? (
         <View
@@ -74,6 +113,7 @@ function BulletCard({
             borderRadius: 14 * fontScale,
             overflow: "hidden",
             marginBottom: 16 * fontScale,
+            position: "relative",
           }}
         >
           <Image
@@ -90,7 +130,11 @@ function BulletCard({
                       : { width: "100%", height: "100%" }
             }
             resizeMode={bullet.imageScale !== undefined ? "contain" : "cover"}
+            onLoadStart={() => setMediaLoading(true)}
+            onLoadEnd={() => setMediaLoading(false)}
+            onError={() => setMediaLoading(false)}
           />
+          {mediaLoaderOverlay}
         </View>
       ) : !bullet.hideMedia ? (
         <View
@@ -173,23 +217,71 @@ export default function GuideSectionScreen() {
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
   const t = useTranslate();
-  const { sectionId } = useLocalSearchParams<{ sectionId: string }>();
+  const pathname = usePathname();
+  const { sectionId: sectionIdParam } = useLocalSearchParams<{
+    sectionId?: string | string[];
+  }>();
   const [isDone, setIsDone] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [maxSeenIndex, setMaxSeenIndex] = useState(0);
   const listRef = useRef<FlatList<GuideBullet>>(null);
 
-  const section = SECTIONS.find((s) => s.id === sectionId);
+  const section = useMemo(
+    () => resolveGuideSectionFromParams(sectionIdParam),
+    [sectionIdParam],
+  );
 
   useEffect(() => {
-    if (!sectionId || !section) return;
-    getReadSections().then((set) => {
-      if (set.has(sectionId)) {
+    logGuideNav("section screen render cycle", {
+      pathname,
+      sectionIdParam,
+      sectionIdParamType: Array.isArray(sectionIdParam)
+        ? "array"
+        : typeof sectionIdParam,
+      resolvedSectionId: section?.id ?? null,
+    });
+  }, [pathname, sectionIdParam, section?.id]);
+
+  useEffect(() => {
+    if (!section) return;
+    setCurrentIndex(0);
+    setMaxSeenIndex(0);
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    });
+    void getReadSections().then((readSet) => {
+      if (readSet.has(section.id)) {
         setIsDone(true);
         setMaxSeenIndex(section.bullets.length - 1);
+      } else {
+        setIsDone(false);
+        setMaxSeenIndex(0);
       }
     });
-  }, [sectionId, section]);
+  }, [section]);
+
+  const introYoutubeVideoId = useMemo(
+    () =>
+      section?.introYoutubeUrl
+        ? parseYoutubeVideoId(section.introYoutubeUrl)
+        : null,
+    [section?.introYoutubeUrl],
+  );
+
+  const [introPlayerLoading, setIntroPlayerLoading] = useState(false);
+
+  useEffect(() => {
+    if (!introYoutubeVideoId) {
+      setIntroPlayerLoading(false);
+      return;
+    }
+    setIntroPlayerLoading(true);
+  }, [introYoutubeVideoId]);
+
+  const introPlayerHeight = useMemo(() => {
+    const h = Math.round(CARD_WIDTH * (9 / 16));
+    return Math.max(h, 200);
+  }, []);
 
   const snapOffsets = useMemo(() => {
     if (!section) return [];
@@ -251,6 +343,10 @@ export default function GuideSectionScreen() {
         markDoneButton: ViewStyle;
         markDoneButtonDisabled: ViewStyle;
         markDoneRow: ViewStyle;
+        introVideoBlock: ViewStyle;
+        introVideoLabel: ViewStyle;
+        introVideoPlayerWrap: ViewStyle;
+        introVideoLoaderOverlay: ViewStyle;
       }>({
         header: {
           flexDirection: "row",
@@ -318,11 +414,49 @@ export default function GuideSectionScreen() {
           gap: 8 * fontScale,
           height: 52 * fontScale,
         },
+        introVideoBlock: {
+          marginHorizontal: 16 * fontScale,
+          marginTop: 6 * fontScale,
+          marginBottom: 10 * fontScale,
+          borderRadius: 14 * fontScale,
+          overflow: "hidden",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(0,0,0,0.35)"
+              : "rgba(0,0,0,0.06)",
+        },
+        introVideoLabel: {
+          paddingHorizontal: 14 * fontScale,
+          paddingTop: 12 * fontScale,
+          paddingBottom: 8 * fontScale,
+        },
+        introVideoPlayerWrap: {
+          alignSelf: "center",
+          width: CARD_WIDTH,
+          position: "relative",
+          overflow: "hidden",
+        },
+        introVideoLoaderOverlay: {
+          ...StyleSheet.absoluteFillObject,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(12, 16, 24, 0.82)"
+              : "rgba(248, 249, 252, 0.92)",
+          gap: 10 * fontScale,
+          zIndex: 2,
+          elevation: Platform.OS === "android" ? 6 : 0,
+        },
       }),
     [fontScale, colors.primary, colorScheme],
   );
 
   if (!section) {
+    logGuideNav("section screen: unknown section (blank fallback UI)", {
+      pathname,
+      sectionIdParam,
+    });
     return (
       <TabScreenContainer>
         <View style={styles.header}>
@@ -338,14 +472,23 @@ export default function GuideSectionScreen() {
               color={colors.text}
             />
           </TouchableOpacity>
+          <ThemedText size="l" weight="bold" style={styles.headerTitle}>
+            {t("guide.title")}
+          </ThemedText>
           <View style={styles.headerButton} />
+        </View>
+        <View style={{ flex: 1, paddingHorizontal: 24 * fontScale, paddingTop: 24 * fontScale }}>
+          <ThemedText size="sm" emphasis="medium" style={{ opacity: 0.75 }}>
+            {t("guide.unknownSection")}
+          </ThemedText>
         </View>
       </TabScreenContainer>
     );
   }
 
-  const allSeen = maxSeenIndex >= section.bullets.length - 1;
-  const currentBullet = section.bullets[currentIndex];
+  const hasBullets = section.bullets.length > 0;
+  const allSeen =
+    !hasBullets || maxSeenIndex >= section.bullets.length - 1;
 
   const navigateTo = useCallback(
     (idx: number) => {
@@ -387,105 +530,150 @@ export default function GuideSectionScreen() {
         <View style={styles.headerButton} />
       </View>
 
-      <View style={styles.body}>
-        {/* Top: carousel + dots + description */}
-        <View>
-          <View style={styles.carouselWrapper}>
-            <FlatList
-              ref={listRef}
-              data={section.bullets}
-              keyExtractor={(item) => item.titleKey}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              snapToOffsets={snapOffsets}
-              snapToAlignment="start"
-              decelerationRate="fast"
-              getItemLayout={getItemLayout}
-              onScrollEndDrag={onScrollEndDrag}
-              onMomentumScrollEnd={onMomentumScrollEnd}
-              renderItem={({ item }) => (
-                <BulletCard
-                  bullet={item}
-                  fontScale={fontScale}
-                  colorScheme={colorScheme ?? "dark"}
-                  t={t}
-                  colors={colors}
-                />
-              )}
-            />
-
-            {/* Arrows + page indicator dots */}
-            <View style={styles.pageIndicator}>
-              <TouchableOpacity
-                onPress={() => navigateTo(currentIndex - 1)}
-                disabled={currentIndex === 0}
-                hitSlop={12}
-                activeOpacity={0.6}
-              >
-                <MaterialIcons
-                  name="chevron-left"
-                  size={28 * fontScale}
-                  color={
-                    currentIndex === 0
-                      ? colorScheme === "dark"
-                        ? "rgba(255,255,255,0.15)"
-                        : "rgba(0,0,0,0.15)"
-                      : colors.text
-                  }
-                />
-              </TouchableOpacity>
-
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 * fontScale }}>
-                {section.bullets.map((_, idx) => (
-                  <View
-                    key={idx}
-                    style={{
-                      width: idx === currentIndex ? 10 : 7,
-                      height: idx === currentIndex ? 10 : 7,
-                      borderRadius: 5,
-                      backgroundColor:
-                        idx === currentIndex
-                          ? colors.primary
-                          : idx <= maxSeenIndex
-                            ? colorScheme === "dark"
-                              ? "rgba(255,255,255,0.4)"
-                              : "rgba(0,0,0,0.25)"
-                            : colorScheme === "dark"
-                              ? "rgba(255,255,255,0.15)"
-                              : "rgba(0,0,0,0.1)",
-                    }}
-                  />
-                ))}
-              </View>
-
-              <TouchableOpacity
-                onPress={() => navigateTo(currentIndex + 1)}
-                disabled={currentIndex === section.bullets.length - 1}
-                hitSlop={12}
-                activeOpacity={0.6}
-              >
-                <MaterialIcons
-                  name="chevron-right"
-                  size={28 * fontScale}
-                  color={
-                    currentIndex === section.bullets.length - 1
-                      ? colorScheme === "dark"
-                        ? "rgba(255,255,255,0.15)"
-                        : "rgba(0,0,0,0.15)"
-                      : colors.text
-                  }
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Current bullet description — static below dots, updates on swipe */}
-          <View style={styles.descriptionArea}>
-            <ThemedText size="sm" emphasis="medium">
-              {t(currentBullet.descriptionKey)}
+      {introYoutubeVideoId ? (
+        <View style={styles.introVideoBlock}>
+          <View style={styles.introVideoLabel}>
+            <ThemedText size="sm" weight="semibold">
+              {t("guide.watchVideo")}
             </ThemedText>
           </View>
+          <View
+            style={[styles.introVideoPlayerWrap, { height: introPlayerHeight }]}
+          >
+            <YoutubeIframe
+              height={introPlayerHeight}
+              width={CARD_WIDTH}
+              videoId={introYoutubeVideoId}
+              play
+              mute
+              forceAndroidAutoplay
+              initialPlayerParams={{ controls: true }}
+              onReady={() => setIntroPlayerLoading(false)}
+              onError={() => setIntroPlayerLoading(false)}
+              webViewProps={{
+                scrollEnabled: false,
+                allowsFullscreenVideo: true,
+                ...(Platform.OS === "android"
+                  ? { androidLayerType: "hardware" as const }
+                  : {}),
+              }}
+            />
+            {introPlayerLoading ? (
+              <View
+                style={styles.introVideoLoaderOverlay}
+                accessibilityRole="progressbar"
+                accessibilityLabel={t("guide.introVideoLoading")}
+              >
+                <ActivityIndicator size="large" color={colors.primary} />
+                <ThemedText size="xs" emphasis="medium" style={{ opacity: 0.85 }}>
+                  {t("guide.introVideoLoading")}
+                </ThemedText>
+              </View>
+            ) : null}
+          </View>
         </View>
+      ) : null}
+
+      <View style={styles.body}>
+        {hasBullets ? (
+          <View>
+            <View style={styles.carouselWrapper}>
+              <FlatList
+                ref={listRef}
+                data={section.bullets}
+                keyExtractor={(item) => item.titleKey}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                snapToOffsets={snapOffsets}
+                snapToAlignment="start"
+                decelerationRate="fast"
+                getItemLayout={getItemLayout}
+                onScrollEndDrag={onScrollEndDrag}
+                onMomentumScrollEnd={onMomentumScrollEnd}
+                renderItem={({ item }) => (
+                  <BulletCard
+                    bullet={item}
+                    fontScale={fontScale}
+                    colorScheme={colorScheme ?? "dark"}
+                    t={t}
+                    colors={colors}
+                  />
+                )}
+              />
+
+              <View style={styles.pageIndicator}>
+                <TouchableOpacity
+                  onPress={() => navigateTo(currentIndex - 1)}
+                  disabled={currentIndex === 0}
+                  hitSlop={12}
+                  activeOpacity={0.6}
+                >
+                  <MaterialIcons
+                    name="chevron-left"
+                    size={28 * fontScale}
+                    color={
+                      currentIndex === 0
+                        ? colorScheme === "dark"
+                          ? "rgba(255,255,255,0.15)"
+                          : "rgba(0,0,0,0.15)"
+                        : colors.text
+                    }
+                  />
+                </TouchableOpacity>
+
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 * fontScale }}>
+                  {section.bullets.map((_, idx) => (
+                    <View
+                      key={idx}
+                      style={{
+                        width: idx === currentIndex ? 10 : 7,
+                        height: idx === currentIndex ? 10 : 7,
+                        borderRadius: 5,
+                        backgroundColor:
+                          idx === currentIndex
+                            ? colors.primary
+                            : idx <= maxSeenIndex
+                              ? colorScheme === "dark"
+                                ? "rgba(255,255,255,0.4)"
+                                : "rgba(0,0,0,0.25)"
+                              : colorScheme === "dark"
+                                ? "rgba(255,255,255,0.15)"
+                                : "rgba(0,0,0,0.1)",
+                      }}
+                    />
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => navigateTo(currentIndex + 1)}
+                  disabled={currentIndex === section.bullets.length - 1}
+                  hitSlop={12}
+                  activeOpacity={0.6}
+                >
+                  <MaterialIcons
+                    name="chevron-right"
+                    size={28 * fontScale}
+                    color={
+                      currentIndex === section.bullets.length - 1
+                        ? colorScheme === "dark"
+                          ? "rgba(255,255,255,0.15)"
+                          : "rgba(0,0,0,0.15)"
+                        : colors.text
+                    }
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.descriptionArea}>
+              <ThemedText size="sm" emphasis="medium">
+                {t(section.bullets[currentIndex].descriptionKey)}
+              </ThemedText>
+            </View>
+          </View>
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
 
         {/* Bottom: mark as done */}
         <View style={styles.bottomArea}>

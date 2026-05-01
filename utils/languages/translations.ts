@@ -290,6 +290,9 @@ export interface Translations {
   "guide.title": string;
   "guide.markDone": string;
   "guide.markedDone": string;
+  "guide.watchVideo": string;
+  "guide.introVideoLoading": string;
+  "guide.unknownSection": string;
   "guide.section.overview.title": string;
   "guide.section.overview.shortTitle": string;
   "guide.section.overview.description": string;
@@ -3900,7 +3903,7 @@ const translations: Record<Language, Translations> = {
     "avatar.addMemories": "Add memories",
     "sferaInsight.addPeople": "Add people",
     "sferaInsight.addPeopleAndMemories": "Add people and memories",
-    "sferaInsight.leastMemories": "Least memories",
+    "sferaInsight.leastMemories": "Least documented",
     "sferaInsight.mostMemories": "Most documented",
     "sferaInsight.lastUpdated": "Recently active",
     "sferaInsight.mostRecent": "Most recent memory",
@@ -3911,7 +3914,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.timeAgo.months": "mo ago",
     "sferaInsight.timeAgo.today": "today",
     "sferaInsight.remindMe": "Remind me",
-    "sferaInsight.mostMemories2": "Most memories",
+    "sferaInsight.mostMemories2": "Most documented",
     "sferaInsight.oldestMemory": "Oldest memory",
     "sferaInsight.mostCloudy": "Most cloudy",
     "sferaInsight.mostSunny": "Most sunny",
@@ -4205,7 +4208,10 @@ const translations: Record<Language, Translations> = {
     "guide.title": "Sferas Guide",
     "guide.markDone": "Mark as done",
     "guide.markedDone": "Done",
-    "guide.section.overview.title": "The 3 Missions",
+    "guide.watchVideo": "Watch the video",
+    "guide.introVideoLoading": "Loading preview…",
+    "guide.unknownSection": "This guide section could not be opened. Go back and try again.",
+    "guide.section.overview.title": "Missions",
     "guide.section.overview.shortTitle": "Missions",
     "guide.section.overview.description":
       "Sferas is built around three missions that work together: examining what the past has taught you, preserving the good moments you'd otherwise forget, and using both to move forward with intention. Swipe through each mission to understand how they connect.",
@@ -8730,7 +8736,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.timeAgo.months": "м назад",
     "sferaInsight.timeAgo.today": "днес",
     "sferaInsight.remindMe": "Напомни ми",
-    "sferaInsight.mostMemories2": "Най-много спомени",
+    "sferaInsight.mostMemories2": "Най-много документирани",
     "sferaInsight.oldestMemory": "Най-стар спомен",
     "sferaInsight.mostCloudy": "Най-облачен",
     "sferaInsight.mostSunny": "Най-слънчев",
@@ -9019,7 +9025,11 @@ const translations: Record<Language, Translations> = {
     "guide.title": "Ръководство",
     "guide.markDone": "Маркирай като прочетено",
     "guide.markedDone": "Прочетено",
-    "guide.section.overview.title": "3-те Мисии",
+    "guide.watchVideo": "Гледай видеото",
+    "guide.introVideoLoading": "Зареждане на прегледа…",
+    "guide.unknownSection":
+      "Този раздел от ръководството не може да се отвори. Върни се назад и опитай отново.",
+    "guide.section.overview.title": "Мисии",
     "guide.section.overview.shortTitle": "Мисии",
     "guide.section.overview.description":
       "Sferas е изградена около три мисии, които работят заедно: изследване на това, което миналото ви е научило, запазване на добрите моменти, които иначе бихте забравили, и използване на двете, за да вървите напред с намерение. Плъзнете през всяка мисия, за да разберете как се свързват.",

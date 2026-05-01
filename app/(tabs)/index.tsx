@@ -6600,22 +6600,33 @@ const MemoryMomentsRenderer = React.memo(
         // Otherwise use calculated positions
         if (isMemoryFocused) {
           // Calculate dynamic cloud size based on text length
-          const textLength = cloud.text?.length || 0;
+          const normalizedCloudText = (cloud.text || "").trim().replace(/\s+/g, " ");
+          const textLength = normalizedCloudText.length;
+          const cloudEstimatedLines = Math.max(
+            1,
+            Math.ceil(
+              textLength / (isTablet ? 42 : isLargeDevice ? 34 : 26),
+            ),
+          );
+          const cloudLongestWord = normalizedCloudText
+            .split(" ")
+            .reduce((max: number, word: string) => Math.max(max, word.length), 0);
           const baseCloudWidth = isTablet ? 720 : isLargeDevice ? 480 : 320;
           const baseCloudHeight = isTablet ? 225 : isLargeDevice ? 150 : 100;
-          const estimatedLines = Math.ceil(textLength / 30);
           const dynamicCloudHeight = Math.min(
-            300,
+            isTablet ? 420 : isLargeDevice ? 340 : 280,
             Math.max(
               baseCloudHeight,
-              baseCloudHeight + (estimatedLines - 1) * 25,
+              baseCloudHeight + (cloudEstimatedLines - 1) * (isTablet ? 26 : 30),
             ),
           );
           const dynamicCloudWidth = Math.min(
-            800,
+            isTablet ? 920 : isLargeDevice ? 760 : 620,
             Math.max(
               baseCloudWidth,
-              baseCloudWidth + Math.floor(textLength * 0.5),
+              baseCloudWidth +
+                Math.floor(textLength * (isTablet ? 0.65 : isLargeDevice ? 0.55 : 0.8)) +
+                Math.max(0, cloudLongestWord - 12) * (isTablet ? 8 : 10),
             ),
           );
 
@@ -6749,9 +6760,21 @@ const MemoryMomentsRenderer = React.memo(
                   <ThemedText
                     style={{
                       color: "rgba(255,255,255,0.9)",
-                      fontSize: 14,
+                      fontSize:
+                        Math.max(
+                          isTablet ? 13 : isLargeDevice ? 12 : 11,
+                          (isTablet ? 20 : isLargeDevice ? 17 : 14) -
+                            Math.floor(textLength / (isTablet ? 180 : 140)),
+                        ) * fontScale,
                       textAlign: "center",
                       fontWeight: "500",
+                      lineHeight:
+                        Math.max(
+                          isTablet ? 16 : 14,
+                          (isTablet ? 24 : isLargeDevice ? 21 : 18) -
+                            Math.floor(textLength / (isTablet ? 240 : 180)),
+                        ) * fontScale,
+                      maxWidth: dynamicCloudWidth * 0.74,
                     }}
                   >
                     {cloud.text}
@@ -6830,6 +6853,11 @@ const MemoryMomentsRenderer = React.memo(
       showEntityWheelRef,
       activeMomentId,
       setActiveMomentId,
+      fontScale,
+      isLargeDevice,
+      memoryCenterX,
+      memoryCenterY,
+      momentColors.cloudy.background,
     ]);
 
     // Memoize filtered suns - must be called unconditionally
@@ -6858,11 +6886,27 @@ const MemoryMomentsRenderer = React.memo(
         // When memory is focused, use saved positions from memory data
         if (isMemoryFocused) {
           // Calculate dynamic sun size based on text length
-          const textLength = sun.text?.length || 0;
+          const normalizedSunText = (sun.text || "").trim().replace(/\s+/g, " ");
+          const textLength = normalizedSunText.length;
+          const sunEstimatedLines = Math.max(
+            1,
+            Math.ceil(
+              textLength / (isTablet ? 22 : isLargeDevice ? 18 : 14),
+            ),
+          );
+          const sunLongestWord = normalizedSunText
+            .split(" ")
+            .reduce((max: number, word: string) => Math.max(max, word.length), 0);
           const baseSunSize = isTablet ? 240 : isLargeDevice ? 200 : 160;
           const dynamicSunSize = Math.min(
-            350,
-            Math.max(baseSunSize, baseSunSize + Math.floor(textLength * 1.2)),
+            isTablet ? 420 : isLargeDevice ? 340 : 290,
+            Math.max(
+              baseSunSize,
+              baseSunSize +
+                (sunEstimatedLines - 1) * (isTablet ? 18 : isLargeDevice ? 16 : 14) +
+                Math.floor(textLength * (isTablet ? 0.5 : isLargeDevice ? 0.45 : 0.35)) +
+                Math.max(0, sunLongestWord - 10) * (isTablet ? 3 : 2),
+            ),
           );
 
           // Calculate and clamp position to ensure it's within viewport and well distributed
@@ -7006,39 +7050,33 @@ const MemoryMomentsRenderer = React.memo(
                     height: dynamicSunSize,
                     justifyContent: "center",
                     alignItems: "center",
-                    // Calculate padding based on sun circle radius to ensure text fits inside
-                    // Sun radius in viewBox is 48, viewBox is 160, so actual radius = (dynamicSunSize / 160) * 48
-                    paddingHorizontal: (dynamicSunSize / 160) * 48 * 0.6, // 60% of radius for safe padding
-                    paddingVertical: (dynamicSunSize / 160) * 48 * 0.4, // 40% of radius for vertical padding
+                    // Font-first tuning: allow text to use more of the inner circle.
+                    paddingHorizontal: (dynamicSunSize / 160) * 48 * 0.54,
+                    paddingVertical: (dynamicSunSize / 160) * 48 * 0.4,
                   }}
                 >
                   <ThemedText
                     style={{
                       color: "black",
-                      fontSize: 12 * fontScale, // Smaller font size to ensure text fits inside
+                      fontSize:
+                        Math.max(
+                          isTablet ? 11 : 9.5,
+                          (isTablet ? 15 : isLargeDevice ? 14 : 13) -
+                            Math.floor(textLength / (isTablet ? 140 : 105)),
+                        ) * fontScale,
                       textAlign: "center",
                       fontWeight: "700",
-                      // Max width should be less than circle diameter minus padding
-                      //maxWidth: (dynamicSunSize / 160) * 48 * 1.6, // 80% of diameter to ensure text fits
+                      lineHeight:
+                        Math.max(
+                          isTablet ? 12 : 11,
+                          (isTablet ? 19 : isLargeDevice ? 17 : 16) -
+                            Math.floor(textLength / (isTablet ? 170 : 130)),
+                        ) * fontScale,
+                      maxWidth: (dynamicSunSize / 160) * 48 * 1.5,
                     }}
-                    numberOfLines={3}
                   >
-                    {sun.text?.split("\n")[0] || sun.text}
+                    {sun.text}
                   </ThemedText>
-                  {sun.text?.includes("\n") && (
-                    <ThemedText
-                      style={{
-                        color: "black",
-                        fontSize: 7 * fontScale, // Smaller font size for second line
-                        textAlign: "center",
-                        fontWeight: "600",
-                        maxWidth: (dynamicSunSize / 160) * 48 * 1.6, // Same max width
-                      }}
-                      numberOfLines={2}
-                    >
-                      {sun.text.split("\n")[1]}
-                    </ThemedText>
-                  )}
                 </View>
               </View>
             </DraggableMoment>
@@ -7111,6 +7149,9 @@ const MemoryMomentsRenderer = React.memo(
       showEntityWheelRef,
       activeMomentId,
       setActiveMomentId,
+      memoryCenterX,
+      memoryCenterY,
+      momentColors.sunny.background,
     ]);
 
     // Memoize filtered lessons - must be called unconditionally
@@ -7134,13 +7175,25 @@ const MemoryMomentsRenderer = React.memo(
         // When memory is focused, use saved positions from memory data
         if (isMemoryFocused) {
           // Calculate dynamic lesson size based on text length
-          const textToMeasure = lesson.text || "";
+          const textToMeasure = (lesson.text || "").trim().replace(/\s+/g, " ");
+          const lessonEstimatedLines = Math.max(
+            1,
+            Math.ceil(
+              textToMeasure.length / (isTablet ? 20 : isLargeDevice ? 18 : 14),
+            ),
+          );
+          const lessonLongestWord = textToMeasure
+            .split(" ")
+            .reduce((max: number, word: string) => Math.max(max, word.length), 0);
           const baseLessonSize = isTablet ? 240 : isLargeDevice ? 200 : 160;
           const dynamicLessonSize = Math.min(
-            350,
+            isTablet ? 460 : isLargeDevice ? 360 : 320,
             Math.max(
               baseLessonSize,
-              baseLessonSize + Math.floor(textToMeasure.length * 1.2),
+              baseLessonSize +
+                (lessonEstimatedLines - 1) * (isTablet ? 22 : isLargeDevice ? 20 : 24) +
+                Math.floor(textToMeasure.length * (isTablet ? 1.0 : isLargeDevice ? 0.9 : 1.1)) +
+                Math.max(0, lessonLongestWord - 10) * (isTablet ? 3 : isLargeDevice ? 2 : 3),
             ),
           );
 
@@ -7213,13 +7266,12 @@ const MemoryMomentsRenderer = React.memo(
                   <ThemedText
                     style={{
                       color: momentColors.lesson.text,
-                      fontSize: 11 * fontScale,
+                      fontSize: (isTablet ? 13 : 11) * fontScale,
                       textAlign: "center",
                       fontWeight: "700",
-                      maxWidth: dynamicLessonSize * 0.85,
-                      lineHeight: 14 * fontScale,
+                      maxWidth: dynamicLessonSize * 0.72,
+                      lineHeight: (isTablet ? 16 : 14) * fontScale,
                     }}
-                    numberOfLines={5}
                   >
                     {lesson.text}
                   </ThemedText>
@@ -7282,6 +7334,8 @@ const MemoryMomentsRenderer = React.memo(
       newlyCreatedMoments,
       memory,
       isTablet,
+      isLargeDevice,
+      fontScale,
       position.x,
       position.y,
       memoryAnimatedPosition,
@@ -7297,6 +7351,8 @@ const MemoryMomentsRenderer = React.memo(
       showEntityWheelRef,
       activeMomentId,
       setActiveMomentId,
+      momentColors.lesson.background,
+      momentColors.lesson.text,
     ]);
 
     // Skip rendering moments for unfocused partners (not visible in viewport)

@@ -73,41 +73,76 @@ function getLongestWordLength(text: string): number {
   return text.split(" ").reduce((longest, word) => Math.max(longest, word.length), 0);
 }
 
+function estimateWrappedLineCount(text: string, maxCharsPerLine: number): number {
+  if (!text) return 1;
+  if (maxCharsPerLine <= 1) return text.length;
+
+  const words = text.split(" ");
+  let lineCount = 1;
+  let currentLineLen = 0;
+
+  for (const rawWord of words) {
+    const word = rawWord.trim();
+    if (!word) continue;
+
+    if (word.length > maxCharsPerLine) {
+      if (currentLineLen > 0) {
+        lineCount += 1;
+        currentLineLen = 0;
+      }
+      lineCount += Math.ceil(word.length / maxCharsPerLine) - 1;
+      currentLineLen = word.length % maxCharsPerLine;
+      continue;
+    }
+
+    const candidateLen = currentLineLen === 0 ? word.length : currentLineLen + 1 + word.length;
+    if (candidateLen <= maxCharsPerLine) {
+      currentLineLen = candidateLen;
+    } else {
+      lineCount += 1;
+      currentLineLen = word.length;
+    }
+  }
+
+  return Math.max(1, lineCount);
+}
+
 function getDynamicSunSize(text: string | undefined, isLargeDevice: boolean, fallbackText?: string): number {
   const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
   const textLength = normalizedText.length;
-  const estimatedLines = Math.max(1, Math.ceil(textLength / 14));
+  const estimatedLines = estimateWrappedLineCount(normalizedText, isLargeDevice ? 16 : 13);
   const longestWordLength = getLongestWordLength(normalizedText);
 
-  // Keep the sun comfortably larger than its text so multiline copy has breathing room.
+  // Keep the sun comfortably larger than its text so multiline copy always has breathing room.
   const baseSunSize = isLargeDevice ? 220 : 180;
-  const lineBonus = (estimatedLines - 1) * (isLargeDevice ? 36 : 40);
-  const lengthBonus = Math.floor(textLength * (isLargeDevice ? 1.1 : 1.35));
-  const longestWordBonus = Math.max(0, longestWordLength - 10) * (isLargeDevice ? 3 : 4);
+  const lineBonus = (estimatedLines - 1) * (isLargeDevice ? 56 : 62);
+  const lengthBonus = Math.floor(textLength * (isLargeDevice ? 1.45 : 1.75));
+  const longestWordBonus = Math.max(0, longestWordLength - 10) * (isLargeDevice ? 5 : 7);
 
-  const maxSunSize = isLargeDevice ? 460 : 420;
+  const maxSunSize = isLargeDevice ? 640 : 560;
   return clamp(baseSunSize + lineBonus + lengthBonus + longestWordBonus, baseSunSize, maxSunSize);
 }
 
 function getSunTextLayout(sunSize: number, text: string, fallbackText: string) {
   const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
-  const textLength = normalizedText.length;
-  const longestWordLength = getLongestWordLength(normalizedText);
-  const estimatedLines = Math.max(1, Math.ceil(textLength / 14));
-
   // The sun's inner circle in the SVG is 96 on a 160 viewBox.
   const innerCircleDiameter = (sunSize / 160) * 96;
-  const usableTextBoxSize = innerCircleDiameter * 0.78;
+  const usableTextBoxSize = innerCircleDiameter * 0.8;
+  const minFontSize = 10;
+  const maxFontSize = 13;
+  const fontStep = 0.5;
+  let fontSize = minFontSize;
 
-  const fontSizeFromLongestWord = longestWordLength > 0
-    ? usableTextBoxSize / (longestWordLength * 0.58)
-    : 14;
-  const fontSizeFromEstimatedLines = usableTextBoxSize / Math.max(1.8, estimatedLines * 1.25);
-  const fontSize = clamp(
-    Math.min(fontSizeFromLongestWord, fontSizeFromEstimatedLines, 14),
-    8.5,
-    14,
-  );
+  for (let candidate = maxFontSize; candidate >= minFontSize; candidate -= fontStep) {
+    const maxCharsPerLine = Math.max(1, Math.floor(usableTextBoxSize / (candidate * 0.56)));
+    const estimatedLines = estimateWrappedLineCount(normalizedText, maxCharsPerLine);
+    const estimatedHeight = estimatedLines * candidate * 1.18;
+
+    if (estimatedHeight <= usableTextBoxSize) {
+      fontSize = candidate;
+      break;
+    }
+  }
 
   return {
     fontSize,
@@ -119,18 +154,18 @@ function getSunTextLayout(sunSize: number, text: string, fallbackText: string) {
 function getDynamicCloudDimensions(text: string | undefined, isLargeDevice: boolean, fallbackText?: string) {
   const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
   const textLength = normalizedText.length;
-  const estimatedLines = Math.max(1, Math.ceil(textLength / 28));
+  const estimatedLines = estimateWrappedLineCount(normalizedText, isLargeDevice ? 36 : 26);
   const longestWordLength = getLongestWordLength(normalizedText);
 
   const baseWidth = isLargeDevice ? 480 : 320;
   const baseHeight = isLargeDevice ? 150 : 100;
-  const widthFromLength = Math.floor(textLength * (isLargeDevice ? 0.55 : 0.75));
-  const widthFromLongestWord = Math.max(0, longestWordLength - 12) * (isLargeDevice ? 7 : 9);
-  const heightFromLines = (estimatedLines - 1) * (isLargeDevice ? 24 : 26);
+  const widthFromLength = Math.floor(textLength * (isLargeDevice ? 0.8 : 1.1));
+  const widthFromLongestWord = Math.max(0, longestWordLength - 12) * (isLargeDevice ? 10 : 14);
+  const heightFromLines = (estimatedLines - 1) * (isLargeDevice ? 34 : 38);
 
   return {
-    width: clamp(baseWidth + widthFromLength + widthFromLongestWord, baseWidth, isLargeDevice ? 700 : 620),
-    height: clamp(baseHeight + heightFromLines, baseHeight, isLargeDevice ? 290 : 260),
+    width: clamp(baseWidth + widthFromLength + widthFromLongestWord, baseWidth, isLargeDevice ? 960 : 780),
+    height: clamp(baseHeight + heightFromLines, baseHeight, isLargeDevice ? 430 : 360),
   };
 }
 
@@ -161,15 +196,15 @@ function getCloudTextLayout(cloudWidth: number, cloudHeight: number, text: strin
 function getDynamicLessonSize(text: string | undefined, isLargeDevice: boolean, fallbackText?: string): number {
   const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
   const textLength = normalizedText.length;
-  const estimatedLines = Math.max(1, Math.ceil(textLength / 20));
+  const estimatedLines = estimateWrappedLineCount(normalizedText, isLargeDevice ? 18 : 14);
   const longestWordLength = getLongestWordLength(normalizedText);
 
   const baseSize = isLargeDevice ? 180 : 130;
-  const lineBonus = (estimatedLines - 1) * (isLargeDevice ? 20 : 24);
-  const lengthBonus = Math.floor(textLength * (isLargeDevice ? 0.9 : 1.1));
-  const longestWordBonus = Math.max(0, longestWordLength - 10) * (isLargeDevice ? 2 : 3);
+  const lineBonus = (estimatedLines - 1) * (isLargeDevice ? 30 : 36);
+  const lengthBonus = Math.floor(textLength * (isLargeDevice ? 1.3 : 1.6));
+  const longestWordBonus = Math.max(0, longestWordLength - 10) * (isLargeDevice ? 4 : 5);
 
-  return clamp(baseSize + lineBonus + lengthBonus + longestWordBonus, baseSize, isLargeDevice ? 340 : 300);
+  return clamp(baseSize + lineBonus + lengthBonus + longestWordBonus, baseSize, isLargeDevice ? 460 : 390);
 }
 
 function getLessonTextLayout(lessonSize: number, text: string, fallbackText: string) {
@@ -778,7 +813,6 @@ function AnimatedSun({
           placeholder={placeholder}
           placeholderTextColor="rgba(0,0,0,0.5)"
           multiline
-          numberOfLines={4}
           editable={!viewOnly}
           autoFocus={shouldAutoFocus}
         />
@@ -1018,7 +1052,6 @@ function AnimatedLesson({
             placeholder={placeholder}
             placeholderTextColor={lessonText + '80'}
             multiline
-            numberOfLines={5}
             editable={!viewOnly}
           />
           {/* Apply icon - shown in top right when placeholder is visible and focused */}

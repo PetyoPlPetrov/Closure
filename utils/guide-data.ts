@@ -28,6 +28,8 @@ export type GuideSection = {
   descriptionKey: keyof Translations;
   gifSource: string;
   bullets: GuideBullet[];
+  /** Embedded how-to player at the top of this guide section (e.g. Missions, Recording Memories). */
+  introYoutubeUrl?: string;
 };
 
 export const SECTIONS: GuideSection[] = [
@@ -37,30 +39,8 @@ export const SECTIONS: GuideSection[] = [
     titleKey: "guide.section.overview.title",
     descriptionKey: "guide.section.overview.description",
     gifSource: "welcome",
-    bullets: [
-      {
-        icon: "school",
-        titleKey: "guide.bullet.pastLessons.title",
-        descriptionKey: "guide.bullet.pastLessons.description",
-        menuPathKey: "guide.bullet.pastLessons.menuPath",
-        imageSource: require("@/Past.png"),
-        imageAlignment: "bottom",
-      },
-      {
-        icon: "wb-sunny",
-        titleKey: "guide.bullet.sunnyMoments.title",
-        descriptionKey: "guide.bullet.sunnyMoments.description",
-        menuPathKey: "guide.bullet.sunnyMoments.menuPath",
-        imageSource: require("@/Sunny.png"),
-      },
-      {
-        icon: "trending-up",
-        titleKey: "guide.bullet.livingForward.title",
-        descriptionKey: "guide.bullet.livingForward.description",
-        menuPathKey: "guide.bullet.livingForward.menuPath",
-        hideMedia: true,
-      },
-    ],
+    introYoutubeUrl: "https://www.youtube.com/shorts/ljj-C41fnGE",
+    bullets: [],
   },
   {
     id: "recordingMemories",
@@ -68,24 +48,8 @@ export const SECTIONS: GuideSection[] = [
     titleKey: "guide.section.recordingMemories.title",
     descriptionKey: "guide.section.recordingMemories.description",
     gifSource: "memories",
-    bullets: [
-      {
-        icon: "auto-awesome",
-        titleKey: "guide.bullet.recordMemoryAi.title",
-        descriptionKey: "guide.bullet.recordMemoryAi.description",
-        menuPathKey: "guide.bullet.recordMemoryAi.menuPath",
-        imageSource: require("@/assets/images/aibutton-fast.gif"),
-        imageScale: 1.14,
-      },
-      {
-        icon: "edit",
-        titleKey: "guide.bullet.recordMemoryManual.title",
-        descriptionKey: "guide.bullet.recordMemoryManual.description",
-        menuPathKey: "guide.bullet.recordMemoryManual.menuPath",
-        imageSource: require("@/assets/images/manual.gif"),
-        imageScale: 1.14,
-      },
-    ],
+    introYoutubeUrl: "https://www.youtube.com/shorts/hbnzgDlFpzM",
+    bullets: [],
   },
   {
     id: "tools",
