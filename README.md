@@ -1,5 +1,25 @@
 # Welcome to your Expo app 👋
 
+## Sferas Guide Copy (latest)
+
+Use this as the current text for the two guide videos already embedded in-app.
+
+### Missions
+
+Sferas is built around three missions that work together: learning from the past, keeping sunny moments from fading away, and moving forward with intention. Watch the walkthrough above to see how they fit into one flow.
+
+### Memories
+
+You can add memories in two ways: the guided flow from the center button, or manual editing when you want to write and change everything yourself. Watch the walkthrough above to see both.
+
+## Legacy Note (Dead Code)
+
+The legacy **main wheel lesson-check modal flow** in `app/(tabs)/index.tsx` is deprecated and should be treated as dead code.
+
+- It is not part of the active in-app UX.
+- New lesson-check work should target the **entity wheel** and **universe lessons/exam** flows.
+- The legacy block is kept temporarily for backward compatibility/reference until full removal.
+
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
 ## Get started

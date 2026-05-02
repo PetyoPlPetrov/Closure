@@ -23,7 +23,10 @@ import {
   pickAndConsumePreloadedQuestion,
   preloadEntityWheelQuestions,
 } from '@/utils/wheel-exam-preload';
-import { consumeUniverseExamIfAvailable } from '@/utils/universe-exam-rate-limiter';
+import {
+  consumeUniverseExamIfAvailable,
+  getRemainingUniverseExams,
+} from '@/utils/universe-exam-rate-limiter';
 import { logWheelEntitySpin } from '@/utils/analytics';
 import { useAIInsightsConsent } from '@/utils/AIInsightsConsentProvider';
 import { AIInsightsConsentModal } from '@/components/ai-insights-consent-modal';
@@ -359,6 +362,9 @@ export function EntityWheelOfLife({
   const [examAnswerInput, setExamAnswerInput] = useState('');
   examAnswerInputRef.current = examAnswerInput;
   const [showFireworks, setShowFireworks] = useState(false);
+  const [remainingExamTries, setRemainingExamTries] = useState<number | null>(
+    null,
+  );
 
   // State for floating moments that grow from memories
   const [floatingMoments, setFloatingMoments] = useState<{
@@ -626,6 +632,8 @@ export function EntityWheelOfLife({
       const purchased = await showPaywallForAIAccess();
       if (!purchased) return;
     }
+    const remaining = await getRemainingUniverseExams(hasAIEntitlement);
+    setRemainingExamTries(remaining);
 
     logWheelEntitySpin(entity.id).catch(() => {});
     setSelectedMomentType('lesson'); // Force lesson mode when spin starts (ignore current filter)
@@ -800,6 +808,19 @@ export function EntityWheelOfLife({
     .join('')
     .toUpperCase()
     .slice(0, 2);
+  const displayedTriesLeft =
+    remainingExamTries !== null && Number.isFinite(remainingExamTries)
+      ? Math.max(0, remainingExamTries)
+      : remainingExamTries;
+  const triesLeftLabel =
+    displayedTriesLeft === null
+      ? null
+      : Number.isFinite(displayedTriesLeft)
+        ? (t('universe.exam.triesRemainingFree') ||
+            '{count} free tries left today'
+          ).replace('{count}', String(displayedTriesLeft))
+        : t('universe.exam.triesRemainingUnlimited') ||
+          'Unlimited tries left today';
 
   return (
     <View style={styles.container} pointerEvents="box-none">
@@ -1281,6 +1302,20 @@ export function EntityWheelOfLife({
                         </ThemedText>
                       </Pressable>
                     </Animated.View>
+                    {triesLeftLabel ? (
+                      <ThemedText
+                        size="xs"
+                        style={{
+                          marginTop: 8,
+                          textAlign: 'center',
+                          color: momentColors.lesson.text,
+                          opacity: 0.72,
+                          fontSize: 11 * fontScale,
+                        }}
+                      >
+                        {triesLeftLabel}
+                      </ThemedText>
+                    ) : null}
                   </>
                 )}
                 <Pressable

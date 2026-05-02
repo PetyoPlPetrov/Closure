@@ -19,6 +19,7 @@ import {
   FlatList,
   Image,
   Platform,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -162,9 +163,9 @@ function BulletCard({
           <ThemedText
             size="xs"
             emphasis="medium"
-            style={{ marginTop: 8 * fontScale }}
+            style={{ marginTop: 8 * fontScale, textAlign: "center", paddingHorizontal: 16 }}
           >
-            Video coming soon
+            {t("guide.introVideoComingSoonTitle")}
           </ThemedText>
         </View>
       ) : null}
@@ -278,10 +279,26 @@ export default function GuideSectionScreen() {
     setIntroPlayerLoading(true);
   }, [introYoutubeVideoId]);
 
+  const introIsVerticalLayout = useMemo(() => {
+    if (!section?.introYoutubeUrl) return true;
+    const u = section.introYoutubeUrl.toLowerCase();
+    return u.includes("/shorts/") || u.includes("shorts/");
+  }, [section?.introYoutubeUrl]);
+
   const introPlayerHeight = useMemo(() => {
-    const h = Math.round(CARD_WIDTH * (9 / 16));
-    return Math.max(h, 200);
-  }, []);
+    const landscapeH = Math.max(Math.round(CARD_WIDTH * (9 / 16)), 200);
+    // Shorts embeds can leave a large empty area when the container is tall.
+    // Use the same compact 16:9 height as regular videos to eliminate the gap.
+    const shortsH = landscapeH;
+    return introIsVerticalLayout ? shortsH : landscapeH;
+  }, [introIsVerticalLayout]);
+
+  const introEmbedHeight = useMemo(() => {
+    if (!introIsVerticalLayout) return introPlayerHeight;
+    // Render Shorts in a smaller viewport and center it inside the wrapper
+    // so any unavoidable extra space is balanced instead of only below.
+    return Math.max(220, Math.round(introPlayerHeight * 0.68));
+  }, [introIsVerticalLayout, introPlayerHeight]);
 
   const snapOffsets = useMemo(() => {
     if (!section) return [];
@@ -318,6 +335,20 @@ export default function GuideSectionScreen() {
       });
     },
     [snapOffsets],
+  );
+
+  const navigateTo = useCallback(
+    (idx: number) => {
+      if (!section || section.bullets.length === 0) return;
+      const clamped = Math.max(0, Math.min(idx, section.bullets.length - 1));
+      listRef.current?.scrollToOffset({
+        offset: snapOffsets[clamped] ?? 0,
+        animated: true,
+      });
+      setCurrentIndex(clamped);
+      setMaxSeenIndex((prev) => Math.max(prev, clamped));
+    },
+    [snapOffsets, section],
   );
 
   const getItemLayout = useCallback(
@@ -433,6 +464,7 @@ export default function GuideSectionScreen() {
         introVideoPlayerWrap: {
           alignSelf: "center",
           width: CARD_WIDTH,
+          justifyContent: "center",
           position: "relative",
           overflow: "hidden",
         },
@@ -490,19 +522,6 @@ export default function GuideSectionScreen() {
   const allSeen =
     !hasBullets || maxSeenIndex >= section.bullets.length - 1;
 
-  const navigateTo = useCallback(
-    (idx: number) => {
-      const clamped = Math.max(0, Math.min(idx, section.bullets.length - 1));
-      listRef.current?.scrollToOffset({
-        offset: snapOffsets[clamped] ?? 0,
-        animated: true,
-      });
-      setCurrentIndex(clamped);
-      setMaxSeenIndex((prev) => Math.max(prev, clamped));
-    },
-    [snapOffsets, section.bullets.length],
-  );
-
   const handleMarkDone = async () => {
     if (!allSeen) return;
     await markSectionRead(section.id);
@@ -541,7 +560,7 @@ export default function GuideSectionScreen() {
             style={[styles.introVideoPlayerWrap, { height: introPlayerHeight }]}
           >
             <YoutubeIframe
-              height={introPlayerHeight}
+              height={introEmbedHeight}
               width={CARD_WIDTH}
               videoId={introYoutubeVideoId}
               play
@@ -570,6 +589,50 @@ export default function GuideSectionScreen() {
                 </ThemedText>
               </View>
             ) : null}
+          </View>
+        </View>
+      ) : !hasBullets ? (
+        <View style={styles.introVideoBlock}>
+          <View style={styles.introVideoLabel}>
+            <ThemedText size="sm" weight="semibold">
+              {t("guide.introVideoComingSoonTitle")}
+            </ThemedText>
+          </View>
+          <View
+            style={[
+              styles.introVideoPlayerWrap,
+              {
+                height: introPlayerHeight,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor:
+                  colorScheme === "dark"
+                    ? "rgba(0,0,0,0.35)"
+                    : "rgba(0,0,0,0.06)",
+              },
+            ]}
+          >
+            <MaterialIcons
+              name="play-circle-outline"
+              size={48 * fontScale}
+              color={
+                colorScheme === "dark"
+                  ? "rgba(255,255,255,0.35)"
+                  : "rgba(0,0,0,0.22)"
+              }
+            />
+            <ThemedText
+              size="xs"
+              emphasis="medium"
+              style={{
+                marginTop: 12 * fontScale,
+                opacity: colorScheme === "dark" ? 0.72 : 0.65,
+                textAlign: "center",
+                paddingHorizontal: 20 * fontScale,
+              }}
+            >
+              {t("guide.introVideoComingSoonBody")}
+            </ThemedText>
           </View>
         </View>
       ) : null}
@@ -672,7 +735,19 @@ export default function GuideSectionScreen() {
             </View>
           </View>
         ) : (
-          <View style={{ flex: 1 }} />
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              paddingHorizontal: 16 * fontScale,
+              paddingTop: 4 * fontScale,
+              paddingBottom: 24 * fontScale,
+            }}
+            showsVerticalScrollIndicator={false}
+          >
+            <ThemedText size="sm" emphasis="medium">
+              {t(section.descriptionKey)}
+            </ThemedText>
+          </ScrollView>
         )}
 
         {/* Bottom: mark as done */}

@@ -292,6 +292,8 @@ export interface Translations {
   "guide.markedDone": string;
   "guide.watchVideo": string;
   "guide.introVideoLoading": string;
+  "guide.introVideoComingSoonTitle": string;
+  "guide.introVideoComingSoonBody": string;
   "guide.unknownSection": string;
   "guide.section.overview.title": string;
   "guide.section.overview.shortTitle": string;
@@ -4210,31 +4212,34 @@ const translations: Record<Language, Translations> = {
     "guide.markedDone": "Done",
     "guide.watchVideo": "Watch the video",
     "guide.introVideoLoading": "Loading preview…",
+    "guide.introVideoComingSoonTitle": "Video coming soon",
+    "guide.introVideoComingSoonBody":
+      "This walkthrough will appear here after we publish it—open the guide again once your app updates.",
     "guide.unknownSection": "This guide section could not be opened. Go back and try again.",
     "guide.section.overview.title": "Missions",
     "guide.section.overview.shortTitle": "Missions",
     "guide.section.overview.description":
-      "Sferas is built around three missions that work together: examining what the past has taught you, preserving the good moments you'd otherwise forget, and using both to move forward with intention. Swipe through each mission to understand how they connect.",
+      "Sferas is built around three missions that work together: learning from the past, keeping sunny moments from fading away, and moving forward with intention. Watch the walkthrough above to see how they fit into one flow.",
     "guide.section.recordingMemories.title": "Recording Memories",
     "guide.section.recordingMemories.shortTitle": "Memories",
     "guide.section.recordingMemories.description":
-      "You can add memories in two ways: use the central AI button for a guided conversation, or switch to Manual edit mode and write or change memories directly. Swipe through both options below.",
+      "You can add memories in two ways: the guided flow from the center button, or manual editing when you want to write and change everything yourself. Watch the walkthrough above to see both.",
     "guide.section.tools.title": "Sferas Tools",
     "guide.section.tools.shortTitle": "Tools",
     "guide.section.tools.description":
-      "These features turn what you’re aiming for into concrete steps: Universe Lessons, daily exams, insights, and each entity’s wheel — revisit wisdom, test yourself, see balance, and grow in the areas that matter.",
+      "Tools bring your notes back into real life: one place for lessons you’ve saved, honest daily checks, balance snapshots, and each story’s own circle of moments—so reflection turns into practice.",
     "guide.section.notifications.title": "Notifications & Nudges",
     "guide.section.notifications.shortTitle": "Nudges",
     "guide.section.notifications.description":
-      "Set up reminders for your entities, moment nudges, and event-based notifications to stay on track.",
+      "Gentle reminders before someone drifts away, nudges that bring sunny bits back, and prompts after evenings or trips you’ve logged—so gratitude and care don’t get buried under errands.",
     "guide.section.customizations.title": "Customizations",
     "guide.section.customizations.shortTitle": "Styles",
     "guide.section.customizations.description":
-      "Personalize the look and feel of the app — themes, moment colors, and animation settings.",
+      "Tune the sky behind your worlds, the colors of floating bubbles on Home, and how motion feels—until opening Sferas lowers your shoulders instead of raising them.",
     "guide.section.account.title": "Account & Data",
     "guide.section.account.shortTitle": "Account",
     "guide.section.account.description":
-      "Manage your data with backup and restore tools, or manually edit your entities and memories.",
+      "Edit wording right next to each memory when you want full control, export everything to keep offline, and restore on a new phone—your archive stays yours.",
     "guide.remindOnOpen": "Remind me to complete the guide",
     "guide.remindOnOpenDescription":
       "Show a prompt on app open until every section is marked done—after that, no banner appears. Off matches “Don't show again” on the home banner; turn it on to bring reminders back while unfinished sections remain. Completed sections are unchanged.",
@@ -9027,32 +9032,35 @@ const translations: Record<Language, Translations> = {
     "guide.markedDone": "Прочетено",
     "guide.watchVideo": "Гледай видеото",
     "guide.introVideoLoading": "Зареждане на прегледа…",
+    "guide.introVideoComingSoonTitle": "Видеото предстои",
+    "guide.introVideoComingSoonBody":
+      "Това обяснение ще се появи тук, след като го публикуваме—отвори отново ръководството след актуализация на приложението.",
     "guide.unknownSection":
       "Този раздел от ръководството не може да се отвори. Върни се назад и опитай отново.",
     "guide.section.overview.title": "Мисии",
     "guide.section.overview.shortTitle": "Мисии",
     "guide.section.overview.description":
-      "Sferas е изградена около три мисии, които работят заедно: изследване на това, което миналото ви е научило, запазване на добрите моменти, които иначе бихте забравили, и използване на двете, за да вървите напред с намерение. Плъзнете през всяка мисия, за да разберете как се свързват.",
+      "Sferas е изградена около три мисии: учене от миналото, пазене на добрите моменти и напредък с намерение. Гледай видеото по-горе, за да видиш как се съединяват в един поток.",
     "guide.section.recordingMemories.title": "Записване на спомени",
     "guide.section.recordingMemories.shortTitle": "Спомени",
     "guide.section.recordingMemories.description":
-      "Можете да добавяте спомени по два начина: с централния AI бутон за воден разговор или като превключите към ръчен режим и пишете или редактирате директно. Плъзнете през двете опции по-долу.",
+      "Можете да добавяте спомени по два начина: водения поток от централния бутон или ръчно редактиране, когато искате сами да пишете и променяте всичко. Гледай видеото по-горе и за двата.",
     "guide.section.tools.title": "Инструменти Sferas",
     "guide.section.tools.shortTitle": "Инструменти",
     "guide.section.tools.description":
-      "Тези възможности превръщат това, към което се стремите, в конкретни стъпки: уроци от вселената, дневен изпит, прозрения и колелото на всеки обект — да преговорите мъдростта си, да проверявате себе си, да виждате баланса и да растете там, където има значение.",
+      "Инструментите връщат бележките в живота: едно място за запазени уроци, честни дневни проверки, моментни „снимки“ на баланса и собствен кръг от моменти за всяка история—за да стане размисълът практика.",
     "guide.section.notifications.title": "Известия и напомняния",
     "guide.section.notifications.shortTitle": "Известия",
     "guide.section.notifications.description":
-      "Настройте напомняния за вашите сфери, напомняния за моменти и известия, базирани на събития.",
+      "Леки напомняния преди някой да се отдалечи, подкани да се върнат хубавите моменти и съобщения след вечери или пътувания, които сте записали—за да не потънат грижата и благодарността под задачите.",
     "guide.section.customizations.title": "Персонализация",
     "guide.section.customizations.shortTitle": "Визия",
     "guide.section.customizations.description":
-      "Персонализирайте облика на приложението — теми, цветове на моментите и настройки за анимации.",
+      "Настрой небето зад световете ти, цветовете на балончетата на началния екран и усещането за движение—докато отварянето на Sferas не сваля раменете вместо да ги вдига.",
     "guide.section.account.title": "Акаунт и данни",
     "guide.section.account.shortTitle": "Акаунт",
     "guide.section.account.description":
-      "Управлявайте данните си с инструменти за архивиране и възстановяване или редактирайте ръчно.",
+      "Редактирай текста до всеки спомен, когато искаш пълен контрол, експортирай всичко за офлайн копие и възстанови на нов телефон—архивът си остава твой.",
     "guide.remindOnOpen": "Напомни ми да завърша ръководството",
     "guide.remindOnOpenDescription":
       "Показвай напомняне при отваряне на приложението, докато всеки раздел не е отбелязан като готов—след това банерът не се показва. Изключено е същото като „Не показвай отново“ от началния банер; включете отново, за да се показва напомнянето, докато има незавършени раздели. Завършените раздели не се нулират.",

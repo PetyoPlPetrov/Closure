@@ -21,16 +21,21 @@ export type GuideSection = {
     | "recordingMemories"
     | "tools"
     | "notifications"
-    | "customizations"
-    | "account";
+    | "customizations";
   icon: keyof typeof MaterialIcons.glyphMap;
   titleKey: keyof Translations;
   descriptionKey: keyof Translations;
+  /** Legacy field kept for typing; guide UI is video-first. */
   gifSource: string;
   bullets: GuideBullet[];
-  /** Embedded how-to player at the top of this guide section (e.g. Missions, Recording Memories). */
+  /**
+   * Embedded walkthrough at the top (`youtube.com/watch`, `/shorts/…`, `youtu.be/…`).
+   * Omit until the clip is published; the app shows a “coming soon” slot instead.
+   */
   introYoutubeUrl?: string;
 };
+
+/** When a clip is ready, set `introYoutubeUrl` on that row (watch URL, Short, or youtu.be). */
 
 export const SECTIONS: GuideSection[] = [
   {
@@ -39,7 +44,7 @@ export const SECTIONS: GuideSection[] = [
     titleKey: "guide.section.overview.title",
     descriptionKey: "guide.section.overview.description",
     gifSource: "welcome",
-    introYoutubeUrl: "https://www.youtube.com/shorts/ljj-C41fnGE",
+    introYoutubeUrl: "https://youtube.com/shorts/GGzuCQF6f7Y",
     bullets: [],
   },
   {
@@ -48,7 +53,7 @@ export const SECTIONS: GuideSection[] = [
     titleKey: "guide.section.recordingMemories.title",
     descriptionKey: "guide.section.recordingMemories.description",
     gifSource: "memories",
-    introYoutubeUrl: "https://www.youtube.com/shorts/hbnzgDlFpzM",
+    introYoutubeUrl: "https://youtube.com/shorts/hULsN9Qubqk",
     bullets: [],
   },
   {
@@ -56,44 +61,9 @@ export const SECTIONS: GuideSection[] = [
     icon: "build",
     titleKey: "guide.section.tools.title",
     descriptionKey: "guide.section.tools.description",
+    introYoutubeUrl: "https://youtube.com/shorts/66MjbVSiACc",
     gifSource: "wheel",
-    bullets: [
-      {
-        icon: "public",
-        titleKey: "guide.bullet.universeLessons.title",
-        descriptionKey: "guide.bullet.universeLessons.description",
-        menuPathKey: "guide.bullet.universeLessons.menuPath",
-        imageSource: require("@/assets/images/Universe.gif"),
-      },
-      {
-        icon: "assignment",
-        titleKey: "guide.bullet.dailyExam.title",
-        descriptionKey: "guide.bullet.dailyExam.description",
-        menuPathKey: "guide.bullet.dailyExam.menuPath",
-        imageSource: require("@/assets/images/Exam.gif"),
-      },
-      {
-        icon: "donut-large",
-        titleKey: "guide.bullet.insightsWheel.title",
-        descriptionKey: "guide.bullet.insightsWheel.description",
-        menuPathKey: "guide.bullet.insightsWheel.menuPath",
-        imageSource: require("@/assets/images/insights.gif"),
-      },
-      {
-        icon: "pie-chart",
-        titleKey: "guide.bullet.sferasBalance.title",
-        descriptionKey: "guide.bullet.sferasBalance.description",
-        menuPathKey: "guide.bullet.sferasBalance.menuPath",
-        videoSource: require("@/assets/videos/guide-balance.mp4"),
-      },
-      {
-        icon: "rotate-right",
-        titleKey: "guide.bullet.entityWheel.title",
-        descriptionKey: "guide.bullet.entityWheel.description",
-        menuPathKey: "guide.bullet.entityWheel.menuPath",
-        imageSource: require("@/assets/images/EntityWheelOfLife.gif"),
-      },
-    ],
+    bullets: [],
   },
   {
     id: "notifications",
@@ -101,74 +71,16 @@ export const SECTIONS: GuideSection[] = [
     titleKey: "guide.section.notifications.title",
     descriptionKey: "guide.section.notifications.description",
     gifSource: "notifications",
-    bullets: [
-      {
-        icon: "alarm",
-        titleKey: "guide.bullet.entityReminders.title",
-        descriptionKey: "guide.bullet.entityReminders.description",
-        menuPathKey: "guide.bullet.entityReminders.menuPath",
-        imageSource: require("@/EntityReminder.png"),
-      },
-      {
-        icon: "touch-app",
-        titleKey: "guide.bullet.momentNudges.title",
-        descriptionKey: "guide.bullet.momentNudges.description",
-        menuPathKey: "guide.bullet.momentNudges.menuPath",
-      },
-      {
-        icon: "event",
-        titleKey: "guide.bullet.eventReminders.title",
-        descriptionKey: "guide.bullet.eventReminders.description",
-        menuPathKey: "guide.bullet.eventReminders.menuPath",
-      },
-    ],
+    introYoutubeUrl: "https://youtube.com/shorts/EAUvAGlycd8",
+    bullets: [],
   },
   {
     id: "customizations",
     icon: "palette",
     titleKey: "guide.section.customizations.title",
     descriptionKey: "guide.section.customizations.description",
+    introYoutubeUrl: "https://youtube.com/shorts/jLFuu13vgA0",
     gifSource: "momentsColors",
-    bullets: [
-      {
-        icon: "auto-awesome",
-        titleKey: "guide.bullet.cosmicLook.title",
-        descriptionKey: "guide.bullet.cosmicLook.description",
-        menuPathKey: "guide.bullet.cosmicLook.menuPath",
-      },
-      {
-        icon: "color-lens",
-        titleKey: "guide.bullet.momentColors.title",
-        descriptionKey: "guide.bullet.momentColors.description",
-        menuPathKey: "guide.bullet.momentColors.menuPath",
-      },
-      {
-        icon: "animation",
-        titleKey: "guide.bullet.animationSettings.title",
-        descriptionKey: "guide.bullet.animationSettings.description",
-        menuPathKey: "guide.bullet.animationSettings.menuPath",
-      },
-    ],
-  },
-  {
-    id: "account",
-    icon: "manage-accounts",
-    titleKey: "guide.section.account.title",
-    descriptionKey: "guide.section.account.description",
-    gifSource: "recap",
-    bullets: [
-      {
-        icon: "edit",
-        titleKey: "guide.bullet.manualEdit.title",
-        descriptionKey: "guide.bullet.manualEdit.description",
-        menuPathKey: "guide.bullet.manualEdit.menuPath",
-      },
-      {
-        icon: "backup",
-        titleKey: "guide.bullet.backupRestore.title",
-        descriptionKey: "guide.bullet.backupRestore.description",
-        menuPathKey: "guide.bullet.backupRestore.menuPath",
-      },
-    ],
+    bullets: [],
   },
 ];

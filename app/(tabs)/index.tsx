@@ -63,7 +63,10 @@ import {
 import { refreshStreakNotifications } from "@/utils/streak-notifications";
 import type { StreakBadge, StreakData } from "@/utils/streak-types";
 import { useSubscription } from "@/utils/SubscriptionProvider";
-import { consumeUniverseExamIfAvailable } from "@/utils/universe-exam-rate-limiter";
+import {
+  consumeUniverseExamIfAvailable,
+  getRemainingUniverseExams,
+} from "@/utils/universe-exam-rate-limiter";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import {
   pickAndConsumePreloadedQuestion,
@@ -617,6 +620,8 @@ const FloatingAvatar = React.memo(
     const entityExamAnswerInputRef = React.useRef("");
     (entityExamAnswerInputRef as React.MutableRefObject<string>).current =
       examAnswerInput;
+    const [entityWheelExamTriesRemaining, setEntityWheelExamTriesRemaining] =
+      React.useState<number | null>(null);
     const [selectedMomentType, setSelectedMomentType] = React.useState<
       "lesson" | "sunny" | "cloudy"
     >("lesson");
@@ -2791,6 +2796,8 @@ const FloatingAvatar = React.memo(
               return;
             }
           }
+          const remaining = await getRemainingUniverseExams(hasAIEntitlement);
+          setEntityWheelExamTriesRemaining(remaining);
           startEntityWheelSpin(velocity);
         } finally {
           entityWheelReleaseInProgressRef.current = false;
@@ -5990,6 +5997,39 @@ const FloatingAvatar = React.memo(
                                 </LinearGradient>
                               </Pressable>
                             </Animated.View>
+                            {(() => {
+                              const displayedTriesLeft =
+                                entityWheelExamTriesRemaining !== null &&
+                                Number.isFinite(entityWheelExamTriesRemaining)
+                                  ? Math.max(0, entityWheelExamTriesRemaining)
+                                  : entityWheelExamTriesRemaining;
+                              const triesLeftLabel =
+                                displayedTriesLeft === null
+                                  ? null
+                                  : Number.isFinite(displayedTriesLeft)
+                                    ? (
+                                        t("universe.exam.triesRemainingFree") ||
+                                        "{count} free tries left today"
+                                      ).replace(
+                                        "{count}",
+                                        String(displayedTriesLeft),
+                                      )
+                                    : t("universe.exam.triesRemainingUnlimited") ||
+                                      "Unlimited tries left today";
+                              return triesLeftLabel ? (
+                                <ThemedText
+                                  size="xs"
+                                  style={{
+                                    marginTop: 8,
+                                    textAlign: "center",
+                                    color: "rgba(184, 232, 236, 0.65)",
+                                    fontSize: 11,
+                                  }}
+                                >
+                                  {triesLeftLabel}
+                                </ThemedText>
+                              ) : null;
+                            })()}
                           </>
                         )}
                         <Pressable
@@ -14464,9 +14504,7 @@ export default function HomeScreen() {
                 ? "guide.section.tools.shortTitle"
                 : s.id === "notifications"
                   ? "guide.section.notifications.shortTitle"
-                  : s.id === "customizations"
-                    ? "guide.section.customizations.shortTitle"
-                    : "guide.section.account.shortTitle",
+                  : "guide.section.customizations.shortTitle",
         isDone: guideReadSections.has(s.id),
       }))}
     />
@@ -15419,6 +15457,10 @@ export default function HomeScreen() {
   type MomentType = "lessons" | "hardTruths" | "sunnyMoments";
   const [selectedMomentType, setSelectedMomentType] =
     useState<MomentType>("lessons");
+  // LEGACY / DEAD CODE NOTE:
+  // Main wheel lesson-check flow is not part of the active in-app UX anymore.
+  // Keep this block only as a temporary fallback reference while migration stays in progress.
+  // New lesson-check behavior should be implemented in entity wheel / universe exam flows instead.
   // MAIN WHEEL OF LIFE — lesson/exam state (triggered from classic view, circle avatar spin)
   const [selectedLesson, setSelectedLesson] = useState<{
     text: string;
@@ -15436,6 +15478,8 @@ export default function HomeScreen() {
   } | null>(null);
   const [showLesson, setShowLesson] = useState(false);
   const [mainWheelExamAnswerInput, setMainWheelExamAnswerInput] = useState("");
+  const [mainWheelExamTriesRemaining, setMainWheelExamTriesRemaining] =
+    useState<number | null>(null);
   const mainWheelExamAnswerInputRef = useRef("");
   (mainWheelExamAnswerInputRef as React.MutableRefObject<string>).current =
     mainWheelExamAnswerInput;
@@ -16348,6 +16392,9 @@ export default function HomeScreen() {
     setRandomMoments((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
+  // LEGACY / DEAD CODE NOTE:
+  // "Challenge Me" here belongs to the deprecated main-wheel exam path.
+  // Do not extend this path for new features; use entity wheel / universe lessons flows.
   // Challenge Me: run rate-limit/paywall checks then show exam modal in-place (no view switch)
   const handleChallengeMePress = useCallback(() => {
     if (!aiConsent.isEnabled) {
@@ -16363,6 +16410,8 @@ export default function HomeScreen() {
           const purchased = await showPaywallForAIAccess();
           if (!purchased) return;
         }
+        const remaining = await getRemainingUniverseExams(hasAIEntitlement);
+        setMainWheelExamTriesRemaining(remaining);
         // Rate limit passed — show exam directly without switching to classic view
         await onWheelSpinComplete();
       } finally {
@@ -17102,6 +17151,9 @@ export default function HomeScreen() {
                     return;
                   }
                 }
+                const remaining =
+                  await getRemainingUniverseExams(hasAIEntitlement);
+                setMainWheelExamTriesRemaining(remaining);
                 wheelVelocity.value = velocityAtRelease;
                 startSpin();
               } finally {
@@ -20026,6 +20078,39 @@ export default function HomeScreen() {
                               </LinearGradient>
                             </Pressable>
                           </Animated.View>
+                          {(() => {
+                            const displayedTriesLeft =
+                              mainWheelExamTriesRemaining !== null &&
+                              Number.isFinite(mainWheelExamTriesRemaining)
+                                ? Math.max(0, mainWheelExamTriesRemaining)
+                                : mainWheelExamTriesRemaining;
+                            const triesLeftLabel =
+                              displayedTriesLeft === null
+                                ? null
+                                : Number.isFinite(displayedTriesLeft)
+                                  ? (
+                                      t("universe.exam.triesRemainingFree") ||
+                                      "{count} free tries left today"
+                                    ).replace(
+                                      "{count}",
+                                      String(displayedTriesLeft),
+                                    )
+                                  : t("universe.exam.triesRemainingUnlimited") ||
+                                    "Unlimited tries left today";
+                            return triesLeftLabel ? (
+                              <ThemedText
+                                size="xs"
+                                style={{
+                                  marginTop: 8,
+                                  textAlign: "center",
+                                  color: "rgba(184, 232, 236, 0.65)",
+                                  fontSize: 11,
+                                }}
+                              >
+                                {triesLeftLabel}
+                              </ThemedText>
+                            ) : null;
+                          })()}
                           <Pressable
                             onPress={handleDismissLesson}
                             style={{
@@ -20255,6 +20340,8 @@ export default function HomeScreen() {
                   );
                 })()}
 
+              {/* LEGACY / DEAD CODE NOTE: main-wheel result overlay is deprecated and not part of active UX.
+                  Keep only for backward compatibility until full cleanup/removal. */}
               {/* MAIN WHEEL OF LIFE — exam result card overlay (shown after user submits answer) */}
               {selectedLesson?.examStep === "result" &&
                 selectedLesson.examAnalysis &&
