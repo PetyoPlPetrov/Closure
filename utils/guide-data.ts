@@ -21,6 +21,7 @@ export type GuideSection = {
     | "recordingMemories"
     | "tools"
     | "notifications"
+    | "badges"
     | "customizations";
   icon: keyof typeof MaterialIcons.glyphMap;
   titleKey: keyof Translations;
@@ -74,6 +75,14 @@ export const SECTIONS: GuideSection[] = [
     descriptionKey: "guide.section.notifications.description",
     gifSource: "notifications",
     introYoutubeUrl: "https://youtube.com/shorts/EAUvAGlycd8",
+    bullets: [],
+  },
+  {
+    id: "badges",
+    icon: "military-tech",
+    titleKey: "guide.section.badges.title",
+    descriptionKey: "guide.section.badges.description",
+    gifSource: "streakBadges",
     bullets: [],
   },
   {

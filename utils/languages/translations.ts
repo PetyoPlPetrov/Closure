@@ -307,6 +307,9 @@ export interface Translations {
   "guide.section.notifications.title": string;
   "guide.section.notifications.shortTitle": string;
   "guide.section.notifications.description": string;
+  "guide.section.badges.title": string;
+  "guide.section.badges.shortTitle": string;
+  "guide.section.badges.description": string;
   "guide.section.customizations.title": string;
   "guide.section.customizations.shortTitle": string;
   "guide.section.customizations.description": string;
@@ -4232,6 +4235,10 @@ const translations: Record<Language, Translations> = {
     "guide.section.notifications.shortTitle": "Nudges",
     "guide.section.notifications.description":
       "This section includes two adjustable notification types: people reminders so you don’t forget to get in touch, and nudges that bring back lessons or sunny moments so you remind yourself life is good overall.",
+    "guide.section.badges.title": "Streak Badges",
+    "guide.section.badges.shortTitle": "Badges",
+    "guide.section.badges.description":
+      "Badges turn consistency into visible progress. Log at least one memory each day to keep your streak alive, unlock stronger badge tiers, and hold onto temporary in-app rewards while your streak stays active.",
     "guide.section.customizations.title": "Customizations",
     "guide.section.customizations.shortTitle": "Styles",
     "guide.section.customizations.description":
@@ -9053,6 +9060,10 @@ const translations: Record<Language, Translations> = {
     "guide.section.notifications.shortTitle": "Известия",
     "guide.section.notifications.description":
       "Леки напомняния преди някой да се отдалечи, подкани да се върнат хубавите моменти и съобщения след вечери или пътувания, които сте записали—за да не потънат грижата и благодарността под задачите.",
+    "guide.section.badges.title": "Бейджове за поредица",
+    "guide.section.badges.shortTitle": "Бейджове",
+    "guide.section.badges.description":
+      "Бейджовете превръщат постоянството във видим напредък. Записвай поне един спомен на ден, за да пазиш поредицата си, да отключваш по-силни нива и да запазиш временните награди, докато поредицата е активна.",
     "guide.section.customizations.title": "Персонализация",
     "guide.section.customizations.shortTitle": "Визия",
     "guide.section.customizations.description":

@@ -30,7 +30,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useIsFocused } from "@react-navigation/native";
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   AppState,
@@ -2771,6 +2771,9 @@ export function FocusedSferaView({
   const insightsHubPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const openInsightsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isOpeningInsightsRef = useRef(false);
+  const insightsHubScale = useSharedValue(1);
   const [displayMode, setDisplayMode] = useState<"defaultOrbit" | "memoryBalanceRings">(
     "defaultOrbit",
   );
@@ -2846,6 +2849,10 @@ export function FocusedSferaView({
       if (insightsHubPulseTimerRef.current) {
         clearTimeout(insightsHubPulseTimerRef.current);
         insightsHubPulseTimerRef.current = null;
+      }
+      if (openInsightsTimerRef.current) {
+        clearTimeout(openInsightsTimerRef.current);
+        openInsightsTimerRef.current = null;
       }
     },
     [clearMemoriesHintTimer],
@@ -3396,7 +3403,22 @@ export function FocusedSferaView({
       if (isSunExpanded) {
         handleCollapseSun();
       } else {
-        onInsightsPress?.();
+        if (!onInsightsPress || isOpeningInsightsRef.current) return;
+        isOpeningInsightsRef.current = true;
+        cancelAnimation(insightsHubScale);
+        insightsHubScale.value = withSequence(
+          withTiming(1.1, { duration: 150, easing: Easing.out(Easing.sin) }),
+          withTiming(1, { duration: 170, easing: Easing.inOut(Easing.sin) }),
+        );
+        if (openInsightsTimerRef.current) {
+          clearTimeout(openInsightsTimerRef.current);
+          openInsightsTimerRef.current = null;
+        }
+        openInsightsTimerRef.current = setTimeout(() => {
+          isOpeningInsightsRef.current = false;
+          openInsightsTimerRef.current = null;
+          onInsightsPress();
+        }, 320);
       }
     } else {
       if (onClearSelection) {
@@ -3413,6 +3435,7 @@ export function FocusedSferaView({
     onInsightsPress,
     sunLoadComplete,
     handleCollapseSun,
+    insightsHubScale,
   ]);
 
   const { momentColors } = useMomentColors();
@@ -3423,7 +3446,6 @@ export function FocusedSferaView({
   const leftChevronScale = useSharedValue(1);
   const rightChevronScale = useSharedValue(1);
   const memoryBalanceToggleScale = useSharedValue(1);
-  const insightsHubScale = useSharedValue(1);
   const hintOpacity = useSharedValue(0);
 
   const showDoubleTapHint = useCallback(() => {

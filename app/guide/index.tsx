@@ -86,7 +86,9 @@ export default function GuideScreen() {
             ? "guide.section.tools.shortTitle"
             : sectionId === "notifications"
               ? "guide.section.notifications.shortTitle"
-              : "guide.section.customizations.shortTitle",
+              : sectionId === "badges"
+                ? "guide.section.badges.shortTitle"
+                : "guide.section.customizations.shortTitle",
     [],
   );
 

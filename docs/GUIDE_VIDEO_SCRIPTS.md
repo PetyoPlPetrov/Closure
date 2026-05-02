@@ -53,12 +53,26 @@ _Feature mapping (for captions / demo only): Usability (interaction/motion comfo
 
 ---
 
+## 4. Streak badges — small streaks, real perks *(guide row id: `badges`)*
+
+**Working title:** Keep your streak, keep your perks  
+**Length target:** ~30 s  
+
+### Story script (~75–85 words → ~30 s VO)
+
+**Streak Badges** turn consistency into practical rewards. Log at least one memory each day, and your badge climbs: **Ignite**, **Pulse**, **Nova**, then **Sferas**. With Pulse, you unlock Moment Colors without a subscription. With Nova, your free per-sphere limit grows from two to five entities. With Sferas, your daily free AI and lesson checks rise from three to five. Miss days and perks can drop, so this is your gentle reason to keep showing up.
+
+_Feature mapping (for captions / demo only): Ignite (start streak), Pulse (Moment Colors unlocked), Nova (2→5 free entities per sphere), Sferas (3→5 daily AI + lesson/wheel checks)._
+
+---
+
 ## Quick checklist before filming
 
 | Guide row (app list) | Clip slug idea                  | After upload                           |
 |----------------------|---------------------------------|----------------------------------------|
 | Tools                | `sferas-guide-tools`             | `introYoutubeUrl` on `tools`           |
 | Nudges               | `sferas-guide-notifications`    | `introYoutubeUrl` on `notifications`   |
+| Badges               | `sferas-guide-badges`           | `introYoutubeUrl` on `badges`          |
 | Styles               | `sferas-guide-customizations`   | `introYoutubeUrl` on `customizations` |
 
 1. Record vertical video (**1080×1920** or similar), **~60 seconds** per section unless your edit needs handles.  

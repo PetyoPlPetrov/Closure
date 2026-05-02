@@ -14504,7 +14504,9 @@ export default function HomeScreen() {
                 ? "guide.section.tools.shortTitle"
                 : s.id === "notifications"
                   ? "guide.section.notifications.shortTitle"
-                  : "guide.section.customizations.shortTitle",
+                  : s.id === "badges"
+                    ? "guide.section.badges.shortTitle"
+                    : "guide.section.customizations.shortTitle",
         isDone: guideReadSections.has(s.id),
       }))}
     />

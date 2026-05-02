@@ -26,6 +26,7 @@ const SECTION_NAME_TO_ID: Record<string, GuideSection["id"]> = {
   tools: "tools",
   nudges: "notifications",
   notifications: "notifications",
+  badges: "badges",
   styles: "customizations",
   customizations: "customizations",
 };
