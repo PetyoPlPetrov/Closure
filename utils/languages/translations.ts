@@ -4211,7 +4211,7 @@ const translations: Record<Language, Translations> = {
     "guide.markDone": "Mark as done",
     "guide.markedDone": "Done",
     "guide.watchVideo": "Watch the video",
-    "guide.introVideoLoading": "Loading preview…",
+    "guide.introVideoLoading": "Loading",
     "guide.introVideoComingSoonTitle": "Video coming soon",
     "guide.introVideoComingSoonBody":
       "This walkthrough will appear here after we publish it—open the guide again once your app updates.",
@@ -4219,7 +4219,7 @@ const translations: Record<Language, Translations> = {
     "guide.section.overview.title": "Missions",
     "guide.section.overview.shortTitle": "Missions",
     "guide.section.overview.description":
-      "Sferas is built around three missions that work together: learning from the past, keeping sunny moments from fading away, and moving forward with intention. Watch the walkthrough above to see how they fit into one flow.",
+      "Sferas is built around three missions that work together: learning from the past, capturing sunny moments and paying attention to them, and moving forward with intention. In busy life we often miss the good moments, and this flow helps bring awareness back to them.",
     "guide.section.recordingMemories.title": "Recording Memories",
     "guide.section.recordingMemories.shortTitle": "Memories",
     "guide.section.recordingMemories.description":
@@ -4231,11 +4231,11 @@ const translations: Record<Language, Translations> = {
     "guide.section.notifications.title": "Notifications & Nudges",
     "guide.section.notifications.shortTitle": "Nudges",
     "guide.section.notifications.description":
-      "Gentle reminders before someone drifts away, nudges that bring sunny bits back, and prompts after evenings or trips you’ve logged—so gratitude and care don’t get buried under errands.",
+      "This section includes two adjustable notification types: people reminders so you don’t forget to get in touch, and nudges that bring back lessons or sunny moments so you remind yourself life is good overall.",
     "guide.section.customizations.title": "Customizations",
     "guide.section.customizations.shortTitle": "Styles",
     "guide.section.customizations.description":
-      "Tune the sky behind your worlds, the colors of floating bubbles on Home, and how motion feels—until opening Sferas lowers your shoulders instead of raising them.",
+      "Make Sferas feel more like yours: choose the cosmic background, pick colors for your Sferas objects on Home, and adjust how motion feels.",
     "guide.section.account.title": "Account & Data",
     "guide.section.account.shortTitle": "Account",
     "guide.section.account.description":
@@ -9031,7 +9031,7 @@ const translations: Record<Language, Translations> = {
     "guide.markDone": "Маркирай като прочетено",
     "guide.markedDone": "Прочетено",
     "guide.watchVideo": "Гледай видеото",
-    "guide.introVideoLoading": "Зареждане на прегледа…",
+    "guide.introVideoLoading": "Зареждане",
     "guide.introVideoComingSoonTitle": "Видеото предстои",
     "guide.introVideoComingSoonBody":
       "Това обяснение ще се появи тук, след като го публикуваме—отвори отново ръководството след актуализация на приложението.",

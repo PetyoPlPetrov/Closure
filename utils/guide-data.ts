@@ -33,6 +33,8 @@ export type GuideSection = {
    * Omit until the clip is published; the app shows a “coming soon” slot instead.
    */
   introYoutubeUrl?: string;
+  /** Optional remote override for section text shown under the intro video. */
+  remoteDescription?: string;
 };
 
 /** When a clip is ready, set `introYoutubeUrl` on that row (watch URL, Short, or youtu.be). */

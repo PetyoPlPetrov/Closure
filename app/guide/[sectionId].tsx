@@ -1,12 +1,13 @@
 import { ThemedText } from "@/components/themed-text";
-import { Video, ResizeMode } from "expo-av";
+import { Video, ResizeMode, type AVPlaybackSource } from "expo-av";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import { getReadSections, markSectionRead } from "@/utils/guide-storage";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { type GuideBullet } from "@/utils/guide-data";
+import { SECTIONS, type GuideBullet } from "@/utils/guide-data";
+import { getGuideSectionsWithRemoteLinks } from "@/utils/guide-remote-links";
 import { resolveGuideSectionFromParams } from "@/utils/guide-resolve-section";
 import { parseYoutubeVideoId } from "@/utils/youtube-video-id";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -91,7 +92,7 @@ function BulletCard({
           }}
         >
           <Video
-            source={bullet.videoSource}
+            source={bullet.videoSource as AVPlaybackSource}
             style={{
               width: "100%",
               height: "100%",
@@ -225,12 +226,29 @@ export default function GuideSectionScreen() {
   const [isDone, setIsDone] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [maxSeenIndex, setMaxSeenIndex] = useState(0);
+  const [sectionsWithRemoteLinks, setSectionsWithRemoteLinks] = useState(SECTIONS);
   const listRef = useRef<FlatList<GuideBullet>>(null);
 
-  const section = useMemo(
+  const resolvedSection = useMemo(
     () => resolveGuideSectionFromParams(sectionIdParam),
     [sectionIdParam],
   );
+  const section = useMemo(() => {
+    if (!resolvedSection) return undefined;
+    return sectionsWithRemoteLinks.find((s) => s.id === resolvedSection.id);
+  }, [resolvedSection, sectionsWithRemoteLinks]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getGuideSectionsWithRemoteLinks().then((nextSections) => {
+      if (!cancelled) {
+        setSectionsWithRemoteLinks(nextSections);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     logGuideNav("section screen render cycle", {
@@ -745,7 +763,7 @@ export default function GuideSectionScreen() {
             showsVerticalScrollIndicator={false}
           >
             <ThemedText size="sm" emphasis="medium">
-              {t(section.descriptionKey)}
+              {section.remoteDescription?.trim() || t(section.descriptionKey)}
             </ThemedText>
           </ScrollView>
         )}

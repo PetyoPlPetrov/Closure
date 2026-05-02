@@ -10,6 +10,7 @@ import {
   getReadSections,
   setGuideDismissedForever,
 } from "@/utils/guide-storage";
+import { getGuideSectionsWithRemoteLinks } from "@/utils/guide-remote-links";
 import { emitGuideRecheckAfterWelcomeDismiss } from "@/utils/onboarding-storage";
 import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -36,27 +37,39 @@ export default function GuideScreen() {
   const { maxContentWidth } = useLargeDevice();
   const t = useTranslate();
   const [readSections, setReadSections] = useState<Set<string>>(new Set());
+  const [sections, setSections] = useState(SECTIONS);
   /** Same flag as `@sferas:guide_dismissed_forever` — OFF means user chose don't remind (modal or switch). */
   const [remindOnOpen, setRemindOnOpen] = useState(false);
   const [guidePrefsLoaded, setGuidePrefsLoaded] = useState(false);
+  const [guideLinksLoading, setGuideLinksLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
       logGuideNav("guide index focused");
       let cancelled = false;
       setGuidePrefsLoaded(false);
-      void Promise.all([getReadSections(), getGuideDismissedForever()]).then(
-        ([read, dismissedForever]) => {
+      setGuideLinksLoading(true);
+      void Promise.all([
+        getReadSections(),
+        getGuideDismissedForever(),
+        getGuideSectionsWithRemoteLinks(),
+      ])
+        .then(([read, dismissedForever, nextSections]) => {
           if (cancelled) return;
           setReadSections(read);
           setRemindOnOpen(!dismissedForever);
+          setSections(nextSections);
           setGuidePrefsLoaded(true);
+          setGuideLinksLoading(false);
           logGuideNav("guide index prefs loaded", {
             readSectionCount: read.size,
             dismissedForever,
           });
-        },
-      );
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setGuideLinksLoading(false);
+        });
       return () => {
         cancelled = true;
       };
@@ -87,6 +100,7 @@ export default function GuideScreen() {
         dropdown: ViewStyle;
         dropdownContent: ViewStyle;
         reminderRow: ViewStyle;
+        blockingLoaderOverlay: ViewStyle;
       }>({
         header: {
           flexDirection: "row",
@@ -152,6 +166,16 @@ export default function GuideScreen() {
               : "rgba(0, 0, 0, 0.1)",
           marginTop: 4 * fontScale,
         },
+        blockingLoaderOverlay: {
+          ...StyleSheet.absoluteFillObject,
+          zIndex: 999,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(5, 10, 18, 0.42)"
+              : "rgba(248, 249, 252, 0.45)",
+          alignItems: "center",
+          justifyContent: "center",
+        },
       }),
     [fontScale, colorScheme, maxContentWidth],
   );
@@ -183,7 +207,7 @@ export default function GuideScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {SECTIONS.map((section) => {
+        {sections.map((section) => {
           const isRead = readSections.has(section.id);
           return (
             <TouchableOpacity
@@ -260,10 +284,31 @@ export default function GuideScreen() {
               thumbColor="#FFFFFF"
             />
           ) : (
-            <ActivityIndicator color={colors.primary} />
+            <Switch
+              value={remindOnOpen}
+              disabled
+              trackColor={{ false: "rgba(150,150,150,0.25)", true: colors.primary }}
+              thumbColor="#FFFFFF"
+            />
           )}
         </View>
       </ScrollView>
+      {guideLinksLoading ? (
+        <View style={styles.blockingLoaderOverlay} pointerEvents="auto">
+          <ActivityIndicator
+            color={colors.primary}
+            size="large"
+            style={{ transform: [{ scale: 1.35 }] }}
+          />
+          <ThemedText
+            size="xs"
+            emphasis="medium"
+            style={{ marginTop: 12 * fontScale, opacity: 0.9, fontSize: 14 * fontScale }}
+          >
+            {t("guide.introVideoLoading")}
+          </ThemedText>
+        </View>
+      ) : null}
     </TabScreenContainer>
   );
 }
