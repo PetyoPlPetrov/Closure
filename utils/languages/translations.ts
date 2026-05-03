@@ -15,6 +15,10 @@ export interface Translations {
   "tab.lessons": string;
   "home.emptyState": string;
   "home.sferaSizeHint": string;
+  /** Focused home: sunny vs cloudy balance banner — high sunny share ({percentage} interpolated). */
+  "home.sunnyVsCloudy.congrats": string;
+  /** Focused home: nudge to open sunny-moments flow when sunny count threshold met but sunny share below congrats cutoff. */
+  "home.sunnyVsCloudy.tapSunFlow": string;
   /** Sunny celebration overlay: vertical speed control (1×–3×). */
   "home.sunnyCelebrate.speedA11y": string;
   /** Sunny celebration overlay: vertical flow-density control (sparse ↔ dense parade). */
@@ -3925,6 +3929,10 @@ const translations: Record<Language, Translations> = {
       "No profiles yet. Add your first ex-profile to get started.",
     "home.sferaSizeHint":
       "Each sfera is sized by its share of moments compared to the other sferas.",
+    "home.sunnyVsCloudy.congrats":
+      "You are doing great ☀️ {percentage}% of your sunny and cloudy moments feel sunny. Keep going, you are growing every day.",
+    "home.sunnyVsCloudy.tapSunFlow":
+      "You've saved beautiful sunny moments ☀️ Tap the sun to watch them flow again and soak in the good.",
     "home.sunnyCelebrate.speedA11y":
       "Animation speed. Higher speeds finish sooner when you have many sunny moments.",
     "home.sunnyCelebrate.densityA11y":
@@ -8868,6 +8876,10 @@ const translations: Record<Language, Translations> = {
       "Няма профили все още. Добавете първи партньор, за да започнете.",
     "home.sferaSizeHint":
       "Всяка сфера е с размер според относителния дял моменти спрямо другите сфери.",
+    "home.sunnyVsCloudy.congrats":
+      "Много добре ☀️ {percentage}% от слънчевите и облачни ти моменти усещат се слънчеви. Продължавай — всеки ден порастваш малко повече.",
+    "home.sunnyVsCloudy.tapSunFlow":
+      "Имаш красиви слънчеви моменти ☀️ Докосни слънцето отдясно, за да видиш потока им отново и да усетиш доброто.",
     "home.sunnyCelebrate.speedA11y":
       "Скорост на анимацията. По-високата скорост приключва по-бързо при много слънчеви моменти.",
     "home.sunnyCelebrate.densityA11y":

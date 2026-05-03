@@ -475,6 +475,10 @@ const DraggableMoment = React.memo(function DraggableMoment({
 export const ENTITY_WHEEL_MIN_MEMORIES = 3;
 /** Minimum total moments (lessons + sunny + cloudy) summed across all memories. */
 export const ENTITY_WHEEL_MIN_TOTAL_MOMENTS = 9;
+/** Focused-home sunny vs cloudy banner: congratulate when sunny÷(sunny+cloudy) is at least this. */
+export const SUNNY_VS_CLOUDY_HINT_CONGRATS_MIN_PERCENT = 64;
+/** Below that sunny share but with at least this many sunny moments, show tap-the-sun copy instead. */
+export const SUNNY_VS_CLOUDY_HINT_MIN_SUNNY_COUNT = 20;
 
 /** Entity wheel of life: `ENTITY_WHEEL_MIN_MEMORIES` memories and `ENTITY_WHEEL_MIN_TOTAL_MOMENTS` moments total. */
 function canEnterEntityWheelOfLife(
@@ -15061,10 +15065,20 @@ export default function HomeScreen() {
     return moments;
   }, [idealizedMemories]);
 
-  const isSunnyVsCloudyHintEligible = useMemo(
-    () => lifeSunnyVsCloudySummary.total > 0,
-    [lifeSunnyVsCloudySummary],
-  );
+  const isSunnyVsCloudyHintEligible = useMemo(() => {
+    const { sunny, total, percentage } = lifeSunnyVsCloudySummary;
+    return (
+      total > 0 &&
+      (percentage >= SUNNY_VS_CLOUDY_HINT_CONGRATS_MIN_PERCENT ||
+        sunny >= SUNNY_VS_CLOUDY_HINT_MIN_SUNNY_COUNT)
+    );
+  }, [lifeSunnyVsCloudySummary]);
+
+  const sunnyVsCloudyHintVariant = useMemo((): "congrats" | "tapSunFlow" => {
+    return lifeSunnyVsCloudySummary.percentage >= SUNNY_VS_CLOUDY_HINT_CONGRATS_MIN_PERCENT
+      ? "congrats"
+      : "tapSunFlow";
+  }, [lifeSunnyVsCloudySummary.percentage]);
 
   useEffect(() => {
     const onFocusedOverviewSurface =
@@ -15289,9 +15303,13 @@ export default function HomeScreen() {
   }, [isAppActive]);
 
   const sunnyVsCloudyHintMessage = useMemo(() => {
-    const sunnyPercentageLabel = Math.round(lifeSunnyVsCloudySummary.percentage);
-    return `You are doing great ${"\u2600\uFE0F"} ${sunnyPercentageLabel}% of your moments feel sunny. Keep going, you are growing every day.`;
-  }, [lifeSunnyVsCloudySummary]);
+    if (sunnyVsCloudyHintVariant === "congrats") {
+      return t("home.sunnyVsCloudy.congrats", {
+        percentage: Math.round(lifeSunnyVsCloudySummary.percentage),
+      });
+    }
+    return t("home.sunnyVsCloudy.tapSunFlow");
+  }, [lifeSunnyVsCloudySummary, sunnyVsCloudyHintVariant, t]);
 
   const sunnyMomentsCelebrationOverlay = (
     <SunnyMomentsCelebrationOverlay
@@ -19210,7 +19228,7 @@ export default function HomeScreen() {
               />
             ) : sunnyVsCloudyHintVisible ? (
               <SferaSizeHintBanner
-                key="home-sunny-vs-cloudy-hint"
+                key={`home-sunny-vs-cloudy-${sunnyVsCloudyHintVariant}`}
                 message={sunnyVsCloudyHintMessage}
                 dismissLabel={t("guidePrompt.dismiss")}
                 onClose={handleSunnyVsCloudyHintClose}
