@@ -1,6 +1,20 @@
-import React, { createContext, useContext } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { Appearance, type ColorSchemeName } from 'react-native';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+import {
+  getThemeModePreference,
+  setThemeModePreference,
+  type ThemeMode,
+} from './theme-storage';
+
+export type { ThemeMode };
 
 interface ThemeContextType {
   themeMode: ThemeMode;
@@ -10,14 +24,51 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Always use dark theme - no switching allowed
-  const colorScheme: 'light' | 'dark' = 'dark';
-  const themeMode: ThemeMode = 'dark';
+function resolveColorScheme(
+  mode: ThemeMode,
+  system: ColorSchemeName,
+): 'light' | 'dark' {
+  if (mode === 'system') {
+    return system === 'dark' ? 'dark' : 'light';
+  }
+  return mode;
+}
 
-  const setThemeMode = async (mode: ThemeMode) => {
-    // No-op: theme switching is disabled, always dark
-  };
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
+  const [systemScheme, setSystemScheme] = useState<ColorSchemeName>(() =>
+    Appearance.getColorScheme(),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const saved = await getThemeModePreference();
+      if (!cancelled && saved != null) {
+        setThemeModeState(saved);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const sub = Appearance.addChangeListener(({ colorScheme }) => {
+      setSystemScheme(colorScheme);
+    });
+    return () => sub.remove();
+  }, []);
+
+  const colorScheme = useMemo(
+    () => resolveColorScheme(themeMode, systemScheme),
+    [themeMode, systemScheme],
+  );
+
+  const setThemeMode = useCallback(async (mode: ThemeMode) => {
+    setThemeModeState(mode);
+    await setThemeModePreference(mode);
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ themeMode, colorScheme, setThemeMode }}>
@@ -33,4 +84,3 @@ export function useTheme() {
   }
   return context;
 }
-

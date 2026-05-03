@@ -54,11 +54,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Circle, Defs, Path, RadialGradient, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace("#", "");
-  const num = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
-  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
-}
+import { hexToRgb, momentPillGlyphColor } from "@/utils/moment-pill-glyph";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -3312,7 +3308,7 @@ export default function AddIdealizedMemoryScreen() {
                   <MaterialIcons
                     name="wb-sunny"
                     size={isLargeDevice ? 32 : 28}
-                    color={momentColors.sunny.background}
+                    color={momentPillGlyphColor(momentColors.sunny.background)}
                   />
                 </LinearGradient>
               </View>
@@ -3390,7 +3386,7 @@ export default function AddIdealizedMemoryScreen() {
                   <MaterialIcons
                     name="lightbulb"
                     size={isLargeDevice ? 32 : 28}
-                    color={momentColors.lesson.background}
+                    color={momentPillGlyphColor(momentColors.lesson.background)}
                   />
                 </LinearGradient>
               </View>

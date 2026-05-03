@@ -15,9 +15,23 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFontScale } from '@/hooks/use-device-size';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { logMenuOpen } from '@/utils/analytics';
 
 const log = (..._args: unknown[]) => {};
+
+const LIGHT_MENU_BG = 'rgba(255, 255, 255, 0.96)';
+const LIGHT_MENU_BORDER = 'rgba(0, 0, 0, 0.16)';
+/** ≥7:1 on light fills — WCAG AAA for icon-sized glyphs. */
+const LIGHT_MENU_ICON = '#0D0D0D';
+const LIGHT_MENU_SHADOW = '#000000';
+
+const DARK_MENU_BG_CHILD = 'rgba(26, 47, 74, 0.92)';
+const DARK_MENU_BG_TRIGGER = 'rgba(26, 47, 74, 0.85)';
+const DARK_MENU_BORDER = 'rgba(100, 181, 246, 0.5)';
+const DARK_MENU_BORDER_TRIGGER = 'rgba(100, 181, 246, 0.4)';
+const DARK_MENU_ICON = '#64B5F6';
+const DARK_MENU_SHADOW = '#64B5F6';
 
 const SPRING_CONFIG = { damping: 15, stiffness: 120 };
 const STEP = 52; // vertical spacing between buttons
@@ -28,10 +42,12 @@ interface ChildButtonProps {
   offsetY: number;
   onPress: () => void;
   fontScale: number;
+  colorScheme: 'light' | 'dark';
 }
 
-function ChildButton({ iconName, progress, offsetY, onPress, fontScale }: ChildButtonProps) {
+function ChildButton({ iconName, progress, offsetY, onPress, fontScale, colorScheme }: ChildButtonProps) {
   const buttonSize = 40 * fontScale;
+  const isDark = colorScheme === 'dark';
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
@@ -61,18 +77,23 @@ function ChildButton({ iconName, progress, offsetY, onPress, fontScale }: ChildB
           width: buttonSize,
           height: buttonSize,
           borderRadius: buttonSize / 2,
-          backgroundColor: 'rgba(26, 47, 74, 0.92)',
+          backgroundColor: isDark ? DARK_MENU_BG_CHILD : LIGHT_MENU_BG,
           justifyContent: 'center',
           alignItems: 'center',
           borderWidth: 1,
-          borderColor: 'rgba(100, 181, 246, 0.5)',
-          shadowColor: '#64B5F6',
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.3,
-          shadowRadius: 6,
+          borderColor: isDark ? DARK_MENU_BORDER : LIGHT_MENU_BORDER,
+          shadowColor: isDark ? DARK_MENU_SHADOW : LIGHT_MENU_SHADOW,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: isDark ? 0.3 : 0.14,
+          shadowRadius: isDark ? 6 : 4,
+          elevation: isDark ? 4 : 3,
         }}
       >
-        <MaterialIcons name={iconName} size={18 * fontScale} color="#64B5F6" />
+        <MaterialIcons
+          name={iconName}
+          size={18 * fontScale}
+          color={isDark ? DARK_MENU_ICON : LIGHT_MENU_ICON}
+        />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -84,6 +105,8 @@ interface ExpandableMenuButtonProps {
 
 export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
   const fontScale = useFontScale();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
   // isExpanded as React state is only used to mount/unmount the backdrop Pressable
   const [isExpanded, setIsExpanded] = useState(false);
@@ -258,6 +281,7 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
           offsetY={STEP}
           onPress={handleEditPress}
           fontScale={fontScale}
+          colorScheme={colorScheme}
         />
         <ChildButton
           iconName="palette"
@@ -265,6 +289,7 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
           offsetY={STEP * 2}
           onPress={handlePersonalizationPress}
           fontScale={fontScale}
+          colorScheme={colorScheme}
         />
         <ChildButton
           iconName="settings"
@@ -272,6 +297,7 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
           offsetY={STEP * 3}
           onPress={handleSettingsPress}
           fontScale={fontScale}
+          colorScheme={colorScheme}
         />
 
         {/* Trigger button */}
@@ -286,18 +312,23 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
               width: buttonSize,
               height: buttonSize,
               borderRadius: buttonSize / 2,
-              backgroundColor: 'rgba(26, 47, 74, 0.85)',
+              backgroundColor: isDark ? DARK_MENU_BG_TRIGGER : LIGHT_MENU_BG,
               justifyContent: 'center',
               alignItems: 'center',
               borderWidth: 1,
-              borderColor: 'rgba(100, 181, 246, 0.4)',
-              shadowColor: '#64B5F6',
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.2,
-              shadowRadius: 8,
+              borderColor: isDark ? DARK_MENU_BORDER_TRIGGER : LIGHT_MENU_BORDER,
+              shadowColor: isDark ? DARK_MENU_SHADOW : LIGHT_MENU_SHADOW,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: isDark ? 0.2 : 0.14,
+              shadowRadius: isDark ? 8 : 4,
+              elevation: isDark ? 5 : 3,
             }}
           >
-            <MaterialIcons name="tune" size={20 * fontScale} color="#64B5F6" />
+            <MaterialIcons
+              name="tune"
+              size={20 * fontScale}
+              color={isDark ? DARK_MENU_ICON : LIGHT_MENU_ICON}
+            />
           </TouchableOpacity>
         </Animated.View>
       </View>

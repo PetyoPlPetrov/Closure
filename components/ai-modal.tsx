@@ -1598,7 +1598,11 @@ export function AIModal({
       width: 40 * fontScale,
       height: 40 * fontScale,
       borderRadius: 20 * fontScale,
-      backgroundColor: isRecording ? colors.error || "#FF3B30" : colors.primary,
+      backgroundColor: isRecording
+        ? colors.error || "#FF3B30"
+        : colorScheme === "light"
+          ? Colors.dark.primary
+          : colors.primary,
       justifyContent: "center",
       alignItems: "center",
       marginLeft: 12 * fontScale,
@@ -2296,7 +2300,11 @@ export function AIModal({
                       >
                         <ActivityIndicator
                           size="small"
-                          color={colors.primary}
+                          color={
+                            colorScheme === "light"
+                              ? Colors.dark.primary
+                              : colors.primary
+                          }
                         />
                         <ThemedText size="sm" style={{ opacity: 0.7 }}>
                           {t("ai.listening") || "Listening..."}

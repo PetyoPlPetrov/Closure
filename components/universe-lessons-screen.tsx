@@ -105,8 +105,28 @@ function lessonTextPreviewParts(
 }
 
 // Full-screen cards so each planet is perfectly centred.
-// App background
-const BG = "#1A2332";
+/** Dark shell only; tab uses `Colors.background` in light. */
+const BG_DARK = "#1A2332";
+/** Alias for StyleSheet / older refs — avoids ReferenceError if a stale `BG` slips in. */
+const BG = BG_DARK;
+
+/** Orbital colors on light grey — saturated strokes for AAA legibility vs soft surfaces. */
+const SPHERE_RINGS_LIGHT: Record<LifeSphere, { core: string; ring1: string; ring2: string; glow: string }> = {
+  relationships: { core: "#D32F2F", ring1: "#B71C1C", ring2: "#EF5350", glow: "#C62828" },
+  career: { core: "#1976D2", ring1: "#0D47A1", ring2: "#42A5F5", glow: "#1565C0" },
+  family: { core: "#2E7D32", ring1: "#1B5E20", ring2: "#66BB6A", glow: "#2E7D32" },
+  friends: { core: "#7B1FA2", ring1: "#4A148C", ring2: "#BA68C8", glow: "#6A1B9A" },
+  hobbies: { core: "#D84315", ring1: "#BF360C", ring2: "#FF8A65", glow: "#D84315" },
+};
+
+function sphereRingsForScheme(
+  sphere: LifeSphere,
+  scheme: "light" | "dark",
+): { core: string; ring1: string; ring2: string; glow: string } {
+  return scheme === "light"
+    ? SPHERE_RINGS_LIGHT[sphere] ?? SPHERE_RINGS_LIGHT.career
+    : SPHERE_RINGS[sphere] ?? SPHERE_RINGS.career;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -200,10 +220,10 @@ function sr(seed: number): number {
 // ─── Constellations ───────────────────────────────────────────────────────────
 // Three hand-placed constellations in screen-relative coords.
 // Each is a list of [x,y] fractions + edges between node indices.
-const CONSTELLATIONS: Array<{
+const CONSTELLATIONS: {
   nodes: [number, number][];
   edges: [number, number][];
-}> = [
+}[] = [
   {
     // Top-left — arrow / spear shape
     nodes: [
@@ -231,7 +251,10 @@ const CONSTELLATIONS: Array<{
   },
 ];
 
-function ConstellationLayer({ color }: { color: string }) {
+function ConstellationLayer({ color, isLight }: { color: string; isLight: boolean }) {
+  const lineOp = isLight ? 0.14 : 0.22;
+  const starFill = isLight ? "#0D0D0D" : "#FFFFFF";
+  const starOp = isLight ? (ni: number) => (ni === 0 ? 0.22 : 0.14) : (ni: number) => (ni === 0 ? 0.75 : 0.55);
   return (
     <>
       {CONSTELLATIONS.map((c, ci) => (
@@ -241,9 +264,9 @@ function ConstellationLayer({ color }: { color: string }) {
             <Path
               key={ei}
               d={`M ${c.nodes[a][0] * SW} ${c.nodes[a][1] * SH} L ${c.nodes[b][0] * SW} ${c.nodes[b][1] * SH}`}
-              stroke={color}
+              stroke={isLight ? "#0D0D0D" : color}
               strokeWidth={0.7}
-              strokeOpacity={0.22}
+              strokeOpacity={lineOp}
             />
           ))}
           {/* Stars at nodes */}
@@ -253,8 +276,8 @@ function ConstellationLayer({ color }: { color: string }) {
               cx={x * SW}
               cy={y * SH}
               r={ni === 0 ? 1.8 : 1.2}
-              fill="#FFFFFF"
-              opacity={ni === 0 ? 0.75 : 0.55}
+              fill={starFill}
+              opacity={starOp(ni)}
             />
           ))}
         </React.Fragment>
@@ -264,18 +287,47 @@ function ConstellationLayer({ color }: { color: string }) {
 }
 
 // ─── Static star field ────────────────────────────────────────────────────────
-function StarField({ nebulaColor }: { nebulaColor?: string }) {
+function StarField({ nebulaColor, isLight }: { nebulaColor?: string; isLight: boolean }) {
   const stars = useMemo(
     () =>
-      Array.from({ length: 80 }, (_, i) => ({
-        x: sr(i * 3 + 1) * SW,
-        y: sr(i * 3 + 2) * SH,
-        r: sr(i * 3 + 3) * 1.4 + 0.2,
-        op: sr(i * 3 + 7) * 0.42 + 0.08,
-      })),
-    [],
+      isLight
+        ? []
+        : Array.from({ length: 80 }, (_, i) => ({
+            x: sr(i * 3 + 1) * SW,
+            y: sr(i * 3 + 2) * SH,
+            r: sr(i * 3 + 3) * 1.4 + 0.2,
+            op: sr(i * 3 + 7) * 0.42 + 0.08,
+          })),
+    [isLight],
   );
   const nc = nebulaColor ?? "#1A2A4A";
+  if (isLight) {
+    const soft = Colors.light.surfaceElevated2;
+    const mid = Colors.light.surface;
+    const deep = Colors.light.surfaceElevated1;
+    return (
+      <Svg width={SW} height={SH} style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <RadialGradient id="bgLight" cx="50%" cy="38%" r="78%">
+            <Stop offset="0%" stopColor={Colors.light.surfaceElevated4} stopOpacity="1" />
+            <Stop offset="50%" stopColor={soft} stopOpacity="1" />
+            <Stop offset="100%" stopColor={mid} stopOpacity="1" />
+          </RadialGradient>
+          <RadialGradient id="nebLight" cx="28%" cy="20%" r="52%">
+            <Stop offset="0%" stopColor={nc} stopOpacity="0.12" />
+            <Stop offset="100%" stopColor={deep} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient id="nebLight2" cx="72%" cy="75%" r="42%">
+            <Stop offset="0%" stopColor={nc} stopOpacity="0.08" />
+            <Stop offset="100%" stopColor={deep} stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <Rect x={0} y={0} width={SW} height={SH} fill="url(#bgLight)" />
+        <Ellipse cx={SW * 0.28} cy={SH * 0.2} rx={SW * 0.65} ry={SH * 0.30} fill="url(#nebLight)" />
+        <Ellipse cx={SW * 0.75} cy={SH * 0.72} rx={SW * 0.50} ry={SH * 0.22} fill="url(#nebLight2)" />
+      </Svg>
+    );
+  }
   return (
     <Svg width={SW} height={SH} style={StyleSheet.absoluteFill} pointerEvents="none">
       <Defs>
@@ -305,7 +357,7 @@ function StarField({ nebulaColor }: { nebulaColor?: string }) {
       {stars.map((s, i) => (
         <SvgCircle key={i} cx={s.x} cy={s.y} r={s.r} fill="#FFFFFF" opacity={s.op} />
       ))}
-      <ConstellationLayer color={nc} />
+      <ConstellationLayer color={nc} isLight={false} />
     </Svg>
   );
 }
@@ -363,23 +415,23 @@ const ShootingStar = React.memo(function ShootingStar({
 
 // ─── Twinkling dot ────────────────────────────────────────────────────────────
 const TwinkleDot = React.memo(function TwinkleDot({
-  x, y, r, delay,
-}: { x: number; y: number; r: number; delay: number }) {
+  x, y, r, delay, isLight,
+}: { x: number; y: number; r: number; delay: number; isLight: boolean }) {
   const op = useSharedValue(0.1);
   useEffect(() => {
     op.value = withDelay(
       delay,
       withRepeat(
         withSequence(
-          withTiming(0.65, { duration: 1200 + (delay % 900), easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.08, { duration: 1500 + (delay % 700), easing: Easing.inOut(Easing.ease) }),
+          withTiming(isLight ? 0.38 : 0.65, { duration: 1200 + (delay % 900), easing: Easing.inOut(Easing.ease) }),
+          withTiming(isLight ? 0.06 : 0.08, { duration: 1500 + (delay % 700), easing: Easing.inOut(Easing.ease) }),
         ),
         -1,
         false,
       ),
     );
     return () => cancelAnimation(op);
-  }, [op, delay]);
+  }, [op, delay, isLight]);
   const style = useAnimatedStyle(() => ({ opacity: op.value }));
   return (
     <Animated.View
@@ -387,7 +439,7 @@ const TwinkleDot = React.memo(function TwinkleDot({
       style={[style, {
         position: "absolute", left: x - r, top: y - r,
         width: r * 2, height: r * 2, borderRadius: r,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: isLight ? "#383838" : "#FFFFFF",
       }]}
     />
   );
@@ -406,11 +458,13 @@ const svgPos = { position: "absolute" as const, left: -(PLANET_CANVAS - SW) / 2,
 function RingPlanetSvg({
   id,
   colors,
-  ringRotation,   // SharedValue<number>, drives ring rotation on the UI thread
+  ringRotation,
+  isLight,
 }: {
   id: string;
   colors: { core: string; ring1: string; ring2: string; glow: string };
   ringRotation: SharedValue<number>;
+  isLight: boolean;
 }) {
   const { core, ring1, ring2 } = colors;
   const C = PLANET_C;
@@ -466,7 +520,7 @@ function RingPlanetSvg({
     <>
       {/* ── Outermost faint ring (behind everything) ── */}
       <Animated.View style={[ringViewStyle, ring0Style]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <Defs>
             <SvgLinearGradient id={`rg1a_${id}`} x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0%"   stopColor={ring1} stopOpacity="0.75" />
@@ -474,13 +528,13 @@ function RingPlanetSvg({
               <Stop offset="100%" stopColor={ring1} stopOpacity="0.12" />
             </SvgLinearGradient>
           </Defs>
-          <Ellipse cx={C} cy={C} rx={R0_RX} ry={R0_RY} fill="none" stroke={`url(#rg1a_${id})`} strokeWidth={2.2} strokeDasharray="6 10" opacity={0.38} />
+          <Ellipse cx={C} cy={C} rx={R0_RX} ry={R0_RY} fill="none" stroke={`url(#rg1a_${id})`} strokeWidth={isLight ? 2.4 : 2.2} strokeDasharray="6 10" opacity={isLight ? 0.5 : 0.38} />
         </Svg>
       </Animated.View>
 
       {/* ── Back rings (drawn before planet so they go behind) ── */}
       <Animated.View style={[ringViewStyle, ring1Style]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <Defs>
             <SvgLinearGradient id={`rg1b_${id}`} x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0%"   stopColor={ring1} stopOpacity="0.75" />
@@ -488,11 +542,11 @@ function RingPlanetSvg({
               <Stop offset="100%" stopColor={ring1} stopOpacity="0.12" />
             </SvgLinearGradient>
           </Defs>
-          <Ellipse cx={C} cy={C} rx={R1_RX} ry={R1_RY} fill="none" stroke={`url(#rg1b_${id})`} strokeWidth={5.5} opacity={0.78} />
+          <Ellipse cx={C} cy={C} rx={R1_RX} ry={R1_RY} fill="none" stroke={`url(#rg1b_${id})`} strokeWidth={5.5} opacity={isLight ? 0.88 : 0.78} />
         </Svg>
       </Animated.View>
       <Animated.View style={[ringViewStyle, ring2Style]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <Defs>
             <SvgLinearGradient id={`rg2_${id}`} x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0%"   stopColor={ring2} stopOpacity="0.55" />
@@ -500,12 +554,12 @@ function RingPlanetSvg({
               <Stop offset="100%" stopColor={ring2} stopOpacity="0.08" />
             </SvgLinearGradient>
           </Defs>
-          <Ellipse cx={C} cy={C} rx={R2_RX} ry={R2_RY} fill="none" stroke={`url(#rg2_${id})`} strokeWidth={4.0} opacity={0.68} />
+          <Ellipse cx={C} cy={C} rx={R2_RX} ry={R2_RY} fill="none" stroke={`url(#rg2_${id})`} strokeWidth={4.0} opacity={isLight ? 0.78 : 0.68} />
         </Svg>
       </Animated.View>
 
       {/* ── Static planet body (atmospheric rim, glow, dust) ── */}
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={svgPos} overflow="visible">
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={svgPos}>
         <Defs>
           <RadialGradient id={`atmo_${id}`} cx={`${C}`} cy={`${C}`} r={`${ATMO_R}`} gradientUnits="userSpaceOnUse">
             <Stop offset="0%"   stopColor={core} stopOpacity="0" />
@@ -521,15 +575,32 @@ function RingPlanetSvg({
             <Stop offset="100%" stopColor={core} stopOpacity="0" />
           </RadialGradient>
           <RadialGradient id={`inner_${id}`} cx={`${C}`} cy={`${C}`} r={`${ATMO_R * 0.85}`} gradientUnits="userSpaceOnUse">
-            <Stop offset="0%"   stopColor="#0A1020" stopOpacity="0.55" />
-            <Stop offset="70%"  stopColor="#0A1020" stopOpacity="0.25" />
-            <Stop offset="100%" stopColor="#0A1020" stopOpacity="0" />
+            {isLight
+              ? [
+                  <Stop key="in0" offset="0%" stopColor="#FAFAFA" stopOpacity="0.45" />,
+                  <Stop key="in1" offset="55%" stopColor="#ECEFF1" stopOpacity="0.22" />,
+                  <Stop key="in2" offset="100%" stopColor="#ECEFF1" stopOpacity="0" />,
+                ]
+              : [
+                  <Stop key="in0" offset="0%" stopColor="#0A1020" stopOpacity="0.55" />,
+                  <Stop key="in1" offset="70%" stopColor="#0A1020" stopOpacity="0.25" />,
+                  <Stop key="in2" offset="100%" stopColor="#0A1020" stopOpacity="0" />,
+                ]}
           </RadialGradient>
           <RadialGradient id={`rimglow_${id}`} cx={`${C}`} cy={`${C}`} r={`${ATMO_R}`} gradientUnits="userSpaceOnUse">
-            <Stop offset="0%"   stopColor="#FFFFFF" stopOpacity="0" />
-            <Stop offset="82%"  stopColor="#FFFFFF" stopOpacity="0" />
-            <Stop offset="93%"  stopColor="#FFFFFF" stopOpacity="0.22" />
-            <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.55" />
+            {isLight
+              ? [
+                  <Stop key="rg0" offset="0%" stopColor="#0D0D0D" stopOpacity="0" />,
+                  <Stop key="rg1" offset="78%" stopColor="#0D0D0D" stopOpacity="0" />,
+                  <Stop key="rg2" offset="90%" stopColor="#0D0D0D" stopOpacity="0.12" />,
+                  <Stop key="rg3" offset="100%" stopColor="#0D0D0D" stopOpacity="0.22" />,
+                ]
+              : [
+                  <Stop key="rg0" offset="0%" stopColor="#FFFFFF" stopOpacity="0" />,
+                  <Stop key="rg1" offset="82%" stopColor="#FFFFFF" stopOpacity="0" />,
+                  <Stop key="rg2" offset="93%" stopColor="#FFFFFF" stopOpacity="0.22" />,
+                  <Stop key="rg3" offset="100%" stopColor="#FFFFFF" stopOpacity="0.55" />,
+                ]}
           </RadialGradient>
         </Defs>
         <SvgCircle cx={C} cy={C} r={ATMO_R * 1.75} fill={`url(#corona_${id})`} />
@@ -544,14 +615,14 @@ function RingPlanetSvg({
 
       {/* ── Front innermost ring (on top of planet) ── */}
       <Animated.View style={[ringViewStyle, ring3Style]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <Defs>
             <SvgLinearGradient id={`rg3_${id}`} x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0%"   stopColor={ring2} stopOpacity="0.35" />
               <Stop offset="100%" stopColor={ring2} stopOpacity="0.05" />
             </SvgLinearGradient>
           </Defs>
-          <Ellipse cx={C} cy={C} rx={R3_RX} ry={R3_RY} fill="none" stroke={`url(#rg3_${id})`} strokeWidth={3.2} opacity={0.82} />
+          <Ellipse cx={C} cy={C} rx={R3_RX} ry={R3_RY} fill="none" stroke={`url(#rg3_${id})`} strokeWidth={3.2} opacity={isLight ? 0.9 : 0.82} />
         </Svg>
       </Animated.View>
     </>
@@ -597,10 +668,21 @@ function BgPlanetBlob({ id, color, size }: { id: string; color: string; size: nu
   );
 }
 
-function BackgroundSferas({ seed, fadeOut }: { seed: number; fadeOut: SharedValue<number> }) {
-  const animStyle = useAnimatedStyle(() => ({ opacity: fadeOut.value * 0.22 }));
+function BackgroundSferas({
+  seed,
+  fadeOut,
+  isLight,
+}: {
+  seed: number;
+  fadeOut: SharedValue<number>;
+  isLight: boolean;
+}) {
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: fadeOut.value * (isLight ? 0.14 : 0.22),
+  }));
 
   const sferas = useMemo(() => generateBgSferas(seed), [seed]);
+  const scheme = isLight ? "light" : "dark";
 
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, animStyle]}>
@@ -616,7 +698,11 @@ function BackgroundSferas({ seed, fadeOut }: { seed: number; fadeOut: SharedValu
               top: s.top,
             }}
           >
-            <BgPlanetBlob id={s.id} color={SPHERE_RINGS[s.sphere].core} size={blobSize} />
+            <BgPlanetBlob
+              id={s.id}
+              color={sphereRingsForScheme(s.sphere, scheme).core}
+              size={blobSize}
+            />
           </View>
         );
       })}
@@ -642,9 +728,11 @@ const LessonSfera = React.memo(function LessonSfera({
 }) {
   const t = useTranslate();
   const colorScheme = useColorScheme();
-  const themeColors = Colors[colorScheme ?? "dark"];
-  const colors = SPHERE_RINGS[card.sphere] ?? SPHERE_RINGS.career;
-  const accentColor = getSphereSferaColor(card.sphere, "dark");
+  const scheme = (colorScheme ?? "dark") as "light" | "dark";
+  const isLight = scheme === "light";
+  const themeColors = Colors[scheme];
+  const colors = sphereRingsForScheme(card.sphere, scheme);
+  const accentColor = getSphereSferaColor(card.sphere, scheme);
 
   const [fullLessonModalVisible, setFullLessonModalVisible] = useState(false);
 
@@ -799,16 +887,16 @@ const LessonSfera = React.memo(function LessonSfera({
             width: ATMO_R * 2 + 80,
             height: ATMO_R * 2 + 80,
             borderRadius: ATMO_R + 40,
-            shadowColor: colors.glow,
+            shadowColor: isLight ? "#000000" : colors.glow,
             shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.7,
-            shadowRadius: 60,
+            shadowOpacity: isLight ? 0.2 : 0.7,
+            shadowRadius: isLight ? 36 : 60,
             elevation: 0,
           }]}
         />
 
         {/* Ring-planet SVG (atmospheric rim + orbital rings) */}
-        <RingPlanetSvg id={card.id} colors={colors} ringRotation={rot} />
+        <RingPlanetSvg id={card.id} colors={colors} ringRotation={rot} isLight={isLight} />
 
         {/* Lesson content — floats in the transparent center */}
         <View style={styles.contentOverlay}>
@@ -829,13 +917,20 @@ const LessonSfera = React.memo(function LessonSfera({
                 {
                   opacity: onToggleFavorite ? (pressed ? 0.75 : 1) : 0.35,
                   borderColor: accentColor + "99",
+                  backgroundColor: isLight ? "rgba(255, 255, 255, 0.94)" : "rgba(8,14,28,0.82)",
                 },
               ]}
             >
               <MaterialIcons
                 name={card.isFavorite ? "star" : "star-border"}
                 size={22}
-                color={card.isFavorite ? accentColor : "rgba(255,255,255,0.55)"}
+                color={
+                  card.isFavorite
+                    ? accentColor
+                    : isLight
+                      ? "rgba(13, 13, 13, 0.45)"
+                      : "rgba(255,255,255,0.55)"
+                }
               />
             </Pressable>
           </View>
@@ -848,7 +943,16 @@ const LessonSfera = React.memo(function LessonSfera({
 
           {/* Full width so text wraps to multiple lines (center parent would otherwise shrink to one line) */}
           <View style={styles.lessonTextWrap}>
-            <ThemedText style={styles.lessonText}>
+            <ThemedText
+              style={[
+                styles.lessonText,
+                isLight && {
+                  color: Colors.light.text,
+                  textShadowColor: "rgba(255, 255, 255, 0.75)",
+                  textShadowRadius: 6,
+                },
+              ]}
+            >
               {lessonPreviewText}
             </ThemedText>
             {needsLearnMore ? (
@@ -859,7 +963,13 @@ const LessonSfera = React.memo(function LessonSfera({
                 hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
                 style={styles.learnMorePressable}
               >
-                <ThemedText style={[styles.learnMoreText, { color: accentColor }]}>
+                <ThemedText
+                  style={[
+                    styles.learnMoreText,
+                    { color: accentColor },
+                    isLight && { textDecorationColor: `${Colors.light.textMediumEmphasis}99` },
+                  ]}
+                >
                   {t("universe.lessons.learnMore")}
                 </ThemedText>
               </Pressable>
@@ -915,7 +1025,13 @@ const LessonSfera = React.memo(function LessonSfera({
           <ThemedText
             style={[
               styles.moonLabel,
-              { textShadowColor: SPHERE_MOON_TITLE_SHADOW[card.sphere] },
+              isLight
+                ? {
+                    color: Colors.light.text,
+                    textShadowColor: "rgba(255, 255, 255, 0.85)",
+                    textShadowRadius: 8,
+                  }
+                : { textShadowColor: SPHERE_MOON_TITLE_SHADOW[card.sphere] },
             ]}
             numberOfLines={1}
           >
@@ -931,7 +1047,7 @@ const LessonSfera = React.memo(function LessonSfera({
             pointerEvents="none"
             style={[styles.sphereBadge, {
               borderColor: accentColor + "CC",
-              backgroundColor: "rgba(8,14,28,0.82)",
+              backgroundColor: isLight ? "rgba(255, 255, 255, 0.94)" : "rgba(8,14,28,0.82)",
               shadowColor: accentColor,
             }]}
           >
@@ -958,7 +1074,13 @@ const LessonSfera = React.memo(function LessonSfera({
           accessibilityLabel={t("universe.lessons.accessibility.dismissSheet")}
         >
           <Pressable
-            style={[styles.lessonFullModalCard, { backgroundColor: themeColors.background }]}
+            style={[
+              styles.lessonFullModalCard,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(255,255,255,0.12)",
+              },
+            ]}
             onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.lessonFullModalHeader}>
@@ -977,7 +1099,11 @@ const LessonSfera = React.memo(function LessonSfera({
                 accessibilityLabel={t("common.close")}
                 style={styles.lessonFullModalCloseBtn}
               >
-                <MaterialIcons name="close" size={22} color="rgba(255,255,255,0.85)" />
+                <MaterialIcons
+                  name="close"
+                  size={22}
+                  color={isLight ? Colors.light.text : "rgba(255,255,255,0.85)"}
+                />
               </Pressable>
             </View>
             <ScrollView
@@ -1053,7 +1179,13 @@ export function UniverseLessonsScreen({
 }: Props) {
   const t = useTranslate();
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "dark"];
+  const scheme = (colorScheme ?? "dark") as "light" | "dark";
+  const isLight = scheme === "light";
+  const colors = Colors[scheme];
+  const filterChipSurface = isLight
+    ? { borderColor: "rgba(0, 0, 0, 0.12)", backgroundColor: colors.surfaceElevated2 }
+    : {};
+  const filterChipSelectedLight = isLight ? { backgroundColor: `${colors.primary}22` } : {};
   const insets = useSafeAreaInsets();
   const { ensureSubscriptionResolved, refreshCustomerInfo, hasAIEntitlement } =
     useSubscription();
@@ -1474,7 +1606,7 @@ export function UniverseLessonsScreen({
   const viewabilityConfig = useMemo(() => ({ itemVisiblePercentThreshold: 52 }), []);
 
   const activeCard = filteredCards[activeIndex];
-  const accentColor = getSphereSferaColor(activeCard?.sphere ?? "career", "dark");
+  const accentColor = getSphereSferaColor(activeCard?.sphere ?? "career", scheme);
 
   const triggerBoundaryHaptic = useCallback(() => {
     if (Platform.OS === "ios" && Device.isDevice) {
@@ -1613,13 +1745,22 @@ export function UniverseLessonsScreen({
   const keyExtractor = useCallback((item: LessonCard) => item.id, []);
 
   const screenBody = (
-      <Animated.View style={[styles.root, screenStyle]}>
+      <Animated.View style={[styles.root, { backgroundColor: isLight ? colors.background : BG_DARK }, screenStyle]}>
         {showDecorLayers ? (
           <>
-            <StarField nebulaColor={SPHERE_RINGS[activeCard?.sphere ?? "career"].glow} />
-            {twinkles.map((tw, i) => (
-              <TwinkleDot key={i} x={tw.x} y={tw.y} r={tw.r} delay={tw.delay} />
-            ))}
+            <StarField
+              isLight={isLight}
+              nebulaColor={
+                isLight
+                  ? sphereRingsForScheme(activeCard?.sphere ?? "career", "light").glow
+                  : SPHERE_RINGS[activeCard?.sphere ?? "career"].glow
+              }
+            />
+            {!isLight
+              ? twinkles.map((tw, i) => (
+                  <TwinkleDot key={i} x={tw.x} y={tw.y} r={tw.r} delay={tw.delay} isLight={false} />
+                ))
+              : null}
             {shootingStars.map((ss, i) => (
               <ShootingStar key={i} x={ss.x} y={ss.y} angle={ss.angle} delay={ss.delay} color={accentColor} />
             ))}
@@ -1638,35 +1779,65 @@ export function UniverseLessonsScreen({
               zIndex: 30,
             }]}
           >
-            <MaterialIcons name="expand-less" size={28} color="rgba(255,255,255,0.55)" />
+            <MaterialIcons name="expand-less" size={28} color={isLight ? `${colors.text}99` : "rgba(255,255,255,0.55)"} />
             <View style={{ marginVertical: 2 }}>
-              <MaterialIcons name="touch-app" size={52} color="rgba(0,0,0,0.45)" style={{ position: "absolute", left: 2, top: 2 }} />
-              <MaterialIcons name="touch-app" size={52} color="rgba(255,255,255,0.92)" />
+              <MaterialIcons
+                name="touch-app"
+                size={52}
+                color={isLight ? "rgba(0,0,0,0.14)" : "rgba(0,0,0,0.45)"}
+                style={{ position: "absolute", left: 2, top: 2 }}
+              />
+              <MaterialIcons
+                name="touch-app"
+                size={52}
+                color={isLight ? colors.text : "rgba(255,255,255,0.92)"}
+              />
             </View>
-            <MaterialIcons name="expand-more" size={28} color="rgba(255,255,255,0.55)" />
+            <MaterialIcons name="expand-more" size={28} color={isLight ? `${colors.text}99` : "rgba(255,255,255,0.55)"} />
           </Animated.View>
         )}
 
 
-        {showDecorLayers ? <BackgroundSferas seed={bgSeed} fadeOut={bgFadeOut} /> : null}
+        {showDecorLayers ? <BackgroundSferas seed={bgSeed} fadeOut={bgFadeOut} isLight={isLight} /> : null}
         {cards.length === 0 ? (
           <View style={styles.emptyLessonsWrap} pointerEvents="none">
-            <ThemedText style={styles.emptyLessonsText}>
+            <ThemedText
+              style={[
+                styles.emptyLessonsText,
+                { color: isLight ? colors.text : "rgba(255,255,255,0.72)" },
+              ]}
+            >
               {t("universe.lessons.noneAvailable")}
             </ThemedText>
           </View>
         ) : filteredCards.length === 0 ? (
           <View style={styles.emptyLessonsWrap}>
-            <ThemedText style={styles.emptyLessonsText}>
+            <ThemedText
+              style={[
+                styles.emptyLessonsText,
+                { color: isLight ? colors.text : "rgba(255,255,255,0.72)" },
+              ]}
+            >
               {t("universe.lessons.emptyFiltered")}
             </ThemedText>
             <Pressable
               onPress={clearAllFilters}
-              style={styles.clearFiltersBtn}
+              style={[
+                styles.clearFiltersBtn,
+                isLight && {
+                  backgroundColor: `${colors.primary}22`,
+                  borderColor: `${colors.primary}55`,
+                },
+              ]}
               accessibilityRole="button"
               accessibilityLabel={t("universe.lessons.clearFilters")}
             >
-              <ThemedText style={styles.clearFiltersBtnText}>
+              <ThemedText
+                style={[
+                  styles.clearFiltersBtnText,
+                  { color: isLight ? colors.primaryDark : "rgba(255,255,255,0.92)" },
+                ]}
+              >
                 {t("universe.lessons.clearFilters")}
               </ThemedText>
             </Pressable>
@@ -1713,14 +1884,33 @@ export function UniverseLessonsScreen({
             accessibilityLabel={t("universe.lessons.accessibility.back")}
             style={styles.headerIconSlot}
           >
-            <View style={styles.closeBg}>
-              <MaterialIcons name="arrow-back" size={20} color="rgba(255,255,255,0.90)" />
+            <View
+              style={[
+                styles.closeBg,
+                isLight && {
+                  backgroundColor: "rgba(255, 255, 255, 0.96)",
+                  borderColor: "rgba(0, 0, 0, 0.16)",
+                },
+              ]}
+            >
+              <MaterialIcons
+                name="arrow-back"
+                size={20}
+                color={isLight ? colors.text : "rgba(255,255,255,0.90)"}
+              />
             </View>
           </Pressable>
           <ThemedText
             pointerEvents="none"
             numberOfLines={1}
-            style={[styles.headerTitleCenter, { textShadowColor: accentColor + "55" }]}
+            style={[
+              styles.headerTitleCenter,
+              {
+                color: isLight ? colors.text : "rgba(255,255,255,0.95)",
+                textShadowColor: isLight ? "rgba(0, 0, 0, 0.06)" : accentColor + "55",
+                textShadowRadius: isLight ? 4 : 10,
+              },
+            ]}
           >
             {t("universe.modal.title")}
           </ThemedText>
@@ -1736,14 +1926,24 @@ export function UniverseLessonsScreen({
               accessibilityLabel={t("universe.lessons.lessonCheckCta")}
               style={{ alignItems: "center", justifyContent: "center" }}
             >
-              <View style={styles.closeBg}>
+              <View
+                style={[
+                  styles.closeBg,
+                  isLight && {
+                    backgroundColor: "rgba(255, 255, 255, 0.96)",
+                    borderColor: "rgba(0, 0, 0, 0.16)",
+                  },
+                ]}
+              >
                 <MaterialIcons
                   name="fact-check"
                   size={20}
                   color={
                     hasUserLessons
                       ? colors.primary
-                      : "rgba(255,255,255,0.35)"
+                      : isLight
+                        ? colors.textDisabled
+                        : "rgba(255,255,255,0.35)"
                   }
                 />
               </View>
@@ -1759,8 +1959,16 @@ export function UniverseLessonsScreen({
               }
               style={{ alignItems: "center", justifyContent: "center" }}
             >
-              <View style={styles.closeBg}>
-                <MaterialIcons name="tune" size={20} color="rgba(255,255,255,0.90)" />
+              <View
+                style={[
+                  styles.closeBg,
+                  isLight && {
+                    backgroundColor: "rgba(255, 255, 255, 0.96)",
+                    borderColor: "rgba(0, 0, 0, 0.16)",
+                  },
+                ]}
+              >
+                <MaterialIcons name="tune" size={20} color={isLight ? colors.text : "rgba(255,255,255,0.90)"} />
                 {filtersActive ? <View style={styles.filterActiveDot} /> : null}
               </View>
             </Pressable>
@@ -1787,7 +1995,7 @@ export function UniverseLessonsScreen({
               style={{
                 fontSize: 12,
                 lineHeight: 16,
-                color: "rgba(255,255,255,0.58)",
+                color: isLight ? colors.textMediumEmphasis : "rgba(255,255,255,0.58)",
                 textAlign: "center",
               }}
             >
@@ -1812,7 +2020,7 @@ export function UniverseLessonsScreen({
                 style={[styles.filterModalBox, { backgroundColor: colors.background }]}
                 onPress={(e) => e.stopPropagation()}
               >
-                <ThemedText size="l" weight="bold" style={styles.filterModalTitle}>
+                <ThemedText size="l" weight="bold" style={[styles.filterModalTitle, { color: colors.text }]}>
                   {t("universe.lessons.filters.title")}
                 </ThemedText>
 
@@ -1848,8 +2056,10 @@ export function UniverseLessonsScreen({
                     onPress={() => setSphereSelection("all")}
                     style={[
                       styles.filterModalChip,
+                      filterChipSurface,
                       sphereSelection === "all" && [
                         styles.filterModalChipSelected,
+                        filterChipSelectedLight,
                         { borderColor: colors.primary + "AA" },
                       ],
                     ]}
@@ -1867,14 +2077,19 @@ export function UniverseLessonsScreen({
                   {SPHERE_LIST.map((sp) => {
                     const selected =
                       sphereSelection !== "all" && sphereSelection.has(sp);
-                    const c = getSphereSferaColor(sp, "dark");
+                    const c = getSphereSferaColor(sp, scheme);
                     return (
                       <Pressable
                         key={sp}
                         onPress={() => toggleSphereSelection(sp)}
                         style={[
                           styles.filterModalChip,
-                          selected && { borderColor: c + "CC" },
+                          filterChipSurface,
+                          selected && [
+                            styles.filterModalChipSelected,
+                            filterChipSelectedLight,
+                            { borderColor: c + "CC" },
+                          ],
                         ]}
                       >
                         <MaterialIcons
@@ -1918,8 +2133,10 @@ export function UniverseLessonsScreen({
                         onPress={() => setEntitySelection("all")}
                         style={[
                           styles.filterModalChip,
+                          filterChipSurface,
                           entitySelection === "all" && [
                             styles.filterModalChipSelected,
+                            filterChipSelectedLight,
                             { borderColor: colors.primary + "AA" },
                           ],
                         ]}
@@ -1937,14 +2154,19 @@ export function UniverseLessonsScreen({
                       {entitiesForFilter.map((ent) => {
                         const selected =
                           entitySelection !== "all" && entitySelection.has(ent.id);
-                        const c = getSphereSferaColor(singleSelectedSphere, "dark");
+                        const c = getSphereSferaColor(singleSelectedSphere, scheme);
                         return (
                           <Pressable
                             key={ent.id}
                             onPress={() => toggleEntitySelection(ent.id)}
                             style={[
                               styles.filterModalChip,
-                              selected && { borderColor: c + "CC" },
+                              filterChipSurface,
+                              selected && [
+                                styles.filterModalChipSelected,
+                                filterChipSelectedLight,
+                                { borderColor: c + "CC" },
+                              ],
                             ]}
                           >
                             <ThemedText
@@ -1982,8 +2204,10 @@ export function UniverseLessonsScreen({
                     onPress={() => setYearSelection("all")}
                     style={[
                       styles.filterModalChip,
+                      filterChipSurface,
                       yearSelection === "all" && [
                         styles.filterModalChipSelected,
+                        filterChipSelectedLight,
                         { borderColor: colors.primary + "AA" },
                       ],
                     ]}
@@ -2007,8 +2231,10 @@ export function UniverseLessonsScreen({
                         onPress={() => toggleYearSelection(y)}
                         style={[
                           styles.filterModalChip,
+                          filterChipSurface,
                           selected && [
                             styles.filterModalChipSelected,
+                            filterChipSelectedLight,
                             { borderColor: colors.primary + "AA" },
                           ],
                         ]}

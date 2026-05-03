@@ -3,6 +3,9 @@ import { PlatformPressable } from '@react-navigation/elements';
 import * as Haptics from 'expo-haptics';
 import * as Device from 'expo-device';
 import { Alert, Platform, TouchableOpacity } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -325,6 +328,11 @@ export function EventsTabButton(props: BottomTabBarButtonProps) {
   );
 }
 
+function aiPulsePeak(spotlight: boolean, isDark: boolean): number {
+  if (spotlight) return isDark ? 1.14 : 1.055;
+  return isDark ? 1.08 : 1.028;
+}
+
 // Central AI button rendered between Spheres and Events tabs
 export function AITabButton({
   size,
@@ -335,11 +343,14 @@ export function AITabButton({
   spotlight?: boolean;
   onPressed?: () => void;
 }) {
+  const colorScheme = useColorScheme();
+  const isDark = (colorScheme ?? 'dark') === 'dark';
+  const palette = Colors[colorScheme ?? 'dark'];
   const pressScale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
 
   useEffect(() => {
-    const peak = spotlight ? 1.14 : 1.08;
+    const peak = aiPulsePeak(spotlight, isDark);
     pulseScale.value = withRepeat(
       withSequence(
         withTiming(peak, { duration: 700, easing: Easing.inOut(Easing.ease) }),
@@ -349,7 +360,7 @@ export function AITabButton({
       true,
     );
     return () => cancelAnimation(pulseScale);
-  }, [pulseScale, spotlight]);
+  }, [pulseScale, spotlight, isDark]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value * pressScale.value }],
@@ -365,7 +376,7 @@ export function AITabButton({
     );
     // Resume pulse after animation
     setTimeout(() => {
-      const peak = spotlight ? 1.14 : 1.08;
+      const peak = aiPulsePeak(spotlight, isDark);
       pulseScale.value = withRepeat(
         withSequence(
           withTiming(peak, { duration: 700, easing: Easing.inOut(Easing.ease) }),
@@ -383,6 +394,8 @@ export function AITabButton({
     emitAIButtonPress();
   };
 
+  const iconSize = size * 0.42;
+
   return (
     <Animated.View style={animatedStyle}>
       <TouchableOpacity
@@ -392,19 +405,35 @@ export function AITabButton({
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: '#1A2F4A',
+          backgroundColor: isDark ? '#1A2F4A' : palette.surfaceElevated8,
           justifyContent: 'center',
           alignItems: 'center',
-          shadowColor: '#64B5F6',
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: spotlight ? 0.9 : 0.6,
-          shadowRadius: spotlight ? 18 : 12,
+          shadowColor: isDark ? '#64B5F6' : '#000000',
+          shadowOffset: { width: 0, height: isDark ? 0 : 2 },
+          shadowOpacity: isDark
+            ? spotlight
+              ? 0.9
+              : 0.6
+            : spotlight
+              ? 0.11
+              : 0.06,
+          shadowRadius: spotlight ? 14 : 10,
           elevation: spotlight ? 14 : 10,
-          borderWidth: 1.5,
-          borderColor: spotlight ? 'rgba(110, 210, 255, 0.95)' : 'rgba(100, 181, 246, 0.5)',
+          borderWidth: isDark ? 1.5 : 1,
+          borderColor: isDark
+            ? spotlight
+              ? 'rgba(110, 210, 255, 0.95)'
+              : 'rgba(100, 181, 246, 0.5)'
+            : spotlight
+              ? 'rgba(0, 0, 0, 0.11)'
+              : 'rgba(0, 0, 0, 0.07)',
         }}
       >
-        <Animated.Text style={{ fontSize: size * 0.42, lineHeight: size * 0.5 }}>✨</Animated.Text>
+        {isDark ? (
+          <Animated.Text style={{ fontSize: iconSize, lineHeight: size * 0.5 }}>✨</Animated.Text>
+        ) : (
+          <MaterialIcons name="auto-awesome" size={iconSize} color={palette.icon} />
+        )}
       </TouchableOpacity>
     </Animated.View>
   );

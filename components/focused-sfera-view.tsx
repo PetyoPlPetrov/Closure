@@ -11,7 +11,9 @@ import {
 } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
 import { SferaInsightEmptyGuideLink } from "@/components/sfera-insight-empty-guide-link";
+import { Colors, memoryCardStatIconColors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
 import {
   ORBIT_MAX_FLOATING_ENTITIES,
@@ -27,6 +29,7 @@ import {
   getSphere3DGradientColors,
   getSphereIconColor,
   getSphereShadowColor,
+  getSphereSferaColor,
 } from "@/utils/sphere-styles";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
@@ -140,12 +143,13 @@ const MEMORY_BALANCE_RING_LAYOUT: readonly { angleDeg: number; radius: number }[
 /** Vertical drift when hiding Memory Balance sferas (sun menu open) — worklet-safe constant. */
 const MEMORY_BALANCE_MENU_HIDE_DRIFT_Y = scaleFocused(10);
 /** Sunny / cloud stats under Memory Balance sferas. */
-const MEMORY_BALANCE_STATS_ICON_SIZE = scaleFocused(13);
-const MEMORY_BALANCE_STATS_TEXT_SIZE = scaleFocused(11);
+const MEMORY_BALANCE_STATS_ICON_SIZE = scaleFocused(17);
+const MEMORY_BALANCE_STATS_TEXT_SIZE = scaleFocused(13);
+const MEMORY_BALANCE_STATS_LINE_HEIGHT = scaleFocused(17);
 const MEMORY_BALANCE_STATS_MARGIN_TOP = scaleFocused(6);
-const MEMORY_BALANCE_STATS_ROW_GAP = scaleFocused(4);
-const MEMORY_BALANCE_STATS_ICON_TEXT_GAP = scaleFocused(3);
-const MEMORY_BALANCE_STATS_BELOW = scaleFocused(22);
+const MEMORY_BALANCE_STATS_ROW_GAP = scaleFocused(8);
+const MEMORY_BALANCE_STATS_ICON_TEXT_GAP = scaleFocused(4);
+const MEMORY_BALANCE_STATS_BELOW = scaleFocused(34);
 const MEMORY_BALANCE_NAME_GAP = scaleFocused(3);
 const MEMORY_BALANCE_NAME_BELOW = scaleFocused(30);
 /** Soft cyan-white for orbit sfera names, avatar labels, and insights chrome. */
@@ -527,6 +531,8 @@ const SmallFloatingMomentIcon = React.memo(function SmallFloatingMomentIcon({
   name: "wb-sunny" | "cloud";
   glowColor: string;
 }) {
+  const colorScheme = useColorScheme();
+  const isLight = (colorScheme ?? "dark") === "light";
   const animatedStyle = useAnimatedStyle(() => ({
     shadowOpacity: interpolate(visibility.value, [0, 1], [0.12, 0.8], Extrapolation.CLAMP),
     shadowRadius: interpolate(visibility.value, [0, 1], [1.5, 4], Extrapolation.CLAMP),
@@ -547,14 +553,16 @@ const SmallFloatingMomentIcon = React.memo(function SmallFloatingMomentIcon({
           width: MOMENT_ICON_SIZE,
           height: MOMENT_ICON_SIZE,
           borderRadius: MOMENT_ICON_SIZE / 2,
-          backgroundColor: "rgba(0,0,0,0.5)",
+          backgroundColor: isLight ? "rgba(255,255,255,0.94)" : "rgba(0,0,0,0.5)",
+          borderWidth: isLight ? 1 : 0,
+          borderColor: isLight ? "rgba(0,0,0,0.12)" : "transparent",
           justifyContent: "center",
           alignItems: "center",
           zIndex: 20,
           shadowColor: glowColor,
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.8,
-          shadowRadius: 4,
+          shadowOpacity: isLight ? 0.35 : 0.8,
+          shadowRadius: isLight ? 3 : 4,
           elevation: 4,
         },
         animatedStyle,
@@ -620,7 +628,7 @@ const SparkledDots = React.memo(function SparkledDots({
     });
   }, [isTablet]);
 
-  if (!sparklesEnabled || !isReady) {
+  if (!sparklesEnabled || !isReady || colorScheme === "light") {
     return null;
   }
 
@@ -714,6 +722,9 @@ const EntityRing = React.memo(function EntityRing({
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
   randomPulseIndex = null,
   animationsEnabled = true,
+  entityPlaceholderBg = "rgba(128,128,128,0.5)",
+  entityAvatarBorderColor = "rgba(255,255,255,0.75)",
+  entityInitialLetterColor = "#FFFFFF",
 }: {
   uris: string[];
   entityIds: string[];
@@ -738,6 +749,9 @@ const EntityRing = React.memo(function EntityRing({
   orbitDurationMs?: number;
   randomPulseIndex?: number | null;
   animationsEnabled?: boolean;
+  entityPlaceholderBg?: string;
+  entityAvatarBorderColor?: string;
+  entityInitialLetterColor?: string;
 }) {
   const { isTablet } = useLargeDevice();
   const orbitAngle = useSharedValue(0);
@@ -819,6 +833,9 @@ const EntityRing = React.memo(function EntityRing({
             rotateOrbit={rotateOrbit}
             shouldDoRandomPulse={randomPulseIndex === i}
             animationsEnabled={animationsEnabled}
+            placeholderBg={entityPlaceholderBg}
+            avatarBorderColor={entityAvatarBorderColor}
+            initialLetterColor={entityInitialLetterColor}
           />
         );
       })}
@@ -851,6 +868,9 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   rotateOrbit,
   shouldDoRandomPulse,
   animationsEnabled,
+  placeholderBg = "rgba(128,128,128,0.5)",
+  avatarBorderColor = "rgba(255,255,255,0.75)",
+  initialLetterColor = "#FFFFFF",
 }: {
   uri: string;
   entityId: string;
@@ -880,6 +900,9 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   rotateOrbit: boolean;
   shouldDoRandomPulse: boolean;
   animationsEnabled: boolean;
+  placeholderBg?: string;
+  avatarBorderColor?: string;
+  initialLetterColor?: string;
 }) {
   const t = useTranslate();
   const scale = useSharedValue(1);
@@ -988,7 +1011,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
               height: "100%",
               borderRadius: 999,
               borderWidth,
-              borderColor: "rgba(255,255,255,0.75)",
+              borderColor: avatarBorderColor,
             }}
             contentFit="cover"
           />
@@ -999,14 +1022,18 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
               height: "100%",
               borderRadius: 999,
               borderWidth,
-              borderColor: "rgba(255,255,255,0.75)",
-              backgroundColor: "rgba(128,128,128,0.5)",
+              borderColor: avatarBorderColor,
+              backgroundColor: placeholderBg,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
             <ThemedText
-              style={{ fontSize: avatarSizeFallback * 0.45, fontWeight: "600" }}
+              style={{
+                fontSize: avatarSizeFallback * 0.45,
+                fontWeight: "600",
+                color: initialLetterColor,
+              }}
             >
               {initialLetter}
             </ThemedText>
@@ -1067,6 +1094,9 @@ const CosmicRing = React.memo(function CosmicRing({
   top,
   size,
   enabled,
+  opacityPeak = 0.1,
+  borderW = 1,
+  shadowOpacity = 0.2,
 }: {
   delay: number;
   color: string;
@@ -1074,6 +1104,10 @@ const CosmicRing = React.memo(function CosmicRing({
   top: number;
   size: number;
   enabled: boolean;
+  /** Peak opacity per pulse (dark rings use ~0.1; light backgrounds need higher). */
+  opacityPeak?: number;
+  borderW?: number;
+  shadowOpacity?: number;
 }) {
   const ringScale = useSharedValue(1);
   const ringOpacity = useSharedValue(0);
@@ -1104,7 +1138,7 @@ const CosmicRing = React.memo(function CosmicRing({
       delay,
       withRepeat(
         withSequence(
-          withTiming(0.1, { duration: 600, easing: Easing.out(Easing.ease) }),
+          withTiming(opacityPeak, { duration: 600, easing: Easing.out(Easing.ease) }),
           withTiming(0, { duration: 3900, easing: Easing.in(Easing.quad) }),
         ),
         -1,
@@ -1117,7 +1151,7 @@ const CosmicRing = React.memo(function CosmicRing({
       ringScale.value = 1;
       ringOpacity.value = 0;
     };
-  }, [enabled, delay, ringScale, ringOpacity]);
+  }, [enabled, delay, ringScale, ringOpacity, opacityPeak]);
 
   const ringStyle = useAnimatedStyle(() => ({
     opacity: ringOpacity.value,
@@ -1132,17 +1166,17 @@ const CosmicRing = React.memo(function CosmicRing({
       width: size,
       height: size,
       borderRadius: 1000,
-      borderWidth: 1,
+      borderWidth: borderW,
       borderColor: color,
       backgroundColor: "transparent",
       shadowColor: color,
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
+      shadowOpacity,
+      shadowRadius: borderW >= 1.5 ? 6 : 4,
       elevation: 0,
       zIndex: 5,
     }),
-    [left, top, size, color],
+    [left, top, size, color, borderW, shadowOpacity],
   );
 
   return (
@@ -1160,6 +1194,9 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
   sphereSize,
   enabled,
   visible = true,
+  ringOpacityPeak = 0.1,
+  ringBorderWidth = 1,
+  ringShadowOpacity = 0.2,
 }: {
   color: string;
   offsetX: number;
@@ -1167,6 +1204,9 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
   sphereSize: number;
   enabled: boolean;
   visible?: boolean;
+  ringOpacityPeak?: number;
+  ringBorderWidth?: number;
+  ringShadowOpacity?: number;
 }) {
   const RINGS_FADE_OUT_MS = 430;
   const RINGS_FADE_IN_MS = 760;
@@ -1237,6 +1277,9 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
         top={top}
         size={sphereSize}
         enabled={enabled && shouldRunRings}
+        opacityPeak={ringOpacityPeak}
+        borderW={ringBorderWidth}
+        shadowOpacity={ringShadowOpacity}
       />
       <CosmicRing
         key={`cosmic-ring-1-${ringCycleKey}`}
@@ -1246,6 +1289,9 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
         top={top}
         size={sphereSize}
         enabled={enabled && shouldRunRings}
+        opacityPeak={ringOpacityPeak}
+        borderW={ringBorderWidth}
+        shadowOpacity={ringShadowOpacity}
       />
       <CosmicRing
         key={`cosmic-ring-2-${ringCycleKey}`}
@@ -1255,6 +1301,9 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
         top={top}
         size={sphereSize}
         enabled={enabled && shouldRunRings}
+        opacityPeak={ringOpacityPeak}
+        borderW={ringBorderWidth}
+        shadowOpacity={ringShadowOpacity}
       />
     </Animated.View>
   );
@@ -1900,7 +1949,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
                 right: 0,
                 bottom: 0,
                 borderRadius: 1000,
-                backgroundColor: "rgba(20,26,46,0.65)",
+                backgroundColor:
+                  colorScheme === "light"
+                    ? "rgba(255,255,255,0.38)"
+                    : "rgba(20,26,46,0.65)",
               },
               desaturationOverlayStyle,
             ]}
@@ -1983,6 +2035,17 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             orbitDurationMs={orbitDurationMs}
             randomPulseIndex={randomPulseIndex}
             animationsEnabled={animationsEnabled}
+            entityPlaceholderBg={
+              colorScheme === "light" ? gradient3D.base : "rgba(128,128,128,0.5)"
+            }
+            entityAvatarBorderColor={
+              colorScheme === "light"
+                ? "rgba(0,0,0,0.14)"
+                : "rgba(255,255,255,0.75)"
+            }
+            entityInitialLetterColor={
+              colorScheme === "light" ? iconColor : "#FFFFFF"
+            }
           />
         </Animated.View>
       </View>
@@ -2616,6 +2679,12 @@ function MemoryBalanceView({
   sphere3DEffect?: boolean;
 }) {
   const t = useTranslate();
+  const balanceStatNumberColor =
+    colorScheme === "dark"
+      ? "rgba(255, 255, 255, 0.92)"
+      : Colors.light.text;
+  const { sunny: balanceSunnyIconColor, cloudy: balanceCloudIconColor } =
+    memoryCardStatIconColors[colorScheme];
   return (
     <>
       {SPHERE_LIST.map((sphere, i) => {
@@ -2756,13 +2825,15 @@ function MemoryBalanceView({
                   <MaterialIcons
                     name="wb-sunny"
                     size={MEMORY_BALANCE_STATS_ICON_SIZE}
-                    color="#FDD835"
+                    color={balanceSunnyIconColor}
                   />
                   <ThemedText
                     style={{
                       fontSize: MEMORY_BALANCE_STATS_TEXT_SIZE,
-                      color: "#FFFFFF",
-                      opacity: 0.9,
+                      lineHeight: MEMORY_BALANCE_STATS_LINE_HEIGHT,
+                      color: balanceStatNumberColor,
+                      opacity: colorScheme === "dark" ? 0.9 : 1,
+                      fontWeight: "600",
                     }}
                   >
                     {stats.sunny}
@@ -2778,13 +2849,15 @@ function MemoryBalanceView({
                   <MaterialIcons
                     name="cloud"
                     size={MEMORY_BALANCE_STATS_ICON_SIZE}
-                    color="#90A4AE"
+                    color={balanceCloudIconColor}
                   />
                   <ThemedText
                     style={{
                       fontSize: MEMORY_BALANCE_STATS_TEXT_SIZE,
-                      color: "#FFFFFF",
-                      opacity: 0.9,
+                      lineHeight: MEMORY_BALANCE_STATS_LINE_HEIGHT,
+                      color: balanceStatNumberColor,
+                      opacity: colorScheme === "dark" ? 0.9 : 1,
+                      fontWeight: "600",
                     }}
                   >
                     {stats.cloudy}
@@ -3457,6 +3530,45 @@ export function FocusedSferaView({
     return result;
   }, [memoryCountBySphere]);
 
+  /** Vertically nudge the hub when Memory Balance sferas + stats would overlap the insight button. */
+  const memoryBalanceInsightsHubCenterY = useMemo(() => {
+    const hubHalf = INSIGHTS_HUB_SIZE / 2;
+    const hubTopAtDefault = SUN_CENTER_Y - hubHalf;
+    const hubLeft = SUN_CENTER_X - hubHalf;
+    const hubRight = SUN_CENTER_X + hubHalf;
+    const tailBelow =
+      MEMORY_BALANCE_NAME_GAP +
+      MEMORY_BALANCE_NAME_BELOW +
+      MEMORY_BALANCE_STATS_MARGIN_TOP +
+      MEMORY_BALANCE_STATS_BELOW;
+    const clearance = scaleFocused(10);
+    let maxIntrusionBottom = 0;
+
+    for (let i = 0; i < SPHERE_LIST.length; i++) {
+      const layout = MEMORY_BALANCE_RING_LAYOUT[i];
+      const rad = (layout.angleDeg * Math.PI) / 180;
+      const size = memoryBalanceSizeBySphere[SPHERE_LIST[i].type];
+      const rawCenterX = SUN_CENTER_X + Math.cos(rad) * layout.radius;
+      const rawCenterY = SUN_CENTER_Y + Math.sin(rad) * layout.radius;
+      const safeLeft = size / 2 + 10;
+      const safeRight = SW - size / 2 - 10;
+      const safeTop = size / 2 + scaleFocused(42);
+      const safeBottom = SH - size / 2 - scaleFocused(140);
+      const centerX = Math.max(safeLeft, Math.min(safeRight, rawCenterX));
+      const centerY = Math.max(safeTop, Math.min(safeBottom, rawCenterY));
+      const statsBottomY = centerY + size / 2 + tailBelow;
+      const sphereLeft = centerX - size / 2;
+      const sphereRight = centerX + size / 2;
+      const xOverlap = sphereRight > hubLeft && sphereLeft < hubRight;
+      if (xOverlap && statsBottomY > hubTopAtDefault - clearance) {
+        maxIntrusionBottom = Math.max(maxIntrusionBottom, statsBottomY);
+      }
+    }
+
+    if (maxIntrusionBottom <= 0) return SUN_CENTER_Y;
+    return Math.max(SUN_CENTER_Y, maxIntrusionBottom + clearance + hubHalf);
+  }, [memoryBalanceSizeBySphere]);
+
   const momentStatsBySphere = useMemo(() => {
     const result = {} as Record<LifeSphere, { sunny: number; cloudy: number }>;
 
@@ -3866,11 +3978,15 @@ export function FocusedSferaView({
       {/* Wrapper hides the rings while the orbit is being dragged or settling; the rings only belong to the resting focused sfera. */}
       <Animated.View pointerEvents="none" style={cosmicRingsDragHideStyle}>
         <CosmicPulseRings
+          key={`cosmic-${focusedIdx}-${focusedSphere.type}`}
           color={
             colorScheme === "dark"
               ? focusedShadowColor
-              : "rgba(100,100,100,0.3)"
+              : getSphereSferaColor(focusedSphere.type, "light")
           }
+          ringOpacityPeak={colorScheme === "dark" ? 0.12 : 0.14}
+          ringBorderWidth={1}
+          ringShadowOpacity={colorScheme === "dark" ? 0.22 : 0.12}
           offsetX={ORBIT_CX}
           offsetY={ORBIT_CY + ORBIT_R}
           sphereSize={FOCUSED_SIZE * individualModeScale}
@@ -4022,7 +4138,11 @@ export function FocusedSferaView({
           style={{
             position: "absolute",
             left: SUN_CENTER_X - INSIGHTS_HUB_SIZE / 2,
-            top: SUN_CENTER_Y - INSIGHTS_HUB_SIZE / 2,
+            top:
+              (isMemoryBalanceMode
+                ? memoryBalanceInsightsHubCenterY
+                : SUN_CENTER_Y) -
+              INSIGHTS_HUB_SIZE / 2,
             width: INSIGHTS_HUB_SIZE,
             height: INSIGHTS_HUB_SIZE,
             zIndex: 20,
@@ -4086,6 +4206,16 @@ export function FocusedSferaView({
                 style={[
                   styles.focusedLabelDot,
                   i === focusedIdx && styles.focusedLabelDotActive,
+                  {
+                    backgroundColor:
+                      colorScheme === "dark"
+                        ? i === focusedIdx
+                          ? "rgba(255,255,255,0.9)"
+                          : "rgba(255,255,255,0.3)"
+                        : i === focusedIdx
+                          ? Colors.light.text
+                          : "rgba(13, 13, 13, 0.35)",
+                  },
                 ]}
               />
             ))}
@@ -4162,7 +4292,11 @@ export function FocusedSferaView({
               <MaterialIcons
                 name="chevron-left"
                 size={scaleFocused(32)}
-                color="rgba(255,255,255,0.45)"
+                color={
+                  colorScheme === "dark"
+                    ? "rgba(255,255,255,0.45)"
+                    : Colors.light.text
+                }
               />
             </Pressable>
           </Animated.View>
@@ -4176,7 +4310,11 @@ export function FocusedSferaView({
               <MaterialIcons
                 name="chevron-right"
                 size={scaleFocused(32)}
-                color="rgba(255,255,255,0.45)"
+                color={
+                  colorScheme === "dark"
+                    ? "rgba(255,255,255,0.45)"
+                    : Colors.light.text
+                }
               />
             </Pressable>
           </Animated.View>
@@ -4218,13 +4356,11 @@ const styles = StyleSheet.create({
     width: SW * 0.022,
     height: SW * 0.022,
     borderRadius: SW * 0.011,
-    backgroundColor: "rgba(255,255,255,0.3)",
   },
   focusedLabelDotActive: {
     width: SW * 0.06,
     height: SW * 0.022,
     borderRadius: SW * 0.011,
-    backgroundColor: "rgba(255,255,255,0.9)",
   },
   chevron: {
     position: "absolute",

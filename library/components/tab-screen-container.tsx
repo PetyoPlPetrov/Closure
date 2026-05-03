@@ -14,7 +14,7 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 }
 
 export const TAB_BACKGROUND_COLOR_DARK = '#1A2332'; // Dark blue-grey background
-export const TAB_BACKGROUND_COLOR_LIGHT = '#B0B0B0'; // Darker grey background for light mode
+export const TAB_BACKGROUND_COLOR_LIGHT = '#D5D8DE';
 
 // Gradient colors for dark mode background — semi-transparent so cosmic image shows through
 export const DARK_GRADIENT_COLORS = [
@@ -28,7 +28,17 @@ export const DARK_GRADIENT_COLORS = [
   'rgba(41,54,72,0.55)',
   'rgba(46,59,77,0.55)',
 ] as const;
-export const LIGHT_GRADIENT_COLORS = ['#858585', '#909090', '#9B9B9B', '#B0B0B0', '#C5C5C5', '#D0D0D0', '#DBDBDB', '#E5E5E5', '#F0F0F0'] as const; // Visible gradient from darker to lighter grey
+// Muted cool greys — no near-white stops (easier on eyes than #FFF screens).
+export const LIGHT_GRADIENT_COLORS = [
+  '#C9CCD2',
+  '#CED1D6',
+  '#D3D6DB',
+  '#D5D8DE',
+  '#D8DBDF',
+  '#DADCE1',
+  '#DCDEE2',
+  '#DEE0E4',
+] as const;
 
 type MomentType = 'lessons' | 'sunnyMoments' | 'hardTruths';
 

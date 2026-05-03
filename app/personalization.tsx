@@ -1,3 +1,4 @@
+import { ThemePickerField } from "@/components/theme-picker-field";
 import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
@@ -165,7 +166,7 @@ export default function PersonalizationScreen() {
           marginHorizontal: 24 * fontScale,
           padding: 20 * fontScale,
           borderRadius: 16 * fontScale,
-          backgroundColor: colorScheme === "dark" ? "#1a1a1a" : "#ffffff",
+          backgroundColor: colorScheme === "dark" ? "#1a1a1a" : colors.surfaceElevated1,
           maxWidth: 360,
           alignSelf: "center",
         },
@@ -175,7 +176,7 @@ export default function PersonalizationScreen() {
           justifyContent: "flex-end",
         },
         modalContent: {
-          backgroundColor: colorScheme === "dark" ? "#1a1a1a" : "#ffffff",
+          backgroundColor: colorScheme === "dark" ? "#1a1a1a" : colors.surfaceElevated1,
           borderTopLeftRadius: 20 * fontScale,
           borderTopRightRadius: 20 * fontScale,
           paddingTop: 20 * fontScale,
@@ -209,6 +210,7 @@ export default function PersonalizationScreen() {
       colorScheme,
       fontScale,
       maxContentWidth,
+      colors.surfaceElevated1,
     ],
   );
 
@@ -260,7 +262,7 @@ export default function PersonalizationScreen() {
                 <MaterialIcons
                   name="language"
                   size={24 * fontScale}
-                  color={colors.primary}
+                  color={colors.icon}
                 />
                 <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                   {getLanguageLabel(language)}
@@ -273,6 +275,8 @@ export default function PersonalizationScreen() {
               />
             </TouchableOpacity>
           </View>
+
+          <ThemePickerField />
 
           {/* AI section */}
           <View style={styles.section}>
@@ -305,7 +309,10 @@ export default function PersonalizationScreen() {
                 onValueChange={handleToggleAIInsights}
                 trackColor={{
                   false: "rgba(150,150,150,0.35)",
-                  true: colors.primary,
+                  true:
+                    colorScheme === "light"
+                      ? "rgba(45, 45, 45, 0.45)"
+                      : colors.primary,
                 }}
                 thumbColor="#FFFFFF"
               />
@@ -327,7 +334,7 @@ export default function PersonalizationScreen() {
                 <MaterialIcons
                   name="notifications-active"
                   size={24 * fontScale}
-                  color={colors.primary}
+                  color={colors.icon}
                 />
                 <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                   {t("settings.notifications.manage")}
@@ -357,7 +364,7 @@ export default function PersonalizationScreen() {
                 <MaterialIcons
                   name="touch-app"
                   size={24 * fontScale}
-                  color={colors.primary}
+                  color={colors.icon}
                 />
                 <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                   {t("settings.usability.title")}
@@ -386,7 +393,7 @@ export default function PersonalizationScreen() {
                 <MaterialIcons
                   name="palette"
                   size={24 * fontScale}
-                  color={colors.primary}
+                  color={colors.icon}
                 />
                 <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                   {t("settings.momentColors.title")}
@@ -408,7 +415,7 @@ export default function PersonalizationScreen() {
                 <MaterialIcons
                   name="auto-awesome"
                   size={24 * fontScale}
-                  color={colors.primary}
+                  color={colors.icon}
                 />
                 <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                   {t("settings.personalization.cosmicAppLookTitle")}
@@ -451,7 +458,7 @@ export default function PersonalizationScreen() {
                   <MaterialIcons
                     name="language"
                     size={24 * fontScale}
-                    color={colors.primary}
+                    color={colors.icon}
                   />
                   <ThemedText
                     size="l"
@@ -464,7 +471,7 @@ export default function PersonalizationScreen() {
                   <MaterialIcons
                     name="check-circle"
                     size={24 * fontScale}
-                    color={colors.primary}
+                    color={colors.text}
                   />
                 )}
               </TouchableOpacity>
@@ -478,7 +485,7 @@ export default function PersonalizationScreen() {
                   <MaterialIcons
                     name="language"
                     size={24 * fontScale}
-                    color={colors.primary}
+                    color={colors.icon}
                   />
                   <ThemedText
                     size="l"
@@ -491,7 +498,7 @@ export default function PersonalizationScreen() {
                   <MaterialIcons
                     name="check-circle"
                     size={24 * fontScale}
-                    color={colors.primary}
+                    color={colors.text}
                   />
                 )}
               </TouchableOpacity>

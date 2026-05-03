@@ -1,7 +1,7 @@
 import { AIModal } from "@/components/ai-modal";
 import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
-import { Colors } from "@/constants/theme";
+import { Colors, fabAccentBackground } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
@@ -299,6 +299,9 @@ const SparkledDots = React.memo(function SparkledDots({
       return { x, y, size, delay, duration, id: i };
     });
   }, [avatarSize, centerX, centerY, isTablet]);
+  if (colorScheme === "light") {
+    return null;
+  }
   return (
     <>
       {dots.map((dot) => (
@@ -3441,7 +3444,7 @@ export default function EventsTab() {
                     {
                       bottom: 20 + insets.bottom,
                       right: 20 + insets.right,
-                      backgroundColor: colors.primary,
+                      backgroundColor: fabAccentBackground,
                     },
                   ]}
                 >

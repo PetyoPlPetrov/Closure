@@ -643,7 +643,7 @@ function AppContent() {
           <Stack.Screen name="backup" options={{ headerShown: false }} />
           <Stack.Screen name="guide" options={{ headerShown: false }} />
         </Stack>
-        <StatusBar style="auto" />
+        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
         {goldenEventIdForMemoryModal != null && (
           <AIModal
             visible

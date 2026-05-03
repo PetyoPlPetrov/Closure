@@ -1,5 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
-import { Colors } from "@/constants/theme";
+import { Colors, fabAccentBackground } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { ActionSheet } from "@/library/components/action-sheet";
@@ -323,7 +323,12 @@ export default function IdealizedMemoriesScreen() {
           {/* Floating + button */}
           <TouchableOpacity
             onPress={handleAddMemory}
-            style={[styles.fab, { backgroundColor: colors.primary }]}
+            style={[
+              styles.fab,
+              {
+                backgroundColor: fabAccentBackground,
+              },
+            ]}
           >
             <MaterialIcons name="add" size={32} color="#fff" />
           </TouchableOpacity>
@@ -334,7 +339,7 @@ export default function IdealizedMemoriesScreen() {
           <View style={styles.centerContent}>
             <View style={styles.centerContentWrapper}>
               <View style={styles.iconCircle}>
-                <MaterialIcons name="psychology" size={42} color={colors.primary} />
+                <MaterialIcons name="psychology" size={42} color={fabAccentBackground} />
               </View>
 
               <ThemedText size="sm" weight="bold" style={styles.title}>
@@ -350,7 +355,12 @@ export default function IdealizedMemoriesScreen() {
           {/* Floating + button */}
           <TouchableOpacity
             onPress={handleAddMemory}
-            style={[styles.fab, { backgroundColor: colors.primary }]}
+            style={[
+              styles.fab,
+              {
+                backgroundColor: fabAccentBackground,
+              },
+            ]}
           >
             <MaterialIcons name="add" size={32} color="#fff" />
           </TouchableOpacity>

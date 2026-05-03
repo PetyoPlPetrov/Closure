@@ -207,8 +207,11 @@ export function SferaSizeHintBanner({
         >
           <Pressable onPress={onDontShowAgain} style={styles.dismissRow}>
             <ThemedText
-              style={[styles.dismissText, { color: colors.tint, opacity: 0.85 }]}
-              type="link"
+              emphasis="medium"
+              style={[
+                styles.dismissText,
+                { textDecorationLine: "underline" },
+              ]}
             >
               {dismissLabel}
             </ThemedText>

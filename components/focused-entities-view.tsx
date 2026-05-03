@@ -258,6 +258,10 @@ const SparkledDots = React.memo(function SparkledDots({
     });
   }, [isTablet]);
 
+  if (colorScheme === "light") {
+    return null;
+  }
+
   return (
     <>
       {dots.map((dot) => (

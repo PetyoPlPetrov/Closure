@@ -1,6 +1,6 @@
 import { AIEntityResultsView } from "@/components/ai-entity-results-view";
 import { ThemedText } from "@/components/themed-text";
-import { Colors } from "@/constants/theme";
+import { Colors, fabAccentBackground } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
@@ -970,7 +970,7 @@ export function AIEntityCreationModal({
           width: 44 * fontScale,
           height: 44 * fontScale,
           borderRadius: 22 * fontScale,
-          backgroundColor: colors.primary,
+          backgroundColor: fabAccentBackground,
           justifyContent: "center",
           alignItems: "center",
           shadowColor: "#000",
@@ -1849,7 +1849,11 @@ export function AIEntityCreationModal({
                           style={{
                             marginTop: 8 * fontScale,
                             opacity: 0.7,
-                            color: isRecording ? colors.primary : colors.text,
+                            color: isRecording
+                              ? colorScheme === "light"
+                                ? Colors.dark.primary
+                                : colors.primary
+                              : colors.text,
                           }}
                         >
                           {isRecording

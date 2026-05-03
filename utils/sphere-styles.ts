@@ -6,25 +6,53 @@
 
 import type { LifeSphere } from "./JourneyProvider";
 
+/** Soft chromatic surfaces (not flat grey). Paired with dark icon glyphs for AAA on light. */
+const LIGHT_SPHERE_GRADIENT: Record<
+  LifeSphere,
+  { sunny: readonly [string, string, string]; cloudy: readonly [string, string, string] }
+> = {
+  relationships: {
+    sunny: ["rgb(253,236,236)", "rgb(248,220,222)", "rgb(242,202,205)"],
+    cloudy: ["rgb(241,230,230)", "rgb(232,218,218)", "rgb(220,206,206)"],
+  },
+  career: {
+    sunny: ["rgb(232,241,252)", "rgb(220,232,246)", "rgb(205,222,243)"],
+    cloudy: ["rgb(226,234,245)", "rgb(214,226,240)", "rgb(198,212,232)"],
+  },
+  family: {
+    sunny: ["rgb(232,245,234)", "rgb(220,238,224)", "rgb(206,228,212)"],
+    cloudy: ["rgb(228,240,230)", "rgb(216,232,220)", "rgb(200,220,208)"],
+  },
+  friends: {
+    sunny: ["rgb(241,236,250)", "rgb(232,226,246)", "rgb(220,212,240)"],
+    cloudy: ["rgb(236,232,248)", "rgb(226,220,242)", "rgb(212,206,232)"],
+  },
+  hobbies: {
+    sunny: ["rgb(252,241,232)", "rgb(248,230,214)", "rgb(243,216,196)"],
+    cloudy: ["rgb(248,236,228)", "rgb(240,224,212)", "rgb(232,210,196)"],
+  },
+};
+
 export function getSphereIconColor(
   sphereType: LifeSphere,
   colorScheme: "light" | "dark",
   sunnyPercentage?: number,
 ): string {
   if (colorScheme === "light") {
+    /** ≥7:1 vs light sphere highlights — WCAG AAA for UI text / icons. */
     switch (sphereType) {
       case "relationships":
-        return "#D32F2F";
+        return "#6D1414";
       case "career":
-        return "#1976D2";
+        return "#0D47A1";
       case "family":
-        return "#388E3C";
+        return "#1B5E20";
       case "friends":
-        return "#7B1FA2";
+        return "#4A148C";
       case "hobbies":
-        return "#F57C00";
+        return "#BF360C";
       default:
-        return "#1976D2";
+        return "#0D47A1";
     }
   }
   switch (sphereType) {
@@ -124,19 +152,17 @@ export function getSphereSferaColor(
   if (colorScheme === "light") {
     switch (sphereType) {
       case "relationships":
-        return "#D32F2F";
+        return "#C62828";
       case "career":
-        return "#1976D2";
+        return "#1565C0";
       case "family":
-        // #2E7D32: darker green for ≥3:1 contrast on light badge bg
         return "#2E7D32";
       case "friends":
-        return "#7B1FA2";
+        return "#6A1B9A";
       case "hobbies":
-        // #D84315: deep orange for ≥3:1 contrast on light badge bg
-        return "#D84315";
+        return "#E65100";
       default:
-        return "#1976D2";
+        return "#1565C0";
     }
   }
   // Dark: use RGB from the sfera gradient base (sunny) so it matches the floating orb
@@ -195,21 +221,8 @@ export function getSphereGradientColors(
   const isMoreSunny = sunnyPercentage >= 50;
 
   if (colorScheme === "light") {
-    if (isMoreSunny) {
-      const baseGrey = 170 + (sunnyPercentage / 100) * 30;
-      return [
-        `rgb(${baseGrey - 8}, ${baseGrey - 8}, ${baseGrey - 8})`,
-        `rgb(${baseGrey}, ${baseGrey}, ${baseGrey})`,
-        `rgb(${baseGrey + 8}, ${baseGrey + 8}, ${baseGrey + 8})`,
-      ];
-    }
-    const cloudyPercentage = 100 - sunnyPercentage;
-    const baseGrey = 130 + (cloudyPercentage / 100) * 40;
-    return [
-      `rgb(${baseGrey - 8}, ${baseGrey - 8}, ${baseGrey - 8})`,
-      `rgb(${baseGrey}, ${baseGrey}, ${baseGrey})`,
-      `rgb(${baseGrey + 8}, ${baseGrey + 8}, ${baseGrey + 8})`,
-    ];
+    const g = LIGHT_SPHERE_GRADIENT[sphere];
+    return isMoreSunny ? g.sunny : g.cloudy;
   }
 
   // Dark mode: colorful gradients per sphere

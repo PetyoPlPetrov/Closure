@@ -35,7 +35,7 @@ function TabBarBackground() {
   }
   return (
     <LinearGradient
-      colors={["#F0F0F0", "#E0E0E0", "#D0D0D0", "#C0C0C0", "#B0B0B0"]}
+      colors={["#D0D4DA", "#C9CDD4", "#C2C7CE"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
       style={StyleSheet.absoluteFill}
@@ -63,7 +63,8 @@ export default function TabLayout() {
   const [postOnboardingAIWelcomeDismissedThisSession, setPostOnboardingAIWelcomeDismissedThisSession] =
     useState(false);
 
-  const inactiveColor = colorScheme === "dark" ? "#ffffff" : "#666666";
+  const inactiveColor =
+    colorScheme === "dark" ? "#ffffff" : colors.tabIconDefault;
   const activeTintColor =
     colorScheme === "dark" ? colors.primaryLight : "#1976D2";
   const borderTopColor =

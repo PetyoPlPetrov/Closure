@@ -192,7 +192,7 @@ export default function EditProfileScreen() {
             onPress={handleEditExInfo}
             activeOpacity={0.8}
           >
-            <MaterialIcons name="person" size={24 * fontScale} color={colors.primary} />
+            <MaterialIcons name="person" size={24 * fontScale} color={colors.icon} />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
               {t('profile.editExInfo')}
             </ThemedText>
@@ -222,7 +222,7 @@ export default function EditProfileScreen() {
             <MaterialIcons 
               name="psychology" 
               size={24 * fontScale} 
-              color={colors.primary} 
+              color={colors.icon} 
             />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
               {t('profile.editMemories')}

@@ -74,7 +74,19 @@ export function ThemedText({
         textColor = Colors.dark.textHighEmphasis;
     }
   } else {
-    textColor = Colors.light.text;
+    switch (emphasis) {
+      case 'high':
+        textColor = Colors.light.textHighEmphasis;
+        break;
+      case 'medium':
+        textColor = Colors.light.textMediumEmphasis;
+        break;
+      case 'disabled':
+        textColor = Colors.light.textDisabled;
+        break;
+      default:
+        textColor = Colors.light.textHighEmphasis;
+    }
   }
   
   // Use size preset if provided, otherwise use default
@@ -111,7 +123,8 @@ export function ThemedText({
   
   // Use explicit color from style if provided, otherwise use theme color
   // For link type, use link color unless explicitly overridden
-  const linkColor = '#0a7ea4';
+  const linkColor =
+    colorScheme === 'dark' ? Colors.dark.tint : Colors.light.tint;
   const finalColor = styleColor ?? (type === 'link' ? linkColor : textColor);
   // Use explicit letterSpacing from style if provided, otherwise use preset
   const finalLetterSpacing = styleLetterSpacing ?? letterSpacingValue;

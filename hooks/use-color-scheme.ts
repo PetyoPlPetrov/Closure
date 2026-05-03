@@ -1,4 +1,6 @@
-// Always return dark theme - theme switching is disabled
+import { useTheme } from '@/utils/ThemeContext';
+
 export function useColorScheme() {
-  return 'dark' as const;
+  const { colorScheme } = useTheme();
+  return colorScheme;
 }

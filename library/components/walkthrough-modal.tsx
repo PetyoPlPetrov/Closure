@@ -47,8 +47,7 @@ export function WalkthroughModal({
           paddingHorizontal: 16 * fontScale,
         },
         container: {
-          backgroundColor:
-            colorScheme === "dark" ? colors.background : "#ffffff",
+          backgroundColor: colors.background,
           borderRadius: 16 * fontScale,
           paddingVertical: 10 * fontScale,
           paddingHorizontal: 12 * fontScale,
@@ -176,7 +175,7 @@ export function WalkthroughModal({
         dismissForeverText: {
           fontSize: 12 * fontScale,
           fontWeight: "700",
-          color: colors.textMuted,
+          color: colors.textMediumEmphasis,
           letterSpacing: 0.2 * fontScale,
         },
         openGuideButton: {
@@ -184,12 +183,13 @@ export function WalkthroughModal({
           paddingVertical: 8 * fontScale,
           paddingHorizontal: 18 * fontScale,
           borderRadius: 12 * fontScale,
-          backgroundColor: colors.primary,
+          backgroundColor:
+            colorScheme === "dark" ? colors.primary : "#1565C0",
           borderWidth: 1,
           borderColor:
             colorScheme === "dark"
               ? "rgba(255,255,255,0.22)"
-              : "rgba(0,0,0,0.08)",
+              : "rgba(0,0,0,0.12)",
         },
         openGuideText: {
           fontSize: 12 * fontScale,
@@ -205,7 +205,15 @@ export function WalkthroughModal({
           gap: 10 * fontScale,
         },
       }),
-    [fontScale, colorScheme, colors.background, colors.primary, insets.top],
+    [
+      fontScale,
+      colorScheme,
+      colors.background,
+      colors.primary,
+      colors.primaryLight,
+      colors.textMediumEmphasis,
+      insets.top,
+    ],
   );
 
   return (
@@ -263,7 +271,11 @@ export function WalkthroughModal({
                   <MaterialIcons
                     name="menu-book"
                     size={20 * fontScale}
-                    color={colors.primaryLight}
+                    color={
+                      colorScheme === "dark"
+                        ? colors.primaryLight
+                        : "#1565C0"
+                    }
                   />
                 </View>
                 <Text style={styles.headerTitle}>{t("guidePrompt.title")}</Text>
@@ -341,7 +353,19 @@ export function WalkthroughModal({
               ))}
             </View>
             <View style={styles.labelsRow}>
-              {sections.map((section) => (
+              {sections.map((section) => {
+                const isCurrent =
+                  nextSectionIndex !== -1 &&
+                  sections[nextSectionIndex]?.id === section.id;
+                const labelColor = section.isDone
+                  ? "#22C55E"
+                  : isCurrent
+                    ? colorScheme === "dark"
+                      ? "#FBBF24"
+                      : "#9A3412"
+                    : colors.textMediumEmphasis;
+
+                return (
                 <View
                   key={`${section.id}-label`}
                   style={styles.sectionLabelCell}
@@ -353,14 +377,15 @@ export function WalkthroughModal({
                     style={[
                       styles.sectionLabel,
                       {
-                        color: section.isDone ? "#22C55E" : colors.primaryLight,
+                        color: labelColor,
                       },
                     ]}
                   >
                     {t(section.titleKey)}
                   </Text>
                 </View>
-              ))}
+                );
+              })}
             </View>
             <View style={styles.ctaRow}>
               <TouchableOpacity

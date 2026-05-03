@@ -18,7 +18,7 @@ import {
 } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
-import { Colors } from "@/constants/theme";
+import { Colors, fabAccentBackground } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
@@ -250,6 +250,7 @@ export default function MomentNotificationsScreen() {
       text: colors.text,
       background: colors.background,
       primary: colors.primary,
+      fabBackground: fabAccentBackground,
       border: colorScheme === "dark" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)",
       card: colorScheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
       muted: colorScheme === "dark" ? "rgba(255,255,255,0.6)" : "#4a4a4a",
@@ -1424,6 +1425,7 @@ function createStyles(
     text: string;
     background: string;
     primary: string;
+    fabBackground: string;
     border: string;
     card: string;
     muted: string;
@@ -1470,7 +1472,7 @@ function createStyles(
       width: 64 * fontScale,
       height: 64 * fontScale,
       borderRadius: 32 * fontScale,
-      backgroundColor: palette.primary,
+      backgroundColor: palette.fabBackground,
       alignItems: "center",
       justifyContent: "center",
       shadowColor: "#000",

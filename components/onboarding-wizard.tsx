@@ -889,8 +889,7 @@ export function OnboardingWizard({
       StyleSheet.create({
         container: {
           flex: 1,
-          backgroundColor:
-            colorScheme === "dark" ? colors.background : "#ffffff",
+          backgroundColor: colors.background,
         },
         header: {
           position: "relative",
@@ -964,7 +963,8 @@ export function OnboardingWizard({
           width: 52 * fontScale,
           height: 52 * fontScale,
           borderRadius: 26 * fontScale,
-          backgroundColor: colors.primary,
+          backgroundColor:
+            colorScheme === "light" ? Colors.dark.primary : colors.primary,
           justifyContent: "center",
           alignItems: "center",
         },

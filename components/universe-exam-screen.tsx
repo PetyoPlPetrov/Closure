@@ -7,6 +7,8 @@
  */
 
 import { ThemedText } from "@/components/themed-text";
+import { Colors, fabAccentBackground } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { useJourney } from "@/utils/JourneyProvider";
 import type { LifeSphere } from "@/utils/JourneyProvider";
@@ -78,7 +80,7 @@ import Svg, {
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
-const BG = "#06101C";
+const BG_DARK = "#06101C";
 const COSMIC_RING_START = "#5CE1E6";
 const COSMIC_RING_MID = "#4AC8D0";
 const COSMIC_TEXT = "#B8E8EC";
@@ -109,18 +111,71 @@ function sr(seed: number): number {
 }
 
 // ─── Star field ───────────────────────────────────────────────────────────────
-function StarField({ nebulaColor }: { nebulaColor?: string }) {
+function StarField({
+  nebulaColor,
+  colorScheme,
+}: {
+  nebulaColor?: string;
+  colorScheme: "light" | "dark";
+}) {
   const stars = useMemo(
     () =>
-      Array.from({ length: 80 }, (_, i) => ({
+      Array.from({ length: colorScheme === "light" ? 48 : 80 }, (_, i) => ({
         x: sr(i * 3 + 1) * SW,
         y: sr(i * 3 + 2) * SH,
-        r: sr(i * 3 + 3) * 1.4 + 0.2,
-        op: sr(i * 3 + 7) * 0.42 + 0.08,
+        r:
+          (colorScheme === "light" ? 0.85 : 1.4) * sr(i * 3 + 3) +
+          (colorScheme === "light" ? 0.15 : 0.2),
+        op:
+          (colorScheme === "light" ? 0.14 : 0.42) * sr(i * 3 + 7) +
+          (colorScheme === "light" ? 0.04 : 0.08),
       })),
-    [],
+    [colorScheme],
   );
   const nc = nebulaColor ?? "#1A2A4A";
+
+  if (colorScheme === "light") {
+    const lightBg = Colors.light.background;
+    return (
+      <Svg
+        width={SW}
+        height={SH}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      >
+        <Defs>
+          <RadialGradient id="bg_ex_light" cx="50%" cy="42%" r="78%">
+            <Stop offset="0%" stopColor="#E8EAEE" stopOpacity="1" />
+            <Stop offset="55%" stopColor="#DEE1E6" stopOpacity="1" />
+            <Stop offset="100%" stopColor={lightBg} stopOpacity="1" />
+          </RadialGradient>
+          <RadialGradient id="neb_ex_light" cx="30%" cy="22%" r="45%">
+            <Stop offset="0%" stopColor={nc} stopOpacity="0.09" />
+            <Stop offset="100%" stopColor={lightBg} stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <Rect x={0} y={0} width={SW} height={SH} fill="url(#bg_ex_light)" />
+        <Ellipse
+          cx={SW * 0.32}
+          cy={SH * 0.22}
+          rx={SW * 0.55}
+          ry={SH * 0.26}
+          fill="url(#neb_ex_light)"
+        />
+        {stars.map((s, i) => (
+          <SvgCircle
+            key={i}
+            cx={s.x}
+            cy={s.y}
+            r={s.r}
+            fill="#64748B"
+            opacity={s.op}
+          />
+        ))}
+      </Svg>
+    );
+  }
+
   return (
     <Svg
       width={SW}
@@ -132,15 +187,15 @@ function StarField({ nebulaColor }: { nebulaColor?: string }) {
         <RadialGradient id="bg_ex" cx="50%" cy="38%" r="72%">
           <Stop offset="0%" stopColor="#0D1525" stopOpacity="1" />
           <Stop offset="55%" stopColor="#080E1A" stopOpacity="1" />
-          <Stop offset="100%" stopColor={BG} stopOpacity="1" />
+          <Stop offset="100%" stopColor={BG_DARK} stopOpacity="1" />
         </RadialGradient>
         <RadialGradient id="neb_ex" cx="28%" cy="20%" r="48%">
           <Stop offset="0%" stopColor={nc} stopOpacity="0.2" />
-          <Stop offset="100%" stopColor={BG} stopOpacity="0" />
+          <Stop offset="100%" stopColor={BG_DARK} stopOpacity="0" />
         </RadialGradient>
         <RadialGradient id="neb2_ex" cx="72%" cy="75%" r="40%">
           <Stop offset="0%" stopColor={nc} stopOpacity="0.12" />
-          <Stop offset="100%" stopColor={BG} stopOpacity="0" />
+          <Stop offset="100%" stopColor={BG_DARK} stopOpacity="0" />
         </RadialGradient>
       </Defs>
       <Rect x={0} y={0} width={SW} height={SH} fill="url(#bg_ex)" />
@@ -235,6 +290,8 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   const { idealizedMemories } = useJourney();
   const { hasAIEntitlement } = useSubscription();
   const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme() ?? "dark";
+  const isLight = colorScheme === "light";
 
   const [step, setStep] = useState<ExamStep>("loading");
   const [currentCard, setCurrentCard] = useState<LessonCard | null>(null);
@@ -244,8 +301,94 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
     isCorrect: boolean;
     feedback: string;
   } | null>(null);
-  const [remainingExamTries, setRemainingExamTries] = useState<number | null>(null);
+  const [remainingExamTries, setRemainingExamTries] = useState<number | null>(
+    null,
+  );
   const inputRef = useRef<TextInput>(null);
+
+  const pal = useMemo(() => {
+    const tc = Colors[colorScheme];
+    if (isLight) {
+      return {
+        rootBg: Colors.light.background,
+        spinColor: fabAccentBackground,
+        headerTitleColor: tc.text,
+        headerAccentShadow: "transparent",
+        closeIcon: tc.text,
+        closeBg: tc.surfaceElevated8,
+        closeBorder: "rgba(0,0,0,0.12)",
+        cardShadow: "rgba(0,0,0,0.14)",
+        cardBorderOuter: "rgba(0,0,0,0.1)",
+        cardGradient: ["#FFFFFF", "#F3F4F6", "#E8EAEE"] as const,
+        bodyText: tc.text,
+        placeholder: "rgba(46, 46, 46, 0.45)",
+        inputBg: tc.surfaceElevated8,
+        inputBorder: "rgba(0,0,0,0.12)",
+        micBg: fabAccentBackground,
+        micBorder: Colors.dark.primaryDark,
+        listeningMuted: tc.textMediumEmphasis,
+        submitGrad: [fabAccentBackground, Colors.dark.primaryDark] as const,
+        submitLabel: Colors.dark.primaryText,
+        triesLeft: tc.textDisabled,
+        emptyLessons: tc.textMediumEmphasis,
+        resultScrim: "rgba(17,24,39,0.4)",
+        resultCardBg: "#FFFFFF",
+        resultCloseIcon: tc.text,
+        resultCloseBg: tc.surfaceElevated2,
+        resultTitle: tc.text,
+        resultFeedback: tc.textMediumEmphasis,
+        resultLesson: tc.textMediumEmphasis,
+        resultFeedbackOpacity: 1,
+        imageFallbackBg: tc.surfaceElevated4,
+        openChipBg: "rgba(255,255,255,0.94)",
+        openChipBorder: "rgba(0,0,0,0.1)",
+        openChipText: tc.text,
+        doneBtn: tc.textMediumEmphasis,
+        resultNextIcon: Colors.dark.primaryText,
+        micRecording: "#1565C0",
+        micIcon: "#FFFFFF",
+      };
+    }
+    return {
+      rootBg: BG_DARK,
+      spinColor: COSMIC_RING_START,
+      headerTitleColor: "rgba(255,255,255,0.95)",
+      headerAccentShadow: "rgba(8,14,28,0.70)",
+      closeIcon: "rgba(255,255,255,0.90)",
+      closeBg: "rgba(10,16,32,0.72)",
+      closeBorder: "rgba(255,255,255,0.30)",
+      cardShadow: COSMIC_RING_START,
+      cardBorderOuter: "rgba(92, 225, 230, 0.2)",
+      cardGradient: ["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"] as const,
+      bodyText: COSMIC_TEXT,
+      placeholder: "rgba(184, 232, 236, 0.5)",
+      inputBg: "rgba(13, 21, 37, 0.8)",
+      inputBorder: "rgba(92, 225, 230, 0.2)",
+      micBg: "rgba(92, 225, 230, 0.28)",
+      micBorder: "rgba(92, 225, 230, 0.5)",
+      listeningMuted: "rgba(184, 232, 236, 0.72)",
+      submitGrad: [COSMIC_RING_START, COSMIC_RING_MID] as const,
+      submitLabel: "#0A0E1A",
+      triesLeft: "rgba(184, 232, 236, 0.65)",
+      emptyLessons: "rgba(255,255,255,0.72)",
+      resultScrim: "rgba(0,0,0,0.88)",
+      resultCardBg: "rgba(10, 16, 30, 0.98)",
+      resultCloseIcon: "rgba(255,255,255,0.85)",
+      resultCloseBg: "rgba(255,255,255,0.12)",
+      resultTitle: "#fff",
+      resultFeedback: "#fff",
+      resultLesson: "rgba(255,255,255,0.8)",
+      resultFeedbackOpacity: 0.75,
+      imageFallbackBg: "rgba(255,255,255,0.06)",
+      openChipBg: "rgba(8,14,26,0.72)",
+      openChipBorder: "rgba(255,255,255,0.22)",
+      openChipText: "rgba(255,255,255,0.9)",
+      doneBtn: "rgba(255,255,255,0.55)",
+      resultNextIcon: "#0A0E1A",
+      micRecording: "#0E5F66",
+      micIcon: "#FFFFFF",
+    };
+  }, [colorScheme, isLight]);
 
   const answerInputRef = useRef(answerInput);
   useEffect(() => {
@@ -563,8 +706,8 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   }, [visible, isRecording, isListening, speechToText]);
 
   const accentColor = currentCard
-    ? getSphereSferaColor(currentCard.sphere, "dark")
-    : COSMIC_RING_START;
+    ? getSphereSferaColor(currentCard.sphere, colorScheme)
+    : pal.spinColor;
 
   const resultAccentColor = analysis?.isCorrect ? "#4CAF50" : "#FFA726";
   const CARD_WIDTH = Math.min(320, SW - 48);
@@ -590,11 +733,13 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
       onRequestClose={handleClose}
       statusBarTranslucent
     >
-      <View style={styles.root}>
-        <StarField nebulaColor={accentColor} />
-        {twinkles.map((tw, i) => (
-          <TwinkleDot key={i} x={tw.x} y={tw.y} r={tw.r} delay={tw.delay} />
-        ))}
+      <View style={[styles.root, { backgroundColor: pal.rootBg }]}>
+        <StarField nebulaColor={accentColor} colorScheme={colorScheme} />
+        {!isLight
+          ? twinkles.map((tw, i) => (
+              <TwinkleDot key={i} x={tw.x} y={tw.y} r={tw.r} delay={tw.delay} />
+            ))
+          : null}
 
         {/* Header */}
         <View
@@ -604,7 +749,11 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
           <ThemedText
             style={[
               styles.headerTitle,
-              { textShadowColor: accentColor + "55" },
+              {
+                color: pal.headerTitleColor,
+                textShadowColor: pal.headerAccentShadow,
+                textShadowRadius: isLight ? 0 : 10,
+              },
             ]}
           >
             {t("universe.exam.title")}
@@ -617,18 +766,22 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
           style={[styles.closeBtn, { top: insets.top + 12 }]}
           hitSlop={16}
         >
-          <View style={styles.closeBg}>
-            <MaterialIcons
-              name="close"
-              size={18}
-              color="rgba(255,255,255,0.90)"
-            />
+          <View
+            style={[
+              styles.closeBg,
+              {
+                backgroundColor: pal.closeBg,
+                borderColor: pal.closeBorder,
+              },
+            ]}
+          >
+            <MaterialIcons name="close" size={18} color={pal.closeIcon} />
           </View>
         </Pressable>
 
         {!hasLessons ? (
           <View style={styles.emptyLessonsWrap}>
-            <ThemedText style={styles.emptyLessonsText}>
+            <ThemedText style={[styles.emptyLessonsText, { color: pal.emptyLessons }]}>
               {t("universe.lessons.noneAvailable")}
             </ThemedText>
           </View>
@@ -645,31 +798,31 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
               style={[
                 styles.card,
                 {
-                  shadowColor: COSMIC_RING_START,
-                  borderColor: "rgba(92, 225, 230, 0.2)",
+                  shadowColor: pal.cardShadow,
+                  borderColor: pal.cardBorderOuter,
                 },
               ]}
               onPress={Keyboard.dismiss}
             >
               <LinearGradient
-                colors={["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"]}
+                colors={[...pal.cardGradient]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
               />
 
               {step === "loading" || (step === "question" && !question) ? (
-                <ActivityIndicator size="large" color={COSMIC_RING_START} />
+                <ActivityIndicator size="large" color={pal.spinColor} />
               ) : step === "analyzing" ? (
                 <>
-                  <ActivityIndicator size="large" color={COSMIC_RING_START} />
+                  <ActivityIndicator size="large" color={pal.spinColor} />
                   <ThemedText
                     size="sm"
                     style={{
                       marginTop: 12,
                       opacity: 0.9,
                       textAlign: "center",
-                      color: COSMIC_TEXT,
+                      color: pal.bodyText,
                     }}
                   >
                     {t("wheel.exam.analyzing")}
@@ -690,27 +843,41 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                       marginBottom: 16,
                       textAlign: "center",
                       paddingHorizontal: 8,
-                      color: COSMIC_TEXT,
+                      color: pal.bodyText,
                       lineHeight: 22,
                     }}
                   >
                     {question}
                   </ThemedText>
                   <Animated.View style={[{ width: "100%" }, inputPulseStyle]}>
-                    <View style={styles.inputWrap}>
+                    <View
+                      style={[
+                        styles.inputWrap,
+                        {
+                          backgroundColor: pal.inputBg,
+                          borderColor: pal.inputBorder,
+                        },
+                      ]}
+                    >
                       <TextInput
                         ref={inputRef}
                         value={answerInput}
                         onChangeText={setAnswerInput}
                         placeholder={t("wheel.exam.questionPrompt")}
-                        placeholderTextColor="rgba(184, 232, 236, 0.5)"
-                        style={styles.answerInput}
+                        placeholderTextColor={pal.placeholder}
+                        style={[styles.answerInput, { color: pal.bodyText }]}
                         multiline
                       />
                       <Pressable
                         style={[
                           styles.micButton,
-                          isRecording && { backgroundColor: "#0E5F66" },
+                          {
+                            backgroundColor: pal.micBg,
+                            borderColor: pal.micBorder,
+                          },
+                          isRecording && {
+                            backgroundColor: pal.micRecording,
+                          },
                         ]}
                         onPress={(e) => {
                           e.stopPropagation();
@@ -721,7 +888,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                         <MaterialIcons
                           name={isRecording ? "stop" : "mic"}
                           size={20}
-                          color="#FFFFFF"
+                          color={pal.micIcon}
                         />
                       </Pressable>
                     </View>
@@ -730,7 +897,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                         <ActivityIndicator size="small" color={accentColor} />
                         <ThemedText
                           size="xs"
-                          style={{ color: "rgba(184, 232, 236, 0.72)" }}
+                          style={{ color: pal.listeningMuted }}
                         >
                           {t("ai.listening") || "Listening..."}
                         </ThemedText>
@@ -780,7 +947,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                       }}
                     >
                       <LinearGradient
-                        colors={[COSMIC_RING_START, COSMIC_RING_MID]}
+                        colors={[...pal.submitGrad]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={{
@@ -793,7 +960,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                         <ThemedText
                           size="sm"
                           weight="semibold"
-                          style={{ color: "#0A0E1A" }}
+                          style={{ color: pal.submitLabel }}
                         >
                           {t("wheel.exam.submitAnswer")}
                         </ThemedText>
@@ -801,7 +968,10 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                     </Pressable>
                   </Animated.View>
                   {triesLeftLabel ? (
-                    <ThemedText size="xs" style={styles.triesLeftLabel}>
+                    <ThemedText
+                      size="xs"
+                      style={[styles.triesLeftLabel, { color: pal.triesLeft }]}
+                    >
                       {triesLeftLabel}
                     </ThemedText>
                   ) : null}
@@ -813,7 +983,9 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
 
         {/* Result overlay */}
         {step === "result" && analysis && currentCard && (
-          <View style={styles.resultOverlay}>
+          <View
+            style={[styles.resultOverlay, { backgroundColor: pal.resultScrim }]}
+          >
             <ScrollView
               contentContainerStyle={styles.resultScrollContent}
               showsVerticalScrollIndicator={false}
@@ -824,6 +996,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                   {
                     borderColor: `${resultAccentColor}40`,
                     shadowColor: resultAccentColor,
+                    backgroundColor: pal.resultCardBg,
                   },
                 ]}
               >
@@ -831,12 +1004,15 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                 <Pressable
                   onPress={handleClose}
                   hitSlop={12}
-                  style={styles.resultCloseBtn}
+                  style={[
+                    styles.resultCloseBtn,
+                    { backgroundColor: pal.resultCloseBg },
+                  ]}
                 >
                   <MaterialIcons
                     name="close"
                     size={22}
-                    color="rgba(255,255,255,0.85)"
+                    color={pal.resultCloseIcon}
                   />
                 </Pressable>
 
@@ -862,7 +1038,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                     style={{
                       marginBottom: 8,
                       textAlign: "center",
-                      color: "#fff",
+                      color: pal.resultTitle,
                     }}
                   >
                     {analysis.isCorrect
@@ -876,8 +1052,8 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                     style={{
                       marginBottom: 16,
                       textAlign: "center",
-                      opacity: 0.75,
-                      color: "#fff",
+                      opacity: pal.resultFeedbackOpacity,
+                      color: pal.resultFeedback,
                     }}
                   >
                     {analysis.feedback}
@@ -892,7 +1068,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                       marginBottom: 16,
                       paddingHorizontal: 4,
                       lineHeight: 22,
-                      color: "rgba(255,255,255,0.8)",
+                      color: pal.resultLesson,
                     }}
                     numberOfLines={4}
                   >
@@ -911,7 +1087,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                         height: 160,
                         borderRadius: 16,
                         overflow: "hidden",
-                        backgroundColor: "rgba(255,255,255,0.06)",
+                        backgroundColor: pal.imageFallbackBg,
                         marginBottom: 20,
                         borderWidth: 1.5,
                         borderColor: accentColor + "99",
@@ -936,19 +1112,19 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                           paddingHorizontal: 8,
                           paddingVertical: 4,
                           borderRadius: 999,
-                          backgroundColor: "rgba(8,14,26,0.72)",
+                          backgroundColor: pal.openChipBg,
                           borderWidth: 1,
-                          borderColor: "rgba(255,255,255,0.22)",
+                          borderColor: pal.openChipBorder,
                         }}
                       >
                         <MaterialIcons
                           name="open-in-new"
                           size={14}
-                          color="rgba(255,255,255,0.9)"
+                          color={pal.openChipText}
                         />
                         <ThemedText
                           size="xs"
-                          style={{ color: "rgba(255,255,255,0.9)" }}
+                          style={{ color: pal.openChipText }}
                         >
                           {language === "bg" ? "Отвори" : "Open"}
                         </ThemedText>
@@ -960,7 +1136,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                         width: CARD_WIDTH - 40,
                         height: 64,
                         borderRadius: 16,
-                        backgroundColor: "rgba(255,255,255,0.06)",
+                        backgroundColor: pal.imageFallbackBg,
                         justifyContent: "center",
                         alignItems: "center",
                         marginBottom: 20,
@@ -982,7 +1158,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                       style={[styles.actionBtn, styles.actionBtnPrimary]}
                     >
                       <LinearGradient
-                        colors={[COSMIC_RING_START, COSMIC_RING_MID]}
+                        colors={[...pal.submitGrad]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.actionBtnGradient}
@@ -990,14 +1166,14 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                         <ThemedText
                           size="sm"
                           weight="semibold"
-                          style={{ color: "#0A0E1A" }}
+                          style={{ color: pal.submitLabel }}
                         >
                           {t("universe.exam.next")}
                         </ThemedText>
                         <MaterialIcons
                           name="arrow-forward"
                           size={18}
-                          color="#0A0E1A"
+                          color={pal.resultNextIcon}
                           style={{ marginLeft: 6 }}
                         />
                       </LinearGradient>
@@ -1008,7 +1184,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                     >
                       <ThemedText
                         size="sm"
-                        style={{ color: "rgba(255,255,255,0.55)" }}
+                        style={{ color: pal.doneBtn }}
                       >
                         {t("universe.exam.done")}
                       </ThemedText>
@@ -1033,7 +1209,7 @@ const CARD_WIDTH = Math.min(320, SW - 48);
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: BG,
+    backgroundColor: BG_DARK,
   },
   emptyLessonsWrap: {
     flex: 1,

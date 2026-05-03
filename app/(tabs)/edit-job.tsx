@@ -201,7 +201,7 @@ export default function EditJobScreen() {
             onPress={handleEditJobInfo}
             activeOpacity={0.8}
           >
-            <MaterialIcons name="work" size={24 * fontScale} color={colors.primary} />
+            <MaterialIcons name="work" size={24 * fontScale} color={colors.icon} />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
               {t('job.editJobInfo')}
             </ThemedText>
@@ -231,7 +231,7 @@ export default function EditJobScreen() {
             <MaterialIcons 
               name="psychology" 
               size={24 * fontScale} 
-              color={colors.primary} 
+              color={colors.icon} 
             />
             <ThemedText weight="bold" letterSpacing="l" style={{ color: colors.text, flex: 1 }}>
               {t('profile.editMemories')}

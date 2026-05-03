@@ -6,7 +6,7 @@ import { useLargeDevice } from "@/hooks/use-large-device";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import {
   useMomentColorsRaw,
-  DEFAULT_MOMENT_COLORS,
+  getDefaultMomentColors,
   type MomentColors,
   type MomentColorSet,
 } from "@/utils/MomentColorsProvider";
@@ -242,45 +242,85 @@ function ColorPickerModal({
   );
 }
 
-// Suggested colors: default (from DEFAULT_MOMENT_COLORS) is always first for each moment type
-// Sunny: joyful, warm memories — golden hour, sunshine, happiness
-const SUNNY_BG_SUGGESTED = [
-  DEFAULT_MOMENT_COLORS.sunny.background,
-  "#FFC107", "#FFB300", "#FF9800", "#FFEB3B", "#F9A825", "#FFA726", "#FFF176",
-];
-const CLOUDY_BG_SUGGESTED = [
-  DEFAULT_MOMENT_COLORS.cloudy.background,
-  "#37474F", "#455A64", "#546E7A", "#263238", "#3E4A5C", "#1A2332",
-];
-// Lesson: wisdom, growth, insight — clarity, “aha”, learning
-const LESSON_BG_SUGGESTED = [
-  DEFAULT_MOMENT_COLORS.lesson.background,
-  "#5CE1E6", "#FFD700", "#FFA000", "#64B5F6", "#81C784", "#CE93D8", "#4DB6AC", "#7986CB", "#F48FB1",
-];
+// Suggested colors: theme default is always first for each moment type
+// Sunny: default follows active theme (vivid gold on dark, warmer amber on light)
 
-const SUNNY_TEXT_SUGGESTED = [
-  DEFAULT_MOMENT_COLORS.sunny.text,
-  "#1A1A1A", "#2D2D2D", "#3E2723", "#1B5E20", "#333333",
-];
-const CLOUDY_TEXT_SUGGESTED = [
-  DEFAULT_MOMENT_COLORS.cloudy.text,
-  "#FFFFFF", "#E8E8E8", "#B0BEC5", "#CFD8DC", "#ECEFF1",
-];
-const LESSON_TEXT_SUGGESTED = [
-  DEFAULT_MOMENT_COLORS.lesson.text,
-  "#000000", "#1A1A1A", "#333333", "#37474F", "#4A148C", "#2D2D2D",
-];
-
-function getBgSuggestedForType(type: keyof MomentColors): string[] {
-  if (type === "sunny") return SUNNY_BG_SUGGESTED;
-  if (type === "cloudy") return CLOUDY_BG_SUGGESTED;
-  return LESSON_BG_SUGGESTED;
+function getBgSuggestedForType(
+  type: keyof MomentColors,
+  scheme: "light" | "dark",
+): string[] {
+  const d = getDefaultMomentColors(scheme);
+  if (type === "sunny") {
+    return [
+      d.sunny.background,
+      "#FFC107",
+      "#FFB300",
+      "#FF9800",
+      "#FFEB3B",
+      "#F9A825",
+      "#FFA726",
+      "#FFF176",
+    ];
+  }
+  if (type === "cloudy") {
+    return [
+      d.cloudy.background,
+      "#37474F",
+      "#455A64",
+      "#546E7A",
+      "#263238",
+      "#3E4A5C",
+      "#1A2332",
+    ];
+  }
+  return [
+    d.lesson.background,
+    "#5CE1E6",
+    "#FFD700",
+    "#FFA000",
+    "#64B5F6",
+    "#81C784",
+    "#CE93D8",
+    "#4DB6AC",
+    "#7986CB",
+    "#F48FB1",
+  ];
 }
 
-function getTextSuggestedForType(type: keyof MomentColors): string[] {
-  if (type === "sunny") return SUNNY_TEXT_SUGGESTED;
-  if (type === "cloudy") return CLOUDY_TEXT_SUGGESTED;
-  return LESSON_TEXT_SUGGESTED;
+function getTextSuggestedForType(
+  type: keyof MomentColors,
+  scheme: "light" | "dark",
+): string[] {
+  const d = getDefaultMomentColors(scheme);
+  if (type === "sunny") {
+    return [
+      d.sunny.text,
+      "#1A1A1A",
+      "#2D2D2D",
+      "#3E2723",
+      "#1B5E20",
+      "#333333",
+    ];
+  }
+  if (type === "cloudy") {
+    return [
+      d.cloudy.text,
+      "#FFFFFF",
+      "#E8E8E8",
+      "#B0BEC5",
+      "#CFD8DC",
+      "#ECEFF1",
+    ];
+  }
+  return [
+    d.lesson.text,
+    "#000000",
+    "#1A1A1A",
+    "#333333",
+    "#37474F",
+    "#4A148C",
+    "#2D2D2D",
+  ];
 }
 
 function mergeSwatches(suggested: string[], recent: string[]): string[] {
@@ -621,9 +661,15 @@ function MomentPreviewPopup({
 export default function MomentColorsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const momentDefaultScheme: "light" | "dark" =
+    colorScheme === "light" ? "light" : "dark";
+  const themeMomentDefaults = useMemo(
+    () => getDefaultMomentColors(momentDefaultScheme),
+    [momentDefaultScheme],
+  );
   const fontScale = useFontScale();
   const t = useTranslate();
-  const { momentColors, setMomentColor, resetToDefaults, isLoaded } = useMomentColorsRaw();
+  const { momentColors, setMomentColor, isLoaded } = useMomentColorsRaw();
   const { recent, addRecent, removeRecent } = useRecentColors();
   const { isSubscribed } = useSubscription(); // true for Sfera Plus OR Sfera AI — both can save colors
 
@@ -693,14 +739,15 @@ export default function MomentColorsScreen() {
 
   const isNonDefault = useCallback(
     (key: keyof MomentColors) =>
-      draftColors[key].background !== DEFAULT_MOMENT_COLORS[key].background ||
-      draftColors[key].text !== DEFAULT_MOMENT_COLORS[key].text,
-    [draftColors],
+      draftColors[key].background !==
+        themeMomentDefaults[key].background ||
+      draftColors[key].text !== themeMomentDefaults[key].text,
+    [draftColors, themeMomentDefaults],
   );
 
   const handleResetSection = useCallback(
     (key: keyof MomentColors) => {
-      const defaults = DEFAULT_MOMENT_COLORS[key];
+      const defaults = themeMomentDefaults[key];
       setMomentColor(key, "background", defaults.background);
       setMomentColor(key, "text", defaults.text);
       setDraftColors((prev) => ({
@@ -708,7 +755,7 @@ export default function MomentColorsScreen() {
         [key]: { ...defaults },
       }));
     },
-    [setMomentColor],
+    [setMomentColor, themeMomentDefaults],
   );
 
   // Carousel: which moment type is selected (0=sunny, 1=cloudy, 2=lesson)
@@ -987,7 +1034,7 @@ export default function MomentColorsScreen() {
               {t("settings.momentColors.background")}
             </ThemedText>
             <View style={styles.swatchRow}>
-              {mergeSwatches(getBgSuggestedForType(selectedKey), recent.background).map((c) =>
+              {mergeSwatches(getBgSuggestedForType(selectedKey, momentDefaultScheme), recent.background).map((c) =>
                 renderSwatch(
                   `bg-${c}`,
                   c,
@@ -1021,7 +1068,7 @@ export default function MomentColorsScreen() {
               {t("settings.momentColors.text")}
             </ThemedText>
             <View style={styles.swatchRow}>
-              {mergeSwatches(getTextSuggestedForType(selectedKey), recent.text).map((c) =>
+              {mergeSwatches(getTextSuggestedForType(selectedKey, momentDefaultScheme), recent.text).map((c) =>
                 renderSwatch(
                   `txt-${c}`,
                   c,

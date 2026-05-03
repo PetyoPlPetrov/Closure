@@ -15,16 +15,26 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#F2F2F2', // Light grey background (was #B0B0B0 - too dark for accent contrast)
-    tint: '#166E2D',       // Darkened green for AA contrast on light bg (was #34C759)
-    icon: '#404548',       // Darkened icons for AA contrast on light bg (was #687076)
-    tabIconDefault: '#404548',
-    tabIconSelected: '#166E2D',
-    primary: '#166E2D',    // Darkened primary for AA contrast on light bg (was #34C759)
-    primaryLight: '#7dd3fc',
-    primaryDark: '#0c4a6e',
-    error: '#C41E1E',      // Darkened error for AA contrast on light bg (was #ff4444)
+    // Softer than #FFF/#FAFAFA to reduce glare; still AAA-friendly for #0D0D0D body text.
+    text: '#0D0D0D',
+    background: '#D5D8DE',
+    textHighEmphasis: '#0D0D0D',
+    textMediumEmphasis: '#2E2E2E',
+    textDisabled: '#4F4F4F',
+    tint: '#135E28',
+    icon: '#2E2E2E',
+    tabIconDefault: '#383838',
+    tabIconSelected: '#135E28',
+    primary: '#135E28',
+    primaryLight: '#166E2D',
+    primaryDark: '#0D4A1C',
+    primaryText: '#FFFFFF',
+    error: '#B71C1C',
+    surface: '#D5D8DE',
+    surfaceElevated1: '#DFE2E6',
+    surfaceElevated2: '#E5E8EB',
+    surfaceElevated4: '#EBEEF1',
+    surfaceElevated8: '#F0F1F3',
   },
   dark: {
     // Base colors
@@ -59,6 +69,29 @@ export const Colors = {
     surfaceElevated8: '#4A5A6F', // Elevation 8 - lightest blue-grey
   },
 };
+
+/** Floating + / FAB fill in both themes (`Colors.light.primary` is brand green). */
+export const fabAccentBackground = Colors.dark.primary;
+
+/**
+ * Sunny / cloudy / lesson icons on memory cards and Memory Balance stats — same tints as
+ * `MemoryBalanceView` on the main focused hub (not moment-customization swatches).
+ * Counts beside icons use theme body text (`Colors[scheme].text` / balance stat numbers).
+ */
+export const memoryCardStatIconColors = {
+  light: {
+    sunny: '#854D0E',
+    cloudy: '#37474F',
+    /** Teal: distinct from sun amber + cloud blue-grey; aligns with cosmic accents */
+    lesson: '#0F766E',
+  },
+  dark: {
+    sunny: '#FFE566',
+    cloudy: '#CFD8DC',
+    /** Same family as cosmic chrome (`COSMIC_TEXT` in focused-sfera-view) */
+    lesson: '#B8E8EC',
+  },
+} as const;
 
 export const Fonts = Platform.select({
   ios: {

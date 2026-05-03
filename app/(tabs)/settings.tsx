@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
+import { ThemePickerField } from "@/components/theme-picker-field";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
@@ -224,7 +225,7 @@ export default function SettingsScreen() {
           marginHorizontal: 24 * fontScale,
           padding: 20 * fontScale,
           borderRadius: 16 * fontScale,
-          backgroundColor: colorScheme === "dark" ? "#1a1a1a" : "#ffffff",
+          backgroundColor: colorScheme === "dark" ? "#1a1a1a" : colors.surfaceElevated1,
           maxWidth: 360,
           alignSelf: "center",
         },
@@ -286,7 +287,7 @@ export default function SettingsScreen() {
           opacity: 0.9,
         } as TextStyle,
       }),
-    [fontScale, colorScheme, colors.primary, maxContentWidth],
+    [fontScale, colorScheme, colors, maxContentWidth],
   );
 
   const handlePremiumPress = useCallback(async () => {
@@ -1800,7 +1801,7 @@ export default function SettingsScreen() {
             if (isDeletingData) return;
             setIsDeletingData(true);
             try {
-              // Clear ALL data storage keys (keep user preferences like theme and language)
+              // Clear ALL data storage keys (keep user preferences like theme @sferas:theme_mode and language @sferas:language)
               const STORAGE_KEY = "@sferas:ex_profiles";
               const IDEALIZED_MEMORIES_KEY = "@sferas:idealized_memories";
               const JOBS_STORAGE_KEY = "@sferas:jobs";
@@ -1907,7 +1908,7 @@ export default function SettingsScreen() {
               <MaterialIcons
                 name="star"
                 size={24 * fontScale}
-                color={colors.primary}
+                color={colors.icon}
               />
               <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                 {t("settings.subscriptions.premium")}
@@ -1935,7 +1936,7 @@ export default function SettingsScreen() {
               <MaterialIcons
                 name="backup"
                 size={24 * fontScale}
-                color={colors.primary}
+                color={colors.icon}
               />
               <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                 {t("settings.backup.title")}
@@ -1999,6 +2000,8 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        <ThemePickerField />
+
         {/* HELP */}
         <View style={styles.section}>
           <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
@@ -2014,7 +2017,7 @@ export default function SettingsScreen() {
               <MaterialIcons
                 name="help-outline"
                 size={24 * fontScale}
-                color={colors.primary}
+                color={colors.icon}
               />
               <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                 {t("settings.help.viewGuide")}
@@ -2038,7 +2041,7 @@ export default function SettingsScreen() {
               <MaterialIcons
                 name="feedback"
                 size={24 * fontScale}
-                color={colors.primary}
+                color={colors.icon}
               />
               <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                 {t("settings.feedback.addFeedback")}
@@ -2088,7 +2091,7 @@ export default function SettingsScreen() {
                   <MaterialIcons
                     name="play-circle-outline"
                     size={24 * fontScale}
-                    color={colors.primary}
+                    color={colors.icon}
                   />
                   <ThemedText
                     size="l"
@@ -2113,7 +2116,7 @@ export default function SettingsScreen() {
                   <MaterialIcons
                     name="bug-report"
                     size={24 * fontScale}
-                    color={colors.primary}
+                    color={colors.icon}
                   />
                   <ThemedText
                     size="l"
@@ -2143,7 +2146,7 @@ export default function SettingsScreen() {
                   <MaterialIcons
                     name="star"
                     size={24 * fontScale}
-                    color={colors.primary}
+                    color={colors.icon}
                   />
                   <ThemedText
                     size="l"
@@ -2169,7 +2172,7 @@ export default function SettingsScreen() {
                   <MaterialIcons
                     name="star"
                     size={24 * fontScale}
-                    color={colors.primary}
+                    color={colors.icon}
                   />
                   <ThemedText
                     size="l"
@@ -2246,7 +2249,7 @@ export default function SettingsScreen() {
                 <MaterialIcons
                   name="school"
                   size={24 * fontScale}
-                  color={colors.primary}
+                  color={colors.icon}
                 />
                 <ThemedText
                   size="l"

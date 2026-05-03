@@ -1990,7 +1990,10 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
         {text && (
           <ThemedText
             style={{
-              color: momentColors.lesson.text,
+              color:
+                colorScheme === 'light'
+                  ? Colors.light.text
+                  : momentColors.lesson.text,
               fontSize: Math.max(11, Math.min(14, 11 + (textLength / 50))) * fontScale,
               textAlign: 'center',
               fontWeight: '700',

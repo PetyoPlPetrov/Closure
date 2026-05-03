@@ -1,5 +1,4 @@
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { fabAccentBackground } from '@/constants/theme';
 import { useFontScale } from '@/hooks/use-device-size';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMemo } from 'react';
@@ -16,9 +15,7 @@ export function FloatingActionButton({
   icon = 'add',
   containerStyle,
 }: FloatingActionButtonProps) {
-  const colorScheme = useColorScheme();
   const fontScale = useFontScale();
-  const colors = Colors[colorScheme ?? 'dark'];
 
   const styles = useMemo(
     () =>
@@ -27,7 +24,7 @@ export function FloatingActionButton({
           width: 56 * fontScale,
           height: 56 * fontScale,
           borderRadius: 28 * fontScale,
-          backgroundColor: colors.primary,
+          backgroundColor: fabAccentBackground,
           alignItems: 'center',
           justifyContent: 'center',
           shadowColor: '#000',
@@ -40,7 +37,7 @@ export function FloatingActionButton({
           elevation: 8, // Android shadow
         },
       }),
-    [fontScale, colors.primary]
+    [fontScale]
   );
 
   return (
@@ -52,7 +49,7 @@ export function FloatingActionButton({
       <MaterialIcons
         name={icon}
         size={24 * fontScale}
-        color={colorScheme === 'dark' ? '#ffffff' : '#ffffff'}
+        color="#ffffff"
       />
     </TouchableOpacity>
   );

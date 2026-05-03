@@ -13,6 +13,8 @@ import React, {
   useState,
 } from "react";
 
+import { useTheme } from "@/utils/ThemeContext";
+
 const ORBIT_DURATION_KEY = "@sferas:orbit_duration_ms";
 const CONSTELLATION_AMOUNT_KEY = "@sferas:constellation_amount";
 const CONSTELLATION_OPACITY_KEY = "@sferas:constellation_opacity";
@@ -53,7 +55,7 @@ type VisualSettingsContextValue = {
   setPulsingAnimations: (value: boolean) => void;
   splashAnimation: boolean;
   setSplashAnimation: (value: boolean) => void;
-  /** Glossy radial spheres + gradient insight cards (focused sferas / entity orbit). Default off. */
+  /** Glossy radial spheres + gradient insight cards. Off by default in dark; enabled automatically in light theme. */
   sphere3DEffect: boolean;
   setSphere3DEffect: (value: boolean) => void;
 };
@@ -67,6 +69,7 @@ export function VisualSettingsProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { colorScheme } = useTheme();
   const [orbitDurationMs, setOrbitState] = useState(DEFAULT_ORBIT_DURATION_MS);
   const [constellationAmount, setConstellationState] = useState(
     DEFAULT_CONSTELLATION_AMOUNT,
@@ -227,6 +230,13 @@ export function VisualSettingsProvider({
     setSphere3DEffectState(value);
     AsyncStorage.setItem(SPHERE_3D_EFFECT_KEY, String(value));
   }, []);
+
+  /** Light theme (manual or system): glossy 3D sferas read better on pale surfaces — keep on. */
+  useEffect(() => {
+    if (!loaded) return;
+    if (colorScheme !== "light") return;
+    setSphere3DEffect(true);
+  }, [loaded, colorScheme, setSphere3DEffect]);
 
   const value = useMemo<VisualSettingsContextValue>(
     () => ({

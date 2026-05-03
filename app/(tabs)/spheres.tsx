@@ -3,7 +3,7 @@ import { ConstellationBackground } from "@/components/constellation-background";
 import { AIEntityCreationModal } from "@/components/ai-entity-creation-modal";
 import { AIInsightsConsentModal } from "@/components/ai-insights-consent-modal";
 import { ThemedText } from "@/components/themed-text";
-import { Colors } from "@/constants/theme";
+import { Colors, fabAccentBackground } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale, useIconScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
@@ -1048,11 +1048,17 @@ export default function SpheresScreen() {
           width: 44 * fontScale,
           height: 44 * fontScale,
           borderRadius: 22 * fontScale,
-          backgroundColor: "rgba(26, 47, 74, 0.85)",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(26, 47, 74, 0.85)"
+              : "rgba(255, 255, 255, 0.96)",
           justifyContent: "center",
           alignItems: "center",
           borderWidth: 1,
-          borderColor: "rgba(100, 181, 246, 0.4)",
+          borderColor:
+            colorScheme === "dark"
+              ? "rgba(100, 181, 246, 0.4)"
+              : "rgba(0, 0, 0, 0.16)",
         },
         manualEditTitleRight: {
           flex: 1,
@@ -1295,7 +1301,7 @@ export default function SpheresScreen() {
           width: 56 * fontScale,
           height: 56 * fontScale,
           borderRadius: 28 * fontScale,
-          backgroundColor: colors.primary,
+          backgroundColor: fabAccentBackground,
           alignItems: "center",
           justifyContent: "center",
           shadowColor: "#000",
@@ -2490,7 +2496,9 @@ export default function SpheresScreen() {
                 <MaterialIcons
                   name="logout"
                   size={22 * fontScale}
-                  color="#64B5F6"
+                  color={
+                    colorScheme === "dark" ? "#64B5F6" : colors.text
+                  }
                 />
               </Pressable>
               <ThemedText

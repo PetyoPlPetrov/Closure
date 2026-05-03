@@ -239,7 +239,13 @@ export default function GuideScreen() {
                 <MaterialIcons
                   name={section.icon}
                   size={24 * fontScale}
-                  color={colors.primary}
+                  color={
+                    isRead
+                      ? colors.primary
+                      : colorScheme === "dark"
+                        ? colors.textMediumEmphasis
+                        : colors.icon
+                  }
                 />
                 <ThemedText size="l" weight="medium">
                   {t(getSectionShortTitleKey(section.id))}
@@ -247,9 +253,15 @@ export default function GuideScreen() {
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 * fontScale }}>
                 <MaterialIcons
-                  name="check-circle"
+                  name={isRead ? "check-circle" : "radio-button-unchecked"}
                   size={20 * fontScale}
-                  color={isRead ? "#4CAF50" : colorScheme === "dark" ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)"}
+                  color={
+                    isRead
+                      ? "#22C55E"
+                      : colorScheme === "dark"
+                        ? "rgba(255, 255, 255, 0.5)"
+                        : "rgba(0, 0, 0, 0.45)"
+                  }
                 />
                 <MaterialIcons
                   name="arrow-forward-ios"
@@ -266,7 +278,11 @@ export default function GuideScreen() {
             <ThemedText size="m" weight="medium">
               {t("guide.remindOnOpen")}
             </ThemedText>
-            <ThemedText size="s" style={{ opacity: 0.6, marginTop: 2 * fontScale }}>
+            <ThemedText
+              size="s"
+              emphasis="medium"
+              style={{ marginTop: 2 * fontScale }}
+            >
               {t("guide.remindOnOpenDescription")}
             </ThemedText>
           </View>

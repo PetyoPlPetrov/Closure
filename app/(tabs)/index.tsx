@@ -14,7 +14,7 @@ import {
   SunnyMomentsCelebrationOverlay,
 } from "@/components/sunny-moments-celebration-overlay";
 import { ThemedText } from "@/components/themed-text";
-import { Colors } from "@/constants/theme";
+import { Colors, fabAccentBackground } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
@@ -36,6 +36,7 @@ import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
+import { momentPillGlyphColor } from "@/utils/moment-pill-glyph";
 import {
   subscribeGuideRecheckAfterWelcomeDismiss,
   getPostOnboardingAIWelcomeDismissedThisSession,
@@ -580,6 +581,7 @@ const FloatingAvatar = React.memo(
 
     const insets = useSafeAreaInsets();
     const fontScale = useFontScale();
+    const examModalPalette = wheelExamModalPalette(colorScheme);
     const [shareModalVisible, setShareModalVisible] = React.useState(false);
     const [shareModalContent, setShareModalContent] = React.useState({
       title: "",
@@ -5839,19 +5841,19 @@ const FloatingAvatar = React.memo(
                           alignItems: "center",
                           borderRadius: 24,
                           overflow: "hidden",
-                          shadowColor: COSMIC_RING_START,
+                          shadowColor: examModalPalette.shellShadowColor,
                           shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.5,
+                          shadowOpacity: examModalPalette.shellShadowOpacity,
                           shadowRadius: isTablet ? 24 : 20,
                           elevation: 24,
                           padding: 20,
                           position: "relative",
                           borderWidth: 1,
-                          borderColor: "rgba(92, 225, 230, 0.2)",
+                          borderColor: examModalPalette.borderColor,
                         }}
                       >
                         <LinearGradient
-                          colors={["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"]}
+                          colors={examModalPalette.gradientColors}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={StyleSheet.absoluteFillObject}
@@ -5860,7 +5862,7 @@ const FloatingAvatar = React.memo(
                           <>
                             <ActivityIndicator
                               size="large"
-                              color={COSMIC_RING_START}
+                              color={examModalPalette.spinner}
                             />
                             <ThemedText
                               size="sm"
@@ -5868,7 +5870,7 @@ const FloatingAvatar = React.memo(
                                 marginTop: 12,
                                 opacity: 0.9,
                                 textAlign: "center",
-                                color: COSMIC_TEXT,
+                                color: examModalPalette.bodyText,
                               }}
                             >
                               {t("wheel.exam.analyzing")}
@@ -5878,7 +5880,7 @@ const FloatingAvatar = React.memo(
                           !selectedWheelExam.question ? (
                           <ActivityIndicator
                             size="large"
-                            color={COSMIC_RING_START}
+                            color={examModalPalette.spinner}
                           />
                         ) : (
                           <>
@@ -5895,7 +5897,7 @@ const FloatingAvatar = React.memo(
                                 marginBottom: 16,
                                 textAlign: "center",
                                 paddingHorizontal: 8,
-                                color: COSMIC_TEXT,
+                                color: examModalPalette.bodyText,
                                 lineHeight: 22,
                               }}
                             >
@@ -5911,18 +5913,18 @@ const FloatingAvatar = React.memo(
                                 value={examAnswerInput}
                                 onChangeText={setExamAnswerInput}
                                 placeholder={t("wheel.exam.questionPrompt")}
-                                placeholderTextColor="rgba(184, 232, 236, 0.5)"
+                                placeholderTextColor={examModalPalette.placeholder}
                                 style={{
                                   width: "100%",
                                   minHeight: 48,
-                                  backgroundColor: "rgba(13, 21, 37, 0.8)",
+                                  backgroundColor: examModalPalette.inputBg,
                                   borderRadius: 14,
                                   paddingHorizontal: 14,
                                   paddingVertical: 12,
-                                  color: COSMIC_TEXT,
+                                  color: examModalPalette.bodyText,
                                   fontSize: 14 * fontScale,
                                   borderWidth: 1,
-                                  borderColor: "rgba(92, 225, 230, 0.2)",
+                                  borderColor: examModalPalette.inputBorder,
                                 }}
                                 multiline
                               />
@@ -6029,7 +6031,7 @@ const FloatingAvatar = React.memo(
                                   style={{
                                     marginTop: 8,
                                     textAlign: "center",
-                                    color: "rgba(184, 232, 236, 0.65)",
+                                    color: examModalPalette.triesLabel,
                                     fontSize: 11,
                                   }}
                                 >
@@ -6051,19 +6053,19 @@ const FloatingAvatar = React.memo(
                             width: 28,
                             height: 28,
                             borderRadius: 14,
-                            backgroundColor: "rgba(92, 225, 230, 0.15)",
+                            backgroundColor: examModalPalette.closeBg,
                             justifyContent: "center",
                             alignItems: "center",
                             zIndex: 999,
                             borderWidth: 1,
-                            borderColor: "rgba(92, 225, 230, 0.3)",
+                            borderColor: examModalPalette.closeBorder,
                           }}
                           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                         >
                           <MaterialIcons
                             name="close"
                             size={16}
-                            color={COSMIC_TEXT}
+                            color={examModalPalette.closeIcon}
                             style={{ opacity: 0.9 }}
                           />
                         </Pressable>
@@ -6127,7 +6129,10 @@ const FloatingAvatar = React.memo(
                         />
                         <ThemedText
                           style={{
-                            color: momentColors.lesson.text,
+                            color:
+                              colorScheme === "light"
+                                ? Colors.light.text
+                                : momentColors.lesson.text,
                             fontSize:
                               Math.max(13, Math.min(16, 13 + textLength / 60)) *
                               fontScale,
@@ -6387,7 +6392,11 @@ const FloatingAvatar = React.memo(
                           style={{
                             marginBottom: 16,
                             textAlign: "center",
-                            opacity: 0.75,
+                            color:
+                              colorScheme === "light"
+                                ? Colors.light.textMediumEmphasis
+                                : undefined,
+                            opacity: colorScheme === "light" ? 1 : 0.75,
                           }}
                         >
                           {selectedWheelExam.analysis.feedback}
@@ -6401,6 +6410,10 @@ const FloatingAvatar = React.memo(
                             marginBottom: 16,
                             paddingHorizontal: 4,
                             lineHeight: 22 * fontScale,
+                            color:
+                              colorScheme === "light"
+                                ? Colors.light.text
+                                : undefined,
                           }}
                           numberOfLines={4}
                         >
@@ -7312,7 +7325,10 @@ const MemoryMomentsRenderer = React.memo(
                 {lesson.text && (
                   <ThemedText
                     style={{
-                      color: momentColors.lesson.text,
+                      color:
+                        colorScheme === "light"
+                          ? Colors.light.text
+                          : momentColors.lesson.text,
                       fontSize: (isTablet ? 13 : 11) * fontScale,
                       textAlign: "center",
                       fontWeight: "700",
@@ -7691,7 +7707,9 @@ const MemoryActionButtons = React.memo(
                       <MaterialIcons
                         name="lightbulb"
                         size={isLargeDevice ? 44 : 40}
-                        color={momentColors.lesson.background}
+                        color={momentPillGlyphColor(
+                          momentColors.lesson.background,
+                        )}
                       />
                     </View>
                     {/* Count badge */}
@@ -7710,7 +7728,9 @@ const MemoryActionButtons = React.memo(
                           style={{
                             fontSize: isLargeDevice ? 14 : 12,
                             fontWeight: "700",
-                            color: momentColors.lesson.background,
+                            color: momentPillGlyphColor(
+                              momentColors.lesson.background,
+                            ),
                             textAlign: "center",
                           }}
                         >
@@ -7961,7 +7981,9 @@ const MemoryActionButtons = React.memo(
                       <MaterialIcons
                         name="wb-sunny"
                         size={isLargeDevice ? 44 : 40}
-                        color={colorScheme === "dark" ? "#FFFFFF" : "#555"}
+                        color={momentPillGlyphColor(
+                          momentColors.sunny.background,
+                        )}
                       />
                     </View>
                     {/* Count badge */}
@@ -7980,7 +8002,9 @@ const MemoryActionButtons = React.memo(
                           style={{
                             fontSize: isLargeDevice ? 14 : 12,
                             fontWeight: "700",
-                            color: colorScheme === "dark" ? "#FFFFFF" : "#555",
+                            color: momentPillGlyphColor(
+                              momentColors.sunny.background,
+                            ),
                             textAlign: "center",
                           }}
                         >
@@ -9528,7 +9552,8 @@ const FloatingCloud = React.memo(function FloatingCloud({
             width: safeCloudSize,
             height: safeCloudSize,
             borderRadius: safeCloudSize / 2,
-            backgroundColor: "#FFFFFF", // White background
+            backgroundColor:
+              colorScheme === "dark" ? "#FFFFFF" : Colors.light.surfaceElevated1,
             justifyContent: "center",
             alignItems: "center",
             borderWidth: 1.5,
@@ -9979,6 +10004,39 @@ const COSMIC_TEXT = "#B8E8EC";
 const COSMIC_TRACK = "#0D1525";
 const MAIN_WHEEL_COSMIC_UNSELECTED = "rgba(26, 36, 64, 0.12)";
 const MAIN_WHEEL_COSMIC_SELECTED = "rgba(92, 225, 230, 0.45)";
+
+function mainWheelMomentTypeIconUnselected(scheme: "light" | "dark"): string {
+  return scheme === "light" ? Colors.light.icon : "rgba(184, 232, 236, 0.95)";
+}
+
+/** Lesson exam popover after wheel spin: dark cosmic in dark mode, light surfaces in light mode (WCAG-friendly). */
+function wheelExamModalPalette(scheme: "light" | "dark") {
+  const isLight = scheme === "light";
+  const gradientColors = isLight
+    ? ([
+        "#FFFFFF",
+        Colors.light.surfaceElevated8,
+        Colors.light.surfaceElevated4,
+        Colors.light.surfaceElevated2,
+      ] as const)
+    : (["#0A0E1A", "#0F1422", "#151C2E", "#1A2440"] as const);
+  return {
+    gradientColors,
+    shellShadowColor: isLight ? "rgba(0, 0, 0, 0.22)" : COSMIC_RING_START,
+    shellShadowOpacity: isLight ? 0.18 : 0.5,
+    borderColor: isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(92, 225, 230, 0.2)",
+    loadingBorder: isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(92, 225, 230, 0.25)",
+    bodyText: isLight ? Colors.light.text : COSMIC_TEXT,
+    placeholder: isLight ? "rgba(46, 46, 46, 0.45)" : "rgba(184, 232, 236, 0.5)",
+    inputBg: isLight ? Colors.light.surfaceElevated2 : "rgba(13, 21, 37, 0.8)",
+    inputBorder: isLight ? "rgba(0, 0, 0, 0.12)" : "rgba(92, 225, 230, 0.2)",
+    triesLabel: isLight ? Colors.light.textMediumEmphasis : "rgba(184, 232, 236, 0.65)",
+    closeBg: isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(92, 225, 230, 0.15)",
+    closeBorder: isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(92, 225, 230, 0.3)",
+    closeIcon: isLight ? Colors.light.text : COSMIC_TEXT,
+    spinner: isLight ? Colors.light.primary : COSMIC_RING_START,
+  };
+}
 const COSMIC_INNER_DARK = [
   "#0A0E1A",
   "#0F1422",
@@ -10065,6 +10123,8 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   const t = useTranslate();
   const { language } = useLanguage();
   const primaryHex = colors.primary ?? "#64B5F6";
+  const emptyAddFill = fabAccentBackground;
+  const emptyAddIcon = Colors.dark.primaryLight;
   const glowMatrixValues = React.useMemo(() => {
     const rgb = hexToRgbNorm(primaryHex);
     const m = (a: number) =>
@@ -10454,7 +10514,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                   width: 44,
                   height: 44,
                   borderRadius: 22,
-                  backgroundColor: `${colors.primary}40`,
+                  backgroundColor: `${emptyAddFill}40`,
                   justifyContent: "center",
                   alignItems: "center",
                 }}
@@ -10462,7 +10522,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
                 <MaterialIcons
                   name="add"
                   size={28}
-                  color={colors.primaryLight ?? colors.primary}
+                  color={emptyAddIcon}
                 />
               </View>
             </Pressable>
@@ -10690,6 +10750,10 @@ const SparkledDots = React.memo(function SparkledDots({
       return centerDots;
     }
   }, [avatarSize, isTablet, fullScreen]);
+
+  if (colorScheme === "light") {
+    return null;
+  }
 
   return (
     <>
@@ -11355,7 +11419,7 @@ const FloatingEntity = React.memo(function FloatingEntity({
                   : "#333333"
                 : colorScheme === "dark"
                   ? "#cccccc"
-                  : "#ffffff"
+                  : "#333333"
             }
           />
         </View>
@@ -12412,6 +12476,8 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
   // Lesson - lightbulb with text below it, cosmic-tinted (blend of lesson color from settings)
   const lessonBg = momentColors.lesson.background;
   const lessonText = momentColors.lesson.text;
+  const lessonCaptionColor =
+    colorScheme === "light" ? Colors.light.text : lessonText;
   const bulbColor = blendHex(
     momentColors.lesson.background,
     COSMIC_RING_START,
@@ -12481,7 +12547,7 @@ const FloatingMomentFromMemory = function FloatingMomentFromMemory({
             {text && (
               <ThemedText
                 style={{
-                  color: lessonText,
+                  color: lessonCaptionColor,
                   fontSize:
                     Math.max(10, Math.min(14, 12 - textLength / 80)) *
                     fontScale,
@@ -13441,7 +13507,10 @@ const PulsingFloatingMomentIcon = function PulsingFloatingMomentIcon({
             >
               <ThemedText
                 style={{
-                  color: momentColors.lesson.text,
+                  color:
+                    colorScheme === "light"
+                      ? Colors.light.text
+                      : momentColors.lesson.text,
                   fontSize:
                     Math.max(10, Math.min(14, 12 - textLength / 80)) *
                     fontScale,
@@ -14170,6 +14239,9 @@ const SphereAvatar = React.memo(function SphereAvatar({
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const lessonExamModalPalette = wheelExamModalPalette(
+    colorScheme === "light" ? "light" : "dark",
+  );
   const fontScale = useFontScale();
   const { isTablet, isLargeDevice } = useLargeDevice();
   /** Individual sfera view: back button row — title aligns to same band (vertically centered with arrow). */
@@ -20020,7 +20092,7 @@ export default function HomeScreen() {
                         </AnimatedPressable>
                       ) : selectedLesson.examStep === "question" &&
                         !selectedLesson.examQuestion ? (
-                        // Loading: cosmic exam UI
+                        // Loading: lesson exam shell (theme-aware)
                         <View
                           style={[
                             {
@@ -20034,29 +20106,24 @@ export default function HomeScreen() {
                               minHeight: 120,
                               position: "relative",
                               borderWidth: 1,
-                              borderColor: "rgba(92, 225, 230, 0.25)",
-                              shadowColor: COSMIC_RING_START,
+                              borderColor: lessonExamModalPalette.loadingBorder,
+                              shadowColor: lessonExamModalPalette.shellShadowColor,
                               shadowOffset: { width: 0, height: 0 },
-                              shadowOpacity: 0.4,
+                              shadowOpacity: lessonExamModalPalette.shellShadowOpacity,
                               shadowRadius: 20,
                               elevation: 24,
                             },
                           ]}
                         >
                           <LinearGradient
-                            colors={[
-                              "#0A0E1A",
-                              "#0F1422",
-                              "#151C2E",
-                              "#1A2440",
-                            ]}
+                            colors={lessonExamModalPalette.gradientColors}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={StyleSheet.absoluteFillObject}
                           />
                           <ActivityIndicator
                             size="large"
-                            color={COSMIC_RING_START}
+                            color={lessonExamModalPalette.spinner}
                           />
                           <Pressable
                             onPress={handleDismissLesson}
@@ -20067,25 +20134,25 @@ export default function HomeScreen() {
                               width: 28,
                               height: 28,
                               borderRadius: 14,
-                              backgroundColor: "rgba(92, 225, 230, 0.15)",
+                              backgroundColor: lessonExamModalPalette.closeBg,
                               justifyContent: "center",
                               alignItems: "center",
                               zIndex: 10,
                               borderWidth: 1,
-                              borderColor: "rgba(92, 225, 230, 0.3)",
+                              borderColor: lessonExamModalPalette.closeBorder,
                             }}
                           >
                             <MaterialIcons
                               name="close"
                               size={16}
-                              color={COSMIC_TEXT}
+                              color={lessonExamModalPalette.closeIcon}
                               style={{ opacity: 0.9 }}
                             />
                           </Pressable>
                         </View>
                       ) : selectedLesson.examQuestion &&
                         selectedLesson.examStep === "question" ? (
-                        // Main wheel exam: cosmic question + answer UI
+                        // Main wheel exam: question + answer UI (theme-aware shell)
                         <View
                           style={[
                             {
@@ -20094,25 +20161,20 @@ export default function HomeScreen() {
                               padding: 24,
                               borderRadius: 24,
                               overflow: "hidden",
-                              shadowColor: COSMIC_RING_START,
+                              shadowColor: lessonExamModalPalette.shellShadowColor,
                               shadowOffset: { width: 0, height: 0 },
-                              shadowOpacity: 0.5,
+                              shadowOpacity: lessonExamModalPalette.shellShadowOpacity,
                               shadowRadius: isTablet ? 24 : 20,
                               elevation: 24,
                               alignItems: "center",
                               position: "relative",
                               borderWidth: 1,
-                              borderColor: "rgba(92, 225, 230, 0.2)",
+                              borderColor: lessonExamModalPalette.borderColor,
                             },
                           ]}
                         >
                           <LinearGradient
-                            colors={[
-                              "#0A0E1A",
-                              "#0F1422",
-                              "#151C2E",
-                              "#1A2440",
-                            ]}
+                            colors={lessonExamModalPalette.gradientColors}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={StyleSheet.absoluteFillObject}
@@ -20130,7 +20192,7 @@ export default function HomeScreen() {
                               marginBottom: 16,
                               textAlign: "center",
                               paddingHorizontal: 8,
-                              color: COSMIC_TEXT,
+                              color: lessonExamModalPalette.bodyText,
                               lineHeight: 22,
                             }}
                           >
@@ -20146,18 +20208,20 @@ export default function HomeScreen() {
                               value={mainWheelExamAnswerInput}
                               onChangeText={setMainWheelExamAnswerInput}
                               placeholder={t("wheel.exam.questionPrompt")}
-                              placeholderTextColor="rgba(184, 232, 236, 0.5)"
+                              placeholderTextColor={
+                                lessonExamModalPalette.placeholder
+                              }
                               style={{
                                 width: "100%",
                                 minHeight: 48,
-                                backgroundColor: "rgba(13, 21, 37, 0.8)",
+                                backgroundColor: lessonExamModalPalette.inputBg,
                                 borderRadius: 14,
                                 paddingHorizontal: 14,
                                 paddingVertical: 12,
-                                color: COSMIC_TEXT,
+                                color: lessonExamModalPalette.bodyText,
                                 fontSize: 14 * fontScale,
                                 borderWidth: 1,
-                                borderColor: "rgba(92, 225, 230, 0.2)",
+                                borderColor: lessonExamModalPalette.inputBorder,
                               }}
                               multiline
                             />
@@ -20224,7 +20288,7 @@ export default function HomeScreen() {
                                 style={{
                                   marginTop: 8,
                                   textAlign: "center",
-                                  color: "rgba(184, 232, 236, 0.65)",
+                                  color: lessonExamModalPalette.triesLabel,
                                   fontSize: 11,
                                 }}
                               >
@@ -20241,18 +20305,18 @@ export default function HomeScreen() {
                               width: 28,
                               height: 28,
                               borderRadius: 14,
-                              backgroundColor: "rgba(92, 225, 230, 0.15)",
+                              backgroundColor: lessonExamModalPalette.closeBg,
                               justifyContent: "center",
                               alignItems: "center",
                               zIndex: 10,
                               borderWidth: 1,
-                              borderColor: "rgba(92, 225, 230, 0.3)",
+                              borderColor: lessonExamModalPalette.closeBorder,
                             }}
                           >
                             <MaterialIcons
                               name="close"
                               size={16}
-                              color={COSMIC_TEXT}
+                              color={lessonExamModalPalette.closeIcon}
                               style={{ opacity: 0.9 }}
                             />
                           </Pressable>
@@ -20262,45 +20326,43 @@ export default function HomeScreen() {
                         <Animated.View
                           style={[
                             {
-                              width: Math.max(momentWidth, 200),
-                              height: Math.max(momentHeight, 200),
+                              width: Math.max(momentWidth, 280),
+                              minWidth: 200,
+                              minHeight: Math.max(momentHeight, 200),
                               justifyContent: "center",
                               alignItems: "center",
-                              borderRadius: Math.max(momentWidth, 200) / 2,
+                              borderRadius: 24,
                               overflow: "hidden",
-                              shadowColor: COSMIC_RING_START,
+                              shadowColor:
+                                lessonExamModalPalette.shellShadowColor,
                               shadowOffset: { width: 0, height: 0 },
-                              shadowOpacity: 0.45,
-                              shadowRadius: isTablet ? 28 : 24,
+                              shadowOpacity:
+                                lessonExamModalPalette.shellShadowOpacity,
+                              shadowRadius: isTablet ? 24 : 20,
                               elevation: 24,
-                              padding: 8,
+                              padding: 24,
                               position: "relative",
                               borderWidth: 1,
-                              borderColor: "rgba(92, 225, 230, 0.25)",
+                              borderColor: lessonExamModalPalette.loadingBorder,
                             },
                             lessonShadowAnimatedStyle,
                           ]}
                         >
                           <LinearGradient
-                            colors={[
-                              "#0A0E1A",
-                              "#0F1422",
-                              "#151C2E",
-                              "#1A2440",
-                            ]}
+                            colors={lessonExamModalPalette.gradientColors}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={StyleSheet.absoluteFillObject}
                           />
                           <ActivityIndicator
                             size="large"
-                            color={COSMIC_RING_START}
+                            color={lessonExamModalPalette.spinner}
                           />
                           <ThemedText
                             size="sm"
                             style={{
                               marginTop: 12,
-                              color: COSMIC_TEXT,
+                              color: lessonExamModalPalette.bodyText,
                               textAlign: "center",
                               opacity: 0.9,
                             }}
@@ -20654,7 +20716,11 @@ export default function HomeScreen() {
                             style={{
                               marginBottom: 16,
                               textAlign: "center",
-                              opacity: 0.75,
+                              color:
+                                colorScheme === "light"
+                                  ? Colors.light.textMediumEmphasis
+                                  : undefined,
+                              opacity: colorScheme === "light" ? 1 : 0.75,
                             }}
                           >
                             {selectedLesson.examAnalysis.feedback}
@@ -20668,6 +20734,10 @@ export default function HomeScreen() {
                               marginBottom: 16,
                               paddingHorizontal: 4,
                               lineHeight: 22 * fontScale,
+                              color:
+                                colorScheme === "light"
+                                  ? Colors.light.text
+                                  : undefined,
                             }}
                             numberOfLines={4}
                           >
@@ -22479,7 +22549,7 @@ export default function HomeScreen() {
                               ? "rgba(150, 150, 150, 0.5)"
                               : selectedMomentType === "lessons"
                                 ? momentColors.lesson.background
-                                : "rgba(184, 232, 236, 0.95)"
+                                : mainWheelMomentTypeIconUnselected(colorScheme)
                           }
                         />
                       </Pressable>
@@ -22572,7 +22642,7 @@ export default function HomeScreen() {
                               ? "rgba(150, 150, 150, 0.5)"
                               : selectedMomentType === "sunnyMoments"
                                 ? momentColors.sunny.background
-                                : "rgba(184, 232, 236, 0.95)"
+                                : mainWheelMomentTypeIconUnselected(colorScheme)
                           }
                         />
                       </Pressable>
@@ -22665,7 +22735,7 @@ export default function HomeScreen() {
                               ? "rgba(150, 150, 150, 0.5)"
                               : selectedMomentType === "hardTruths"
                                 ? momentColors.cloudy.background
-                                : "rgba(184, 232, 236, 0.95)"
+                                : mainWheelMomentTypeIconUnselected(colorScheme)
                           }
                         />
                       </Pressable>
