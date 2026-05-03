@@ -9,7 +9,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import {
+  getSferaSizeHintDismissedForever,
   getSunnyVsCloudyHintDismissedForever,
+  setSferaSizeHintDismissedForever,
   setSunnyVsCloudyHintDismissedForever,
 } from '@/utils/sfera-size-hint-storage';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -34,12 +36,16 @@ export default function NotificationsScreen() {
   const styles = useMemo(() => createStyles(palette, fontScale), [palette, fontScale]);
 
   const [guidePromptEnabled, setGuidePromptEnabled] = useState(true);
+  const [sferaSizesHintEnabled, setSferaSizesHintEnabled] = useState(true);
 
   // Refresh reminders when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       getSunnyVsCloudyHintDismissedForever().then((dismissed) => {
         setGuidePromptEnabled(!dismissed);
+      });
+      getSferaSizeHintDismissedForever().then((dismissed) => {
+        setSferaSizesHintEnabled(!dismissed);
       });
     }, [])
   );
@@ -60,25 +66,53 @@ export default function NotificationsScreen() {
         <View style={styles.card}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
-              <ThemedText size="l" weight="bold">
+              <ThemedText size="md" weight="semibold" style={styles.rowTitleText}>
                 {t('notifications.guidePrompt.title')}
               </ThemedText>
               <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
                 {t('notifications.guidePrompt.description')}
               </ThemedText>
             </View>
-            <Switch
-              value={guidePromptEnabled}
-              onValueChange={async (value) => {
-                await setSunnyVsCloudyHintDismissedForever(!value);
-                setGuidePromptEnabled(value);
-              }}
-              trackColor={{
-                false: 'rgba(150,150,150,0.35)',
-                true: colors.primary,
-              }}
-              thumbColor="#FFFFFF"
-            />
+            <View style={styles.switchCompact}>
+              <Switch
+                value={guidePromptEnabled}
+                onValueChange={async (value) => {
+                  await setSunnyVsCloudyHintDismissedForever(!value);
+                  setGuidePromptEnabled(value);
+                }}
+                trackColor={{
+                  false: 'rgba(150,150,150,0.35)',
+                  true: colors.primary,
+                }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+          </View>
+        </View>
+        <View style={styles.card}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1 }}>
+              <ThemedText size="md" weight="semibold" style={styles.rowTitleText}>
+                {t('notifications.sferaSizesHint.title')}
+              </ThemedText>
+              <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
+                {t('notifications.sferaSizesHint.description')}
+              </ThemedText>
+            </View>
+            <View style={styles.switchCompact}>
+              <Switch
+                value={sferaSizesHintEnabled}
+                onValueChange={async (value) => {
+                  await setSferaSizeHintDismissedForever(!value);
+                  setSferaSizesHintEnabled(value);
+                }}
+                trackColor={{
+                  false: 'rgba(150,150,150,0.35)',
+                  true: colors.primary,
+                }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
           </View>
         </View>
       </View>
@@ -92,10 +126,10 @@ export default function NotificationsScreen() {
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <ThemedText size="l" weight="bold">
+            <ThemedText size="md" weight="semibold" style={styles.rowTitleText}>
               {t('momentNotifications.title')}
             </ThemedText>
-            <MaterialIcons name="chevron-right" size={24 * fontScale} color={palette.text} />
+            <MaterialIcons name="chevron-right" size={23 * fontScale} color={palette.text} />
           </View>
           <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
             {t('momentNotifications.addSchedule')}
@@ -112,10 +146,10 @@ export default function NotificationsScreen() {
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <ThemedText size="l" weight="bold">
+            <ThemedText size="md" weight="semibold" style={styles.rowTitleText}>
               {t('notifications.entityReminders.title')}
             </ThemedText>
-            <MaterialIcons name="chevron-right" size={24 * fontScale} color={palette.text} />
+            <MaterialIcons name="chevron-right" size={23 * fontScale} color={palette.text} />
           </View>
           <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
             {t('notifications.entityReminders.description')}
@@ -140,7 +174,7 @@ export default function NotificationsScreen() {
             color={colors.text}
           />
         </TouchableOpacity>
-        <ThemedText size="l" weight="bold" style={styles.headerTitle}>
+        <ThemedText size="md" weight="bold" style={styles.headerTitle}>
           {t('notifications.title')}
         </ThemedText>
         <View style={styles.headerButton} />
@@ -179,6 +213,18 @@ const createStyles = (
     headerTitle: {
       flex: 1,
       textAlign: 'center',
+      fontSize: 18 * fontScale,
+      lineHeight: 24 * fontScale,
+    },
+    rowTitleText: {
+      fontSize: 17 * fontScale,
+      lineHeight: 23 * fontScale,
+    },
+    switchCompact: {
+      marginLeft: 8 * fontScale,
+      marginRight: -6 * fontScale,
+      transform: [{ scaleX: 0.82 }, { scaleY: 0.82 }],
+      alignSelf: 'center',
     },
     content: {
       padding: 16 * fontScale,

@@ -10,6 +10,9 @@ import ShareModal from "@/components/ShareModal";
 import { StreakBadgeComponent } from "@/components/streak-badge";
 import { StreakModal } from "@/components/streak-modal";
 import { StreakRulesModal } from "@/components/streak-rules-modal";
+import {
+  SunnyMomentsCelebrationOverlay,
+} from "@/components/sunny-moments-celebration-overlay";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -14962,15 +14965,23 @@ export default function HomeScreen() {
     boolean | null
   >(null);
   const [sunnyVsCloudyHintVisible, setSunnyVsCloudyHintVisible] = useState(false);
+  const [sunnyCelebrationVisible, setSunnyCelebrationVisible] =
+    useState(false);
+  const [sunnyMomentsCelebrationToken, setSunnyMomentsCelebrationToken] =
+    useState(0);
   const prevCanShowSunnyVsCloudyRef = useRef(false);
   const sunnyVsCloudyHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
 
-  useEffect(() => {
-    void getSferaSizeHintDismissedForever().then(setSferaSizeHintNeverShow);
-    void getSunnyVsCloudyHintDismissedForever().then(setSunnyVsCloudyHintNeverShow);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      void getSferaSizeHintDismissedForever().then(setSferaSizeHintNeverShow);
+      void getSunnyVsCloudyHintDismissedForever().then(
+        setSunnyVsCloudyHintNeverShow,
+      );
+    }, []),
+  );
 
   useEffect(() => {
     return () => {
@@ -15002,6 +15013,31 @@ export default function HomeScreen() {
     const total = sunny + cloudy;
     const percentage = total === 0 ? 0 : (sunny / total) * 100;
     return { sunny, cloudy, total, percentage };
+  }, [idealizedMemories]);
+
+  const allSunnyMomentEntries = useMemo(() => {
+    const moments: Array<{
+      id: string;
+      text: string;
+      sphere: LifeSphere;
+    }> = [];
+    idealizedMemories.forEach((memory) => {
+      (memory.goodFacts || []).forEach((fact: { id?: string; text?: string }, fi: number) => {
+        if (typeof fact?.text !== "string" || fact.text.trim().length === 0) {
+          return;
+        }
+        const id =
+          typeof fact.id === "string" && fact.id.length > 0
+            ? fact.id
+            : `gf-${memory.id}-${fi}`;
+        moments.push({
+          id,
+          text: fact.text.trim(),
+          sphere: memory.sphere,
+        });
+      });
+    });
+    return moments;
   }, [idealizedMemories]);
 
   const isSunnyVsCloudyHintEligible = useMemo(
@@ -15105,13 +15141,14 @@ export default function HomeScreen() {
       !isHomeTabFocused ||
       homeViewMode !== "focused" ||
       selectedSphere !== null;
+    // Sunny insight: show on every focused overview visit (orbit or Memory Balance).
+    // Sfera size hint stays Memory Balance–only in its separate effect below.
     const readyForSunnyVsCloudyHint =
       onFocusedOverviewSurface &&
       !isLoading &&
       focusedIntroComplete &&
       hasAnyMoments &&
       !focusedSunMenuExpanded &&
-      focusedHomeMemoryBalance === true &&
       isSunnyVsCloudyHintEligible;
 
     if (sunnyVsCloudyHintNeverShow !== false) {
@@ -15152,7 +15189,6 @@ export default function HomeScreen() {
     focusedIntroComplete,
     hasAnyMoments,
     focusedSunMenuExpanded,
-    focusedHomeMemoryBalance,
     isSunnyVsCloudyHintEligible,
     sferaSizeHintVisible,
   ]);
@@ -15204,10 +15240,47 @@ export default function HomeScreen() {
     setSunnyVsCloudyHintVisible(false);
   }, []);
 
+  const openSunnyCelebration = useCallback(() => {
+    if (allSunnyMomentEntries.length === 0) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+      // Haptics unavailable (e.g. web)
+    });
+    setSunnyMomentsCelebrationToken((prev) => prev + 1);
+    setSunnyCelebrationVisible(true);
+  }, [allSunnyMomentEntries]);
+
+  const closeSunnyCelebration = useCallback(() => {
+    setSunnyCelebrationVisible(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setSunnyCelebrationVisible(false);
+      };
+    }, []),
+  );
+
+  useEffect(() => {
+    if (!isAppActive) {
+      setSunnyCelebrationVisible(false);
+    }
+  }, [isAppActive]);
+
   const sunnyVsCloudyHintMessage = useMemo(() => {
     const sunnyPercentageLabel = Math.round(lifeSunnyVsCloudySummary.percentage);
     return `You are doing great ${"\u2600\uFE0F"} ${sunnyPercentageLabel}% of your moments feel sunny. Keep going, you are growing every day.`;
   }, [lifeSunnyVsCloudySummary]);
+
+  const sunnyMomentsCelebrationOverlay = (
+    <SunnyMomentsCelebrationOverlay
+      visible={sunnyCelebrationVisible}
+      triggerToken={sunnyMomentsCelebrationToken}
+      moments={allSunnyMomentEntries}
+      onComplete={closeSunnyCelebration}
+      onDismiss={closeSunnyCelebration}
+    />
+  );
 
   const messageTop = 180; // Position for lesson notification (below streak badge)
 
@@ -19108,6 +19181,7 @@ export default function HomeScreen() {
           sferaSizeHint={
             sferaSizeHintVisible ? (
               <SferaSizeHintBanner
+                key="home-sfera-size-hint"
                 message={t("home.sferaSizeHint")}
                 dismissLabel={t("guidePrompt.dismiss")}
                 onClose={handleSferaSizeHintClose}
@@ -19115,10 +19189,14 @@ export default function HomeScreen() {
               />
             ) : sunnyVsCloudyHintVisible ? (
               <SferaSizeHintBanner
+                key="home-sunny-vs-cloudy-hint"
                 message={sunnyVsCloudyHintMessage}
                 dismissLabel={t("guidePrompt.dismiss")}
                 onClose={handleSunnyVsCloudyHintClose}
                 onDontShowAgain={handleSunnyVsCloudyHintDontShowAgain}
+                actionAccessibilityLabel={t("guidePrompt.showSunnyMoments")}
+                onActionPress={() => openSunnyCelebration()}
+                actionIconName="wb-sunny"
               />
             ) : null
           }
@@ -19169,6 +19247,7 @@ export default function HomeScreen() {
             />
           )}
           {focusedSferaLayer}
+          {sunnyMomentsCelebrationOverlay}
 
           {guideWalkthroughModal}
           {editButton}
@@ -19224,6 +19303,7 @@ export default function HomeScreen() {
             nextBadge={nextBadge}
           />
         )}
+        {sunnyMomentsCelebrationOverlay}
 
         <View
           style={{

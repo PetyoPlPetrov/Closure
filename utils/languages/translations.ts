@@ -15,6 +15,10 @@ export interface Translations {
   "tab.lessons": string;
   "home.emptyState": string;
   "home.sferaSizeHint": string;
+  /** Sunny celebration overlay: vertical speed control (1×–3×). */
+  "home.sunnyCelebrate.speedA11y": string;
+  /** Sunny celebration overlay: vertical flow-density control (sparse ↔ dense parade). */
+  "home.sunnyCelebrate.densityA11y": string;
   /** In-app notice when entity wheel of life is locked (gating rules) */
   "home.entityWheel.gateTitle": string;
   "home.entityWheel.gateMessage": string;
@@ -378,6 +382,9 @@ export interface Translations {
   "guidePrompt.message": string;
   "guidePrompt.openGuide": string;
   "guidePrompt.dismiss": string;
+  "guidePrompt.showSunnyMoments": string;
+  /** Accessibility: animate sunny moments from each life sphere. */
+  "guidePrompt.sunnyMomentsFromSferas": string;
   /** Header close — hides this prompt only; does not change Settings. */
   "guidePrompt.close": string;
 
@@ -883,6 +890,8 @@ export interface Translations {
   "notifications.section.people": string;
   "notifications.guidePrompt.title": string;
   "notifications.guidePrompt.description": string;
+  "notifications.sferaSizesHint.title": string;
+  "notifications.sferaSizesHint.description": string;
   "notifications.entityReminders.title": string;
   "notifications.entityReminders.description": string;
   "notifications.entityReminders.none": string;
@@ -3900,6 +3909,10 @@ const translations: Record<Language, Translations> = {
       "No profiles yet. Add your first ex-profile to get started.",
     "home.sferaSizeHint":
       "Each sfera is sized by its share of moments compared to the other sferas.",
+    "home.sunnyCelebrate.speedA11y":
+      "Animation speed. Higher speeds finish sooner when you have many sunny moments.",
+    "home.sunnyCelebrate.densityA11y":
+      "Flow density. Higher values overlap more sunny moments while they rise.",
     "home.entityWheel.gateTitle": "The view is locked",
     "home.entityWheel.gateMessage":
       "Add at least {minMemories} memories and {minMoments} total moments to unlock this new experience.\n\nYou currently have {currentMemories} memories and {currentMoments} moments.",
@@ -4336,6 +4349,9 @@ const translations: Record<Language, Translations> = {
     "guidePrompt.message": "Learn how to get the most out of Sferas.",
     "guidePrompt.openGuide": "Open Guide",
     "guidePrompt.dismiss": "Don't show again",
+    "guidePrompt.showSunnyMoments": "Show sunny moments",
+    "guidePrompt.sunnyMomentsFromSferas":
+      "Animate sunny moments from each life sphere",
     "guidePrompt.close": "Close",
 
     "onboarding.language.title": "Choose your language",
@@ -5023,6 +5039,9 @@ const translations: Record<Language, Translations> = {
     "notifications.guidePrompt.title": "Life sunny moments insight",
     "notifications.guidePrompt.description":
       "Show the home insight banner with your overall sunny moments percentage.",
+    "notifications.sferaSizesHint.title": "Memory Balance size hint",
+    "notifications.sferaSizesHint.description":
+      "Show the brief tip about how sfera sizes reflect your moment mix on Memory Balance.",
     "notifications.entityReminders.title": "People reminders",
     "notifications.entityReminders.description": "Custom reminders for friends, family & relationships",
     "notifications.entityReminders.none": "No reminders set yet",
@@ -8729,6 +8748,10 @@ const translations: Record<Language, Translations> = {
       "Няма профили все още. Добавете първи партньор, за да започнете.",
     "home.sferaSizeHint":
       "Всяка сфера е с размер според относителния дял моменти спрямо другите сфери.",
+    "home.sunnyCelebrate.speedA11y":
+      "Скорост на анимацията. По-високата скорост приключва по-бързо при много слънчеви моменти.",
+    "home.sunnyCelebrate.densityA11y":
+      "Плътност на потока. По-високите стойности показват повече припокриващи се слънчеви моменти докато се издигат.",
     "home.entityWheel.gateTitle": "Тази визуализация е заключена",
     "home.entityWheel.gateMessage":
       "Добави поне {minMemories} спомена и {minMoments} момента общо, за да отключиш това ново преживяване.\n\nВ момента имаш {currentMemories} спомена и {currentMoments} момента.",
@@ -9161,6 +9184,9 @@ const translations: Record<Language, Translations> = {
     "guidePrompt.message": "Научете как да извлечете максимума от Sferas.",
     "guidePrompt.openGuide": "Отвори ръководството",
     "guidePrompt.dismiss": "Не показвай отново",
+    "guidePrompt.showSunnyMoments": "Покажи слънчевите моменти",
+    "guidePrompt.sunnyMomentsFromSferas":
+      "Анимация на слънчеви моменти от всяка сфера на живота",
     "guidePrompt.close": "Затвори",
 
     "onboarding.language.title": "Изберете език",
@@ -9860,6 +9886,9 @@ const translations: Record<Language, Translations> = {
     "notifications.guidePrompt.title": "Инсайт за слънчевите моменти в живота",
     "notifications.guidePrompt.description":
       "Показвай банера в Начало с общия процент слънчеви моменти.",
+    "notifications.sferaSizesHint.title": "Подсказка за размера на сферите",
+    "notifications.sferaSizesHint.description":
+      "Показвай краткото обяснение как размерът на сферите отразява микса от моменти в Баланс на спомените.",
     "notifications.entityReminders.title": "Напомняния за хора",
     "notifications.entityReminders.description": "Персонални напомняния за приятели, семейство и връзки",
     "notifications.entityReminders.none": "Все още няма зададени напомняния",
