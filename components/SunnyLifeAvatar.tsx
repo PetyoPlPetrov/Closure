@@ -119,7 +119,7 @@ export interface SunnyLifeAvatarProps {
   showPercentageLabel?: boolean;
   /** When set, tapping the avatar (when hasMemories) switches to Classic view (wheel of life). */
   onPress?: () => void;
-  /** When set, tapping "Add memories" (when !hasMemories) navigates to Sfera tab. */
+  /** When set, tapping the empty-memory state (when !hasMemories) navigates to Sfera tab. */
   onAddMemoriesPress?: () => void;
   /** Fires at the start of a press on the avatar (before `onPress`). Optional — e.g. hide chrome immediately. */
   onAvatarPressIn?: () => void;

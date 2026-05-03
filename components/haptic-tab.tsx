@@ -21,26 +21,35 @@ import { useSegments } from 'expo-router';
 import { useUnsavedChanges } from '@/utils/UnsavedChangesContext';
 import { useTranslate } from '@/utils/languages/use-translate';
 
+/** Routes where switching tabs should consult UnsavedChangesContext. Entity hubs (edit-job, edit-family-member, …) are menus only — real drafts live on add-* / add-idealized-memory. */
+const TAB_UNSAVED_CHANGE_ROUTE_SUFFIXES = [
+  'add-ex-profile',
+  'add-job',
+  'add-family-member',
+  'add-friend',
+  'add-hobby',
+  'add-idealized-memory',
+  'idealized-memories',
+] as const;
+
+function lastSegmentMayHaveUnsavedDraft(segments: string[] | undefined): boolean {
+  if (!Array.isArray(segments) || segments.length === 0) return false;
+  const last = segments[segments.length - 1];
+  return (TAB_UNSAVED_CHANGE_ROUTE_SUFFIXES as readonly string[]).includes(last);
+}
+
 export function HapticTab(props: BottomTabBarButtonProps) {
   const pressScale = useSharedValue(1);
   const segments = useSegments();
   const { checkUnsavedChanges, resetScreen } = useUnsavedChanges();
   const t = useTranslate();
 
-  // Check if we're on any edit/add screen that might have unsaved changes
-  const editScreens = [
-    'add-ex-profile', 'add-job', 'add-family-member', 'add-friend', 'add-hobby',
-    'add-idealized-memory', 'edit-profile', 'edit-job', 'edit-family-member',
-    'edit-friend', 'edit-hobby', 'idealized-memories'
-  ];
-  const isOnEditScreen = Array.isArray(segments) &&
-    segments.length > 0 &&
-    editScreens.includes(segments[segments.length - 1]);
+  const shouldCheckUnsavedChanges = lastSegmentMayHaveUnsavedDraft(segments);
 
   // Simple approach: always animate on press
   const handlePress = (ev: any) => {
-    // Check for unsaved changes when navigating away from edit/add screens
-    if (isOnEditScreen) {
+    // Check for unsaved changes when navigating away from screens that host drafts
+    if (shouldCheckUnsavedChanges) {
       const { hasChanges, screenId } = checkUnsavedChanges();
       if (hasChanges) {
         Alert.alert(
@@ -120,15 +129,7 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
   const { checkUnsavedChanges, resetScreen } = useUnsavedChanges();
   const t = useTranslate();
 
-  // Check if we're on any edit/add screen that might have unsaved changes
-  const editScreens = [
-    'add-ex-profile', 'add-job', 'add-family-member', 'add-friend', 'add-hobby',
-    'add-idealized-memory', 'edit-profile', 'edit-job', 'edit-family-member',
-    'edit-friend', 'edit-hobby', 'idealized-memories'
-  ];
-  const isOnEditScreen = Array.isArray(segments) &&
-    segments.length > 0 &&
-    editScreens.includes(segments[segments.length - 1]);
+  const shouldCheckUnsavedChanges = lastSegmentMayHaveUnsavedDraft(segments);
 
   // All screens that are part of the spheres edit flow
   const spheresFlowScreens = [
@@ -157,7 +158,7 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
   const handlePress = (ev: any) => {
     // If on spheres edit flow, check for unsaved changes first, then let spheres screen handle navigation
     if (isOnSpheresFlow) {
-      if (isOnEditScreen) {
+      if (shouldCheckUnsavedChanges) {
         const { hasChanges, screenId } = checkUnsavedChanges();
         if (hasChanges) {
           Alert.alert(
@@ -187,7 +188,7 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
       return;
     }
 
-    if (isOnEditScreen) {
+    if (shouldCheckUnsavedChanges) {
       const { hasChanges, screenId } = checkUnsavedChanges();
       if (hasChanges) {
         Alert.alert(
@@ -270,18 +271,10 @@ export function EventsTabButton(props: BottomTabBarButtonProps) {
   const { checkUnsavedChanges, resetScreen } = useUnsavedChanges();
   const t = useTranslate();
 
-  // Check if we're on any edit/add screen that might have unsaved changes
-  const editScreens = [
-    'add-ex-profile', 'add-job', 'add-family-member', 'add-friend', 'add-hobby',
-    'add-idealized-memory', 'edit-profile', 'edit-job', 'edit-family-member',
-    'edit-friend', 'edit-hobby', 'idealized-memories'
-  ];
-  const isOnEditScreen = Array.isArray(segments) &&
-    segments.length > 0 &&
-    editScreens.includes(segments[segments.length - 1]);
+  const shouldCheckUnsavedChanges = lastSegmentMayHaveUnsavedDraft(segments);
 
   const handlePress = (ev: any) => {
-    if (isOnEditScreen) {
+    if (shouldCheckUnsavedChanges) {
       const { hasChanges, screenId } = checkUnsavedChanges();
       if (hasChanges) {
         Alert.alert(

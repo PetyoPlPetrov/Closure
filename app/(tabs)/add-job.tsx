@@ -242,6 +242,7 @@ export default function AddJobScreen() {
     const unregister = registerScreen(
       screenId,
       () => {
+        if (!navigation.isFocused()) return false;
         // Return true if there are unsaved changes AND we're not navigating away or saving
         const result = !isNavigatingAway.current && !isSaving.current && hasUnsavedChanges();
         return result;
@@ -252,7 +253,7 @@ export default function AddJobScreen() {
     return () => {
       unregister();
     };
-  }, [registerScreen, hasUnsavedChanges]);
+  }, [navigation, registerScreen, hasUnsavedChanges]);
 
   // Listen for navigation events to show confirmation dialog
   useEffect(() => {

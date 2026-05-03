@@ -107,27 +107,48 @@ function estimateWrappedLineCount(text: string, maxCharsPerLine: number): number
   return Math.max(1, lineCount);
 }
 
+/** Avoid sizing moments from raw i18n keys when a suggestion lacks a translation. */
+function isLikelySuggestionI18nKey(text: string): boolean {
+  const t = text.trim();
+  return t.startsWith('suggestions.') && t.length > 'suggestions.'.length;
+}
+
+function momentTextForSizing(text: string | undefined, fallbackText?: string): string {
+  const primary = normalizeMomentText(text);
+  if (primary && !isLikelySuggestionI18nKey(primary)) return primary;
+  const fb = normalizeMomentText(fallbackText);
+  if (fb && !isLikelySuggestionI18nKey(fb)) return fb;
+  return '';
+}
+
 function getDynamicSunSize(text: string | undefined, isLargeDevice: boolean, fallbackText?: string): number {
-  const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
+  const normalizedText = momentTextForSizing(text, fallbackText);
   const textLength = normalizedText.length;
-  const estimatedLines = estimateWrappedLineCount(normalizedText, isLargeDevice ? 16 : 13);
+  // Wider wrap budget than the final glyph layout: font shrinks inside the disc, so avoid inflating line count.
+  const estimatedLines = estimateWrappedLineCount(
+    normalizedText,
+    isLargeDevice ? 22 : 18,
+  );
   const longestWordLength = getLongestWordLength(normalizedText);
 
-  // Keep the sun comfortably larger than its text so multiline copy always has breathing room.
-  const baseSunSize = isLargeDevice ? 220 : 180;
-  const lineBonus = (estimatedLines - 1) * (isLargeDevice ? 56 : 62);
-  const lengthBonus = Math.floor(textLength * (isLargeDevice ? 1.45 : 1.75));
-  const longestWordBonus = Math.max(0, longestWordLength - 10) * (isLargeDevice ? 5 : 7);
+  const baseSunSize = isLargeDevice ? 158 : 128;
+  const lineBonus = (estimatedLines - 1) * (isLargeDevice ? 34 : 38);
+  const lengthBonus = Math.floor(textLength * (isLargeDevice ? 0.82 : 1.02));
+  const longestWordBonus = Math.max(0, longestWordLength - 12) * (isLargeDevice ? 3.5 : 4.5);
 
-  const maxSunSize = isLargeDevice ? 640 : 560;
-  return clamp(baseSunSize + lineBonus + lengthBonus + longestWordBonus, baseSunSize, maxSunSize);
+  const maxSunSize = isLargeDevice ? 480 : 400;
+  return clamp(
+    Math.round(baseSunSize + lineBonus + lengthBonus + longestWordBonus),
+    baseSunSize,
+    maxSunSize,
+  );
 }
 
 function getSunTextLayout(sunSize: number, text: string, fallbackText: string) {
-  const normalizedText = normalizeMomentText(text) || normalizeMomentText(fallbackText);
+  const normalizedText = momentTextForSizing(text, fallbackText);
   // The sun's inner circle in the SVG is 96 on a 160 viewBox.
   const innerCircleDiameter = (sunSize / 160) * 96;
-  const usableTextBoxSize = innerCircleDiameter * 0.8;
+  const usableTextBoxSize = innerCircleDiameter * 0.88;
   const minFontSize = 10;
   const maxFontSize = 13;
   const fontStep = 0.5;
@@ -1355,6 +1376,7 @@ export default function AddIdealizedMemoryScreen() {
     const unregister = registerScreen(
       screenId,
       () => {
+        if (!navigation.isFocused()) return false;
         // Return true if there are unsaved changes AND we're not navigating away
         return !isNavigatingAway.current && hasUnsavedChanges();
       },
@@ -1362,7 +1384,7 @@ export default function AddIdealizedMemoryScreen() {
     );
 
     return unregister;
-  }, [registerScreen, hasUnsavedChanges, viewOnly, isSaving]);
+  }, [navigation, registerScreen, hasUnsavedChanges, viewOnly, isSaving]);
 
   // Intercept navigation to show confirmation dialog if there are unsaved changes
   useEffect(() => {
@@ -3460,7 +3482,11 @@ export default function AddIdealizedMemoryScreen() {
             sunnyBackground={momentColors.sunny.background}
             sunWidth={dynamicSunSize}
             sunHeight={dynamicSunSize}
-            placeholder={sun.placeholder || t('memory.goodFact.placeholder')}
+            placeholder={
+              sun.placeholder && !isLikelySuggestionI18nKey(sun.placeholder)
+                ? sun.placeholder
+                : t('memory.goodFact.placeholder')
+            }
             onTextChange={(id, text) => {
               setSuns((prev) =>
                 prev.map((s) => (s.id === id ? { ...s, text } : s))

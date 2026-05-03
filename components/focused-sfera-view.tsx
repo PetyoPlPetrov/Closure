@@ -5,8 +5,12 @@
  * All interaction state lives here so the parent home tab does NOT re-render on swipes/interactions.
  */
 
-import { ConstellationBackground } from "@/components/constellation-background";
+import {
+  ConstellationBackground,
+  sampleCornerBiasedPosition,
+} from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
+import { SferaInsightEmptyGuideLink } from "@/components/sfera-insight-empty-guide-link";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
 import {
@@ -16,7 +20,9 @@ import {
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import type { Translations } from "@/utils/languages/translations";
+import { FOCUSED_DISPLAY_MODE_STORAGE_KEY } from "@/utils/focused-display-mode-storage";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { sferaInsightEmptyEntitiesTranslationKey } from "@/utils/sfera-insight-empty-entities";
 import {
   getSphere3DGradientColors,
   getSphereIconColor,
@@ -27,8 +33,8 @@ import { Image } from "expo-image";
 import * as Device from "expo-device";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -60,11 +66,11 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, {
+  Circle as SvgCircle,
   Defs,
   Ellipse as SvgEllipse,
   RadialGradient,
   Stop,
-  Circle as SvgCircle,
 } from "react-native-svg";
 
 const { width: SW, height: SH } = Dimensions.get("window");
@@ -131,8 +137,6 @@ const MEMORY_BALANCE_RING_LAYOUT: readonly { angleDeg: number; radius: number }[
   { angleDeg: 198, radius: scaleFocused(156) },
 ];
 
-/** Persisted orbit vs Memory Balance layout (FocusedSferas overview). */
-const FOCUSED_DISPLAY_MODE_STORAGE_KEY = "@sferas:focused_display_mode";
 /** Vertical drift when hiding Memory Balance sferas (sun menu open) — worklet-safe constant. */
 const MEMORY_BALANCE_MENU_HIDE_DRIFT_Y = scaleFocused(10);
 /** Sunny / cloud stats under Memory Balance sferas. */
@@ -569,12 +573,12 @@ const DEFAULT_ENTITY_ORBIT_DURATION_MS = 60000;
 // Single Reanimated driver + phase offsets (not N independent withRepeat loops).
 // Fewer dots, no heavy per-dot shadows, slower cycle; gated with pulsing setting.
 
-const SPARKLE_DOT_COUNT_PHONE = 24;
-const SPARKLE_DOT_COUNT_TABLET = 30;
+const SPARKLE_DOT_COUNT_PHONE = 11;
+const SPARKLE_DOT_COUNT_TABLET = 14;
 const SparkledDots = React.memo(function SparkledDots({
-  avatarSize,
-  avatarCenterX,
-  avatarCenterY,
+  avatarSize: _avatarSize,
+  avatarCenterX: _avatarCenterX,
+  avatarCenterY: _avatarCenterY,
   colorScheme,
   sunnyBackground,
   sparklesEnabled,
@@ -602,30 +606,19 @@ const SparkledDots = React.memo(function SparkledDots({
       ? SPARKLE_DOT_COUNT_TABLET
       : SPARKLE_DOT_COUNT_PHONE;
     const padding = 20;
-    const twoPi = Math.PI * 2;
 
     return Array.from({ length: numDots }, (_, i) => {
-      let x: number, y: number;
-
-      if (i < numDots * 0.4) {
-        const minRadius = avatarSize / 2 + 20;
-        const maxRadius = Math.min(SW, SH) * 0.42;
-        const angle = Math.random() * twoPi;
-        const radius = minRadius + Math.random() * (maxRadius - minRadius);
-        x = avatarCenterX + Math.cos(angle) * radius;
-        y = avatarCenterY + Math.sin(angle) * radius;
-      } else {
-        x = padding + Math.random() * (SW - padding * 2);
-        y = padding + Math.random() * (SH - padding * 2);
-      }
-
-      x = Math.max(padding, Math.min(SW - padding, x));
-      y = Math.max(padding, Math.min(SH - padding, y));
-
+      const { x: rawX, y: rawY } = sampleCornerBiasedPosition(
+        SW,
+        SH,
+        i * 29.17 + 11.4,
+      );
+      const x = Math.max(padding, Math.min(SW - padding, rawX));
+      const y = Math.max(padding, Math.min(SH - padding, rawY));
       const size = 2 + Math.random() * 2;
       return { x, y, size, id: i };
     });
-  }, [avatarSize, avatarCenterX, avatarCenterY, isTablet]);
+  }, [isTablet]);
 
   if (!sparklesEnabled || !isReady) {
     return null;
@@ -1302,6 +1295,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   individualModeScale = 1,
   entityAvatarScale = 1,
   animationsEnabled = true,
+  sphere3DEffect = false,
 }: {
   sphereIdx: number;
   sphere: { type: LifeSphere; icon: string };
@@ -1335,6 +1329,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   /** Additional scale for orbiting entity avatars in selected-sfera mode (iPad only). */
   entityAvatarScale?: number;
   animationsEnabled?: boolean;
+  /** Usability: glossy radial sferas + specular (off = flat fill). */
+  sphere3DEffect?: boolean;
 }) {
   const { isTablet } = useLargeDevice();
   const isFocused = sphereIdx === focusedIdx;
@@ -1666,24 +1662,33 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     opacity: (1 - focusProgress.value) * 0.65,
   }));
 
-  const neonLayerStyle = useAnimatedStyle(() => ({
-    opacity: colorScheme === "dark" ? focusProgress.value : 0,
+  const classicLayerStyle = useAnimatedStyle(() => ({
+    opacity:
+      sphere3DEffect && colorScheme === "dark"
+        ? 1 - focusProgress.value
+        : 1,
   }));
 
-  const classicLayerStyle = useAnimatedStyle(() => ({
-    opacity: colorScheme === "dark" ? 1 - focusProgress.value : 1,
+  const neonLayerStyle = useAnimatedStyle(() => ({
+    opacity: sphere3DEffect && colorScheme === "dark" ? focusProgress.value : 0,
   }));
 
   const specularStyle = useAnimatedStyle(() => ({
-    opacity: colorScheme === "dark" ? 1 - focusProgress.value : 1,
+    opacity:
+      sphere3DEffect && colorScheme === "dark"
+        ? 1 - focusProgress.value
+        : 0,
   }));
 
   const iconBaseStyle = useAnimatedStyle(() => ({
-    opacity: colorScheme === "dark" ? 1 - focusProgress.value : 1,
+    opacity:
+      sphere3DEffect && colorScheme === "dark"
+        ? 1 - focusProgress.value
+        : 1,
   }));
 
   const iconFocusedStyle = useAnimatedStyle(() => ({
-    opacity: colorScheme === "dark" ? focusProgress.value : 0,
+    opacity: sphere3DEffect && colorScheme === "dark" ? focusProgress.value : 0,
   }));
 
   return (
@@ -1743,123 +1748,147 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             sphereVisualStyle,
           ]}
         >
-          <Animated.View
-            pointerEvents="none"
-            style={[{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }, classicLayerStyle]}
-          >
-            <Svg
-              width="100%"
-              height="100%"
-              viewBox="0 0 100 100"
-              style={{ position: "absolute" }}
-              pointerEvents="none"
-            >
-              <Defs>
-                <RadialGradient
-                  id={`sphere3d-${sphere.type}-${sphereIdx}`}
-                  cx="50"
-                  cy="50"
-                  r="50"
-                  fx="32"
-                  fy="32"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <Stop
-                    offset="0%"
-                    stopColor={gradient3D.highlight}
-                    stopOpacity="1"
-                  />
-                  <Stop
-                    offset="38%"
-                    stopColor={gradient3D.base}
-                    stopOpacity="1"
-                  />
-                  <Stop
-                    offset="100%"
-                    stopColor={gradient3D.shadow}
-                    stopOpacity="1"
-                  />
-                </RadialGradient>
-              </Defs>
-              <SvgCircle
-                cx="50"
-                cy="50"
-                r="50"
-                fill={`url(#sphere3d-${sphere.type}-${sphereIdx})`}
-              />
-            </Svg>
-          </Animated.View>
-          {colorScheme === "dark" && (
-            <Animated.View
-              pointerEvents="none"
-              style={[{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }, neonLayerStyle]}
-            >
-              <Svg
-                width="100%"
-                height="100%"
-                viewBox="0 0 100 100"
-                style={{ position: "absolute" }}
+          {sphere3DEffect ? (
+            <>
+              <Animated.View
                 pointerEvents="none"
+                style={[
+                  { position: "absolute", left: 0, top: 0, right: 0, bottom: 0 },
+                  classicLayerStyle,
+                ]}
               >
-                <Defs>
-                  {/* Atmospheric rim: transparent center → neon color at rim */}
-                  <RadialGradient
-                    id={`neon-atmo-${sphere.type}-${sphereIdx}`}
-                    cx="50" cy="50" r="50"
-                    gradientUnits="userSpaceOnUse"
+                <Svg
+                  width="100%"
+                  height="100%"
+                  viewBox="0 0 100 100"
+                  style={{ position: "absolute" }}
+                  pointerEvents="none"
+                >
+                  <Defs>
+                    <RadialGradient
+                      id={`sphere3d-${sphere.type}-${sphereIdx}`}
+                      cx="50"
+                      cy="50"
+                      r="50"
+                      fx="32"
+                      fy="32"
+                      gradientUnits="userSpaceOnUse"
+                    >
+                      <Stop
+                        offset="0%"
+                        stopColor={gradient3D.highlight}
+                        stopOpacity="1"
+                      />
+                      <Stop
+                        offset="38%"
+                        stopColor={gradient3D.base}
+                        stopOpacity="1"
+                      />
+                      <Stop
+                        offset="100%"
+                        stopColor={gradient3D.shadow}
+                        stopOpacity="1"
+                      />
+                    </RadialGradient>
+                  </Defs>
+                  <SvgCircle
+                    cx="50"
+                    cy="50"
+                    r="50"
+                    fill={`url(#sphere3d-${sphere.type}-${sphereIdx})`}
+                  />
+                </Svg>
+              </Animated.View>
+              {colorScheme === "dark" && (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    { position: "absolute", left: 0, top: 0, right: 0, bottom: 0 },
+                    neonLayerStyle,
+                  ]}
+                >
+                  <Svg
+                    width="100%"
+                    height="100%"
+                    viewBox="0 0 100 100"
+                    style={{ position: "absolute" }}
+                    pointerEvents="none"
                   >
-                    <Stop offset="0%"   stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0" />
-                    <Stop offset="55%"  stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0" />
-                    <Stop offset="76%"  stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.12" />
-                    <Stop offset="90%"  stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.50" />
-                    <Stop offset="100%" stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.80" />
-                  </RadialGradient>
-                  {/* Inner deep-space shadow */}
-                  <RadialGradient
-                    id={`neon-inner-${sphere.type}-${sphereIdx}`}
-                    cx="50" cy="50" r="44"
-                    gradientUnits="userSpaceOnUse"
-                  >
-                    <Stop offset="0%"   stopColor="#080C14" stopOpacity="0.65" />
-                    <Stop offset="65%"  stopColor="#080C14" stopOpacity="0.30" />
-                    <Stop offset="100%" stopColor="#080C14" stopOpacity="0" />
-                  </RadialGradient>
-                  {/* White rim sparkle */}
-                  <RadialGradient
-                    id={`neon-rim-${sphere.type}-${sphereIdx}`}
-                    cx="50" cy="50" r="50"
-                    gradientUnits="userSpaceOnUse"
-                  >
-                    <Stop offset="0%"   stopColor="#FFFFFF" stopOpacity="0" />
-                    <Stop offset="84%"  stopColor="#FFFFFF" stopOpacity="0" />
-                    <Stop offset="94%"  stopColor="#FFFFFF" stopOpacity="0.18" />
-                    <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.45" />
-                  </RadialGradient>
-                </Defs>
-                {/* Faint tinted fill so the center isn't fully black */}
-                <SvgCircle cx="50" cy="50" r="50" fill={SPHERE_NEON[sphere.type].core} fillOpacity={0.05} />
-                <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-atmo-${sphere.type}-${sphereIdx})`} />
-                <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-inner-${sphere.type}-${sphereIdx})`} />
-                <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-rim-${sphere.type}-${sphereIdx})`} />
-              </Svg>
-            </Animated.View>
-          )}
-          {/* Specular highlight - bright ellipse top-left for glossy 3D effect */}
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              {
+                    <Defs>
+                      <RadialGradient
+                        id={`neon-atmo-${sphere.type}-${sphereIdx}`}
+                        cx="50"
+                        cy="50"
+                        r="50"
+                        gradientUnits="userSpaceOnUse"
+                      >
+                        <Stop offset="0%" stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0" />
+                        <Stop offset="55%" stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0" />
+                        <Stop offset="76%" stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.12" />
+                        <Stop offset="90%" stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.50" />
+                        <Stop offset="100%" stopColor={SPHERE_NEON[sphere.type].core} stopOpacity="0.80" />
+                      </RadialGradient>
+                      <RadialGradient
+                        id={`neon-inner-${sphere.type}-${sphereIdx}`}
+                        cx="50"
+                        cy="50"
+                        r="44"
+                        gradientUnits="userSpaceOnUse"
+                      >
+                        <Stop offset="0%" stopColor="#080C14" stopOpacity="0.65" />
+                        <Stop offset="65%" stopColor="#080C14" stopOpacity="0.30" />
+                        <Stop offset="100%" stopColor="#080C14" stopOpacity="0" />
+                      </RadialGradient>
+                      <RadialGradient
+                        id={`neon-rim-${sphere.type}-${sphereIdx}`}
+                        cx="50"
+                        cy="50"
+                        r="50"
+                        gradientUnits="userSpaceOnUse"
+                      >
+                        <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0" />
+                        <Stop offset="84%" stopColor="#FFFFFF" stopOpacity="0" />
+                        <Stop offset="94%" stopColor="#FFFFFF" stopOpacity="0.18" />
+                        <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.45" />
+                      </RadialGradient>
+                    </Defs>
+                    <SvgCircle cx="50" cy="50" r="50" fill={SPHERE_NEON[sphere.type].core} fillOpacity={0.05} />
+                    <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-atmo-${sphere.type}-${sphereIdx})`} />
+                    <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-inner-${sphere.type}-${sphereIdx})`} />
+                    <SvgCircle cx="50" cy="50" r="50" fill={`url(#neon-rim-${sphere.type}-${sphereIdx})`} />
+                  </Svg>
+                </Animated.View>
+              )}
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  {
+                    position: "absolute",
+                    left: "18%",
+                    top: "18%",
+                    width: "28%",
+                    height: "28%",
+                    borderRadius: 100,
+                    backgroundColor: "rgba(255,255,255,0.45)",
+                  },
+                  specularStyle,
+                ]}
+              />
+            </>
+          ) : (
+            <View
+              pointerEvents="none"
+              style={{
                 position: "absolute",
-                left: "18%",
-                top: "18%",
-                width: "28%",
-                height: "28%",
-                borderRadius: 100,
-                backgroundColor: "rgba(255,255,255,0.45)",
-              },
-              specularStyle,
-            ]}
-          />
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+                borderRadius: 1000,
+                backgroundColor: gradient3D.base,
+              }}
+            />
+          )}
           {/* Desaturation overlay for unfocused spheres — washes out color to grey */}
           <Animated.View
             pointerEvents="none"
@@ -1885,28 +1914,36 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
                 style={{ pointerEvents: "none" }}
               />
             )}
-            {colorScheme === "dark" && (
-              <Animated.View pointerEvents="none" style={iconFocusedStyle}>
-                <MaterialIcons
-                  name={sphere.icon as any}
-                  size={FOCUSED_ICON_SIZE}
-                  color={SPHERE_NEON[sphere.type].core}
-                  style={{ pointerEvents: "none" }}
-                />
-              </Animated.View>
+            {colorScheme === "dark" && sphere3DEffect && (
+              <>
+                <Animated.View pointerEvents="none" style={iconFocusedStyle}>
+                  <MaterialIcons
+                    name={sphere.icon as any}
+                    size={FOCUSED_ICON_SIZE}
+                    color={SPHERE_NEON[sphere.type].core}
+                    style={{ pointerEvents: "none" }}
+                  />
+                </Animated.View>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[{ position: "absolute" }, iconBaseStyle]}
+                >
+                  <MaterialIcons
+                    name={sphere.icon as any}
+                    size={FOCUSED_ICON_SIZE}
+                    color={iconColor}
+                    style={{ pointerEvents: "none" }}
+                  />
+                </Animated.View>
+              </>
             )}
-            {colorScheme === "dark" && (
-              <Animated.View
-                pointerEvents="none"
-                style={[{ position: "absolute" }, iconBaseStyle]}
-              >
-                <MaterialIcons
-                  name={sphere.icon as any}
-                  size={FOCUSED_ICON_SIZE}
-                  color={iconColor}
-                  style={{ pointerEvents: "none" }}
-                />
-              </Animated.View>
+            {colorScheme === "dark" && !sphere3DEffect && (
+              <MaterialIcons
+                name={sphere.icon as any}
+                size={FOCUSED_ICON_SIZE}
+                color={iconColor}
+                style={{ pointerEvents: "none" }}
+              />
             )}
           </Animated.View>
         </Animated.View>
@@ -1987,6 +2024,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   y,
   sizeScale = 1,
   isVisible = true,
+  sphere3DEffect = false,
 }: {
   sphere: LifeSphere;
   entityIds: string[];
@@ -2001,6 +2039,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   y: number;
   sizeScale?: number;
   isVisible?: boolean;
+  sphere3DEffect?: boolean;
 }) {
   const t = useTranslate();
   const [mode, setMode] = useState(0);
@@ -2111,9 +2150,27 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     opacity: modeOpacity.value,
   }));
 
+  const insightCardBg =
+    colorScheme === "dark" ? COSMIC_INNER_DARK[2] : COSMIC_INNER_LIGHT[2];
   const gradientColors =
     colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
   const cardSize = INSIGHT_CARD_SIZE * sizeScale;
+
+  const insightCardSurfaceShadow = sphere3DEffect
+    ? {
+        shadowColor,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+        elevation: 8,
+      }
+    : {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: colorScheme === "dark" ? 0.3 : 0.15,
+        shadowRadius: 6,
+        elevation: 4,
+      };
 
   const wrapperStyle = {
     position: "absolute" as const,
@@ -2125,92 +2182,125 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   };
 
   // Empty state
+  const emptyCardStyle = {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: shadowColor + "66",
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+    padding: 10,
+    ...insightCardSurfaceShadow,
+  };
+
   if (numEntities === 0) {
+    const emptyOrbitMinH = cardSize * 1.38;
     return (
-      <Pressable style={wrapperStyle}>
-        <LinearGradient
-          colors={[...gradientColors]}
-          style={{
-            flex: 1,
-            borderRadius: 20,
-            borderWidth: 1.5,
-            borderColor: shadowColor + "66",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: 10,
-            shadowColor,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.5,
-            shadowRadius: 12,
-            elevation: 8,
-          }}
-        >
-          <MaterialIcons
-            name="add-circle-outline"
-            size={28}
-            color={shadowColor}
-          />
-          <ThemedText
-            style={{
-              color: COSMIC_TEXT,
-              fontSize: 10,
-              textAlign: "center",
-              marginTop: 6,
-              opacity: 0.8,
-            }}
+      <View style={[wrapperStyle, { height: undefined, minHeight: emptyOrbitMinH }]}>
+        {sphere3DEffect ? (
+          <LinearGradient
+            colors={[...gradientColors]}
+            style={[emptyCardStyle, { minHeight: cardSize }]}
           >
-            {sphere === "relationships"
-              ? t("sferaInsight.addPeopleAndMemories")
-              : t("sferaInsight.noMemories")}
-          </ThemedText>
-        </LinearGradient>
-      </Pressable>
+            <ThemedText
+              style={{
+                color: COSMIC_TEXT,
+                fontSize: 11,
+                fontWeight: "600",
+                textAlign: "center",
+                paddingHorizontal: 8,
+                opacity: 0.9,
+              }}
+            >
+              {t(sferaInsightEmptyEntitiesTranslationKey(sphere))}
+            </ThemedText>
+            <SferaInsightEmptyGuideLink sphere={sphere} compact />
+          </LinearGradient>
+        ) : (
+          <View style={{ ...emptyCardStyle, backgroundColor: insightCardBg, minHeight: cardSize }}>
+            <ThemedText
+              style={{
+                color: COSMIC_TEXT,
+                fontSize: 11,
+                fontWeight: "600",
+                textAlign: "center",
+                paddingHorizontal: 8,
+                opacity: 0.9,
+              }}
+            >
+              {t(sferaInsightEmptyEntitiesTranslationKey(sphere))}
+            </ThemedText>
+            <SferaInsightEmptyGuideLink sphere={sphere} compact />
+          </View>
+        )}
+      </View>
     );
   }
 
   // Entities exist but no memories yet — avoid misleading mode titles (e.g. "Most recently done")
   if (totalMemoriesCount === 0) {
+    const zeroOrbitMinH = cardSize * 1.38;
     const zeroOuter = {
       ...wrapperStyle,
       overflow: "visible" as const,
-      minHeight: cardSize + (showNeedMemoriesHintBelowCard ? 48 : 0),
+      minHeight: zeroOrbitMinH + (showNeedMemoriesHintBelowCard ? 48 : 0),
       height: undefined as number | undefined,
+    };
+    const zeroCardSurface = {
+      flex: 1,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      borderColor: shadowColor + "66",
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
+      padding: 10,
+      ...insightCardSurfaceShadow,
+      minHeight: cardSize,
     };
     return (
       <View style={zeroOuter}>
-        <Pressable style={{ width: cardSize }} onPress={() => onNeedMemoriesHintCenter?.()}>
-          <LinearGradient
-            colors={[...gradientColors]}
-            style={{
-              flex: 1,
-              borderRadius: 20,
-              borderWidth: 1.5,
-              borderColor: shadowColor + "66",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: 10,
-              shadowColor,
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.5,
-              shadowRadius: 12,
-              elevation: 8,
-              minHeight: cardSize,
-            }}
-          >
-            <MaterialIcons name="add-photo-alternate" size={26} color={shadowColor} />
-            <ThemedText
+        <View style={{ width: cardSize }}>
+          {sphere3DEffect ? (
+            <LinearGradient colors={[...gradientColors]} style={zeroCardSurface}>
+              <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
+                <ThemedText
+                  style={{
+                    color: COSMIC_TEXT,
+                    fontSize: 11,
+                    textAlign: "center",
+                    fontWeight: "600",
+                    paddingHorizontal: 8,
+                  }}
+                >
+                  {t("sferaInsight.addMemories")}
+                </ThemedText>
+              </Pressable>
+              <SferaInsightEmptyGuideLink sphere={sphere} compact />
+            </LinearGradient>
+          ) : (
+            <View
               style={{
-                color: COSMIC_TEXT,
-                fontSize: 11,
-                textAlign: "center",
-                marginTop: 8,
-                fontWeight: "600",
+                ...zeroCardSurface,
+                backgroundColor: insightCardBg,
               }}
             >
-              {t("sferaInsight.noMemories")}
-            </ThemedText>
-          </LinearGradient>
-        </Pressable>
+              <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
+                <ThemedText
+                  style={{
+                    color: COSMIC_TEXT,
+                    fontSize: 11,
+                    textAlign: "center",
+                    fontWeight: "600",
+                    paddingHorizontal: 8,
+                  }}
+                >
+                  {t("sferaInsight.addMemories")}
+                </ThemedText>
+              </Pressable>
+              <SferaInsightEmptyGuideLink sphere={sphere} compact />
+            </View>
+          )}
+        </View>
         {showNeedMemoriesHintBelowCard ? (
           <View
             style={{
@@ -2280,6 +2370,95 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     }
   };
 
+  const insightCardMainSurfaceStyle = {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: shadowColor + "66",
+    justifyContent: "space-between" as const,
+    alignItems: "center" as const,
+    padding: 12,
+    paddingBottom: 10,
+    ...insightCardSurfaceShadow,
+    overflow: "hidden" as const,
+  };
+
+  const insightCardMainBody = (
+    <>
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 2,
+          backgroundColor: shadowColor + "33",
+        }}
+      >
+        <Animated.View
+          style={[{ height: 2, backgroundColor: shadowColor }, progressBarStyle]}
+        />
+      </View>
+
+      <Animated.View
+        style={[
+          modeAnimStyle,
+          { alignItems: "center", flex: 1, justifyContent: "center" },
+        ]}
+      >
+        <MaterialIcons
+          name={currentMode.icon}
+          size={22}
+          color={shadowColor}
+        />
+        <ThemedText
+          style={{
+            color: COSMIC_TEXT,
+            fontSize: 11,
+            fontWeight: "600",
+            textAlign: "center",
+            marginTop: 5,
+          }}
+          numberOfLines={1}
+        >
+          {entityName}
+        </ThemedText>
+        <ThemedText
+          style={{
+            color: COSMIC_TEXT,
+            fontSize: 9,
+            textAlign: "center",
+            marginTop: 3,
+            opacity: 0.65,
+          }}
+          numberOfLines={1}
+        >
+          {currentMode.subtext}
+        </ThemedText>
+      </Animated.View>
+
+      {numModes > 1 && (
+        <Pressable
+          onPress={() => cycleMode()}
+          hitSlop={8}
+          style={{ flexDirection: "row", gap: 4, paddingTop: 4 }}
+        >
+          {MODES.map((_, i) => (
+            <View
+              key={i}
+              style={{
+                width: i === mode ? 12 : 5,
+                height: 5,
+                borderRadius: 2.5,
+                backgroundColor: i === mode ? shadowColor : shadowColor + "55",
+              }}
+            />
+          ))}
+        </Pressable>
+      )}
+    </>
+  );
+
   return (
     <View
       style={{
@@ -2293,89 +2472,20 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
       pointerEvents="box-none"
     >
     <Pressable style={{ width: cardSize, height: cardSize }} onPress={handleEntityTap} {...swipePanResponder.panHandlers}>
-      <LinearGradient
-        colors={[...gradientColors]}
-        style={{
-          flex: 1,
-          borderRadius: 20,
-          borderWidth: 1.5,
-          borderColor: shadowColor + "66",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: 12,
-          paddingBottom: 10,
-          shadowColor,
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.5,
-          shadowRadius: 12,
-          elevation: 8,
-          overflow: "hidden",
-        }}
-      >
-        {/* Auto-cycle progress bar */}
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, backgroundColor: shadowColor + "33" }}>
-          <Animated.View style={[{ height: 2, backgroundColor: shadowColor }, progressBarStyle]} />
-        </View>
-
-        <Animated.View
-          style={[
-            modeAnimStyle,
-            { alignItems: "center", flex: 1, justifyContent: "center" },
-          ]}
+      {sphere3DEffect ? (
+        <LinearGradient colors={[...gradientColors]} style={insightCardMainSurfaceStyle}>
+          {insightCardMainBody}
+        </LinearGradient>
+      ) : (
+        <View
+          style={{
+            ...insightCardMainSurfaceStyle,
+            backgroundColor: insightCardBg,
+          }}
         >
-          <MaterialIcons
-            name={currentMode.icon}
-            size={22}
-            color={shadowColor}
-          />
-          <ThemedText
-            style={{
-              color: COSMIC_TEXT,
-              fontSize: 11,
-              fontWeight: "600",
-              textAlign: "center",
-              marginTop: 5,
-            }}
-            numberOfLines={1}
-          >
-            {entityName}
-          </ThemedText>
-          <ThemedText
-            style={{
-              color: COSMIC_TEXT,
-              fontSize: 9,
-              textAlign: "center",
-              marginTop: 3,
-              opacity: 0.65,
-            }}
-            numberOfLines={1}
-          >
-            {currentMode.subtext}
-          </ThemedText>
-        </Animated.View>
-
-        {/* Mode pagination dots */}
-        {numModes > 1 && (
-          <Pressable
-            onPress={() => cycleMode()}
-            hitSlop={8}
-            style={{ flexDirection: "row", gap: 4, paddingTop: 4 }}
-          >
-            {MODES.map((_, i) => (
-              <View
-                key={i}
-                style={{
-                  width: i === mode ? 12 : 5,
-                  height: 5,
-                  borderRadius: 2.5,
-                  backgroundColor:
-                    i === mode ? shadowColor : shadowColor + "55",
-                }}
-              />
-            ))}
-          </Pressable>
-        )}
-      </LinearGradient>
+          {insightCardMainBody}
+        </View>
+      )}
     </Pressable>
     {showNeedMemoriesHintBelowCard && totalMemoriesCount > 0 ? (
       <View
@@ -2495,6 +2605,7 @@ function MemoryBalanceView({
   colorScheme,
   onSpherePress,
   modeTransition,
+  sphere3DEffect = false,
 }: {
   memoryBalanceSizeBySphere: Record<LifeSphere, number>;
   momentStatsBySphere: Record<LifeSphere, { sunny: number; cloudy: number }>;
@@ -2502,6 +2613,7 @@ function MemoryBalanceView({
   colorScheme: "light" | "dark";
   onSpherePress: (sphereIndex: number, sphereType: LifeSphere) => void;
   modeTransition: SharedValue<number>;
+  sphere3DEffect?: boolean;
 }) {
   const t = useTranslate();
   return (
@@ -2556,42 +2668,46 @@ function MemoryBalanceView({
                 borderRadius: size / 2,
                 justifyContent: "center",
                 alignItems: "center",
+                backgroundColor: sphere3DEffect ? "transparent" : gradient3D.base,
                 shadowColor: colorScheme === "dark" ? shadowColor : "#000",
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.45,
                 shadowRadius: 14,
                 elevation: 12,
+                overflow: "hidden",
               }}
             >
-              <Svg
-                width="100%"
-                height="100%"
-                viewBox="0 0 100 100"
-                style={{ position: "absolute" }}
-                pointerEvents="none"
-              >
-                <Defs>
-                  <RadialGradient
-                    id={`memory-balance-sphere-${sphere.type}`}
+              {sphere3DEffect ? (
+                <Svg
+                  width="100%"
+                  height="100%"
+                  viewBox="0 0 100 100"
+                  style={{ position: "absolute" }}
+                  pointerEvents="none"
+                >
+                  <Defs>
+                    <RadialGradient
+                      id={`memory-balance-sphere-${sphere.type}`}
+                      cx="50"
+                      cy="50"
+                      r="50"
+                      fx="32"
+                      fy="32"
+                      gradientUnits="userSpaceOnUse"
+                    >
+                      <Stop offset="0%" stopColor={gradient3D.highlight} stopOpacity="1" />
+                      <Stop offset="38%" stopColor={gradient3D.base} stopOpacity="1" />
+                      <Stop offset="100%" stopColor={gradient3D.shadow} stopOpacity="1" />
+                    </RadialGradient>
+                  </Defs>
+                  <SvgCircle
                     cx="50"
                     cy="50"
                     r="50"
-                    fx="32"
-                    fy="32"
-                    gradientUnits="userSpaceOnUse"
-                  >
-                    <Stop offset="0%" stopColor={gradient3D.highlight} stopOpacity="1" />
-                    <Stop offset="38%" stopColor={gradient3D.base} stopOpacity="1" />
-                    <Stop offset="100%" stopColor={gradient3D.shadow} stopOpacity="1" />
-                  </RadialGradient>
-                </Defs>
-                <SvgCircle
-                  cx="50"
-                  cy="50"
-                  r="50"
-                  fill={`url(#memory-balance-sphere-${sphere.type})`}
-                />
-              </Svg>
+                    fill={`url(#memory-balance-sphere-${sphere.type})`}
+                  />
+                </Svg>
+              ) : null}
               <MaterialIcons
                 name={sphere.icon as keyof typeof MaterialIcons.glyphMap}
                 size={Math.round(size * 0.33)}
@@ -2763,7 +2879,7 @@ export function FocusedSferaView({
   ]);
 
   const insets = useSafeAreaInsets();
-  const { appUsabilityHints } = useVisualSettings();
+  const { appUsabilityHints, sphere3DEffect } = useVisualSettings();
   const focusedSpherePulseRef = useRef<(() => void) | null>(null);
   const focusedSphereTapTimeRef = useRef<number>(0);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3834,6 +3950,7 @@ export function FocusedSferaView({
               individualModeScale={individualModeScale}
               entityAvatarScale={individualEntityAvatarScale}
               animationsEnabled={orbitViewAnimationsEnabled}
+              sphere3DEffect={sphere3DEffect}
             />
           </OrbitSphereItem>
         ))}
@@ -3861,6 +3978,7 @@ export function FocusedSferaView({
             colorScheme={colorScheme}
             onSpherePress={handleMemoryBalanceSpherePress}
             modeTransition={modeTransition}
+            sphere3DEffect={sphere3DEffect}
           />
         </Animated.View>
       )}
@@ -3897,6 +4015,7 @@ export function FocusedSferaView({
           y={SUN_CENTER_Y}
           sizeScale={individualCardScale}
           isVisible={animationsEnabled && selectedSphere !== null}
+          sphere3DEffect={sphere3DEffect}
         />
       ) : (
         <View

@@ -13737,6 +13737,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
   zoomProgress,
   disabled = false,
   isWrapped = false,
+  sphere3DEffect = false,
 }: {
   sphere: LifeSphere;
   position: { x: number; y: number };
@@ -13748,6 +13749,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
   zoomProgress: ReturnType<typeof useSharedValue<number>>;
   disabled?: boolean;
   isWrapped?: boolean; // If true, don't use absolute positioning (parent handles it)
+  sphere3DEffect?: boolean;
 }) {
   const { isTablet } = useLargeDevice();
   const sphereSize = isTablet ? 120 : 80; // 50% larger on tablets
@@ -14086,7 +14088,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
               color={sphereIconColor}
             />
           </Animated.View>
-        ) : (
+        ) : sphere3DEffect ? (
           <LinearGradient
             colors={sphereGradientColors}
             start={{ x: 0, y: 0 }}
@@ -14106,6 +14108,24 @@ const SphereAvatar = React.memo(function SphereAvatar({
               color={sphereIconColor}
             />
           </LinearGradient>
+        ) : (
+          <View
+            style={{
+              width: sphereSize,
+              height: sphereSize,
+              borderRadius: sphereSize / 2,
+              overflow: "hidden",
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: sphereGradientColors[1],
+            }}
+          >
+            <MaterialIcons
+              name={sphereIcons[sphere] as any}
+              size={sphereSize * 0.5}
+              color={sphereIconColor}
+            />
+          </View>
         )}
 
         {/* Loading progress ring */}
@@ -14181,6 +14201,7 @@ export default function HomeScreen() {
     constellationOpacity,
     appUsabilityHints,
     pulsingAnimations,
+    sphere3DEffect,
   } = useVisualSettings();
   const {
     profiles,
@@ -20865,6 +20886,7 @@ export default function HomeScreen() {
                   position={spherePositions.relationships}
                   colorScheme={colorScheme ?? "dark"}
                   colors={colors}
+                  sphere3DEffect={sphere3DEffect}
                   onPress={() => {
                     if (!isWheelSpinning.value && !showMomentTypeSelector) {
                       setFocusedMemory(null);
@@ -20901,6 +20923,7 @@ export default function HomeScreen() {
                   position={spherePositions.career}
                   colorScheme={colorScheme ?? "dark"}
                   colors={colors}
+                  sphere3DEffect={sphere3DEffect}
                   onPress={() => {
                     if (!isWheelSpinning.value && !showMomentTypeSelector) {
                       setFocusedMemory(null);
@@ -20937,6 +20960,7 @@ export default function HomeScreen() {
                   position={spherePositions.family}
                   colorScheme={colorScheme ?? "dark"}
                   colors={colors}
+                  sphere3DEffect={sphere3DEffect}
                   onPress={() => {
                     if (!isWheelSpinning.value && !showMomentTypeSelector) {
                       setFocusedMemory(null);
@@ -20975,6 +20999,7 @@ export default function HomeScreen() {
                   position={spherePositions.friends}
                   colorScheme={colorScheme ?? "dark"}
                   colors={colors}
+                  sphere3DEffect={sphere3DEffect}
                   onPress={() => {
                     if (!isWheelSpinning.value && !showMomentTypeSelector) {
                       setFocusedMemory(null);
@@ -21011,6 +21036,7 @@ export default function HomeScreen() {
                   position={spherePositions.hobbies}
                   colorScheme={colorScheme ?? "dark"}
                   colors={colors}
+                  sphere3DEffect={sphere3DEffect}
                   onPress={() => {
                     if (!isWheelSpinning.value && !showMomentTypeSelector) {
                       setFocusedMemory(null);

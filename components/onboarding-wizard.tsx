@@ -18,6 +18,7 @@ import { logError } from "@/utils/error-logger";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { setFocusedDisplayMode } from "@/utils/focused-display-mode-storage";
 import {
   clearCachedOnboardingResponse,
   getCachedOnboardingResponse,
@@ -866,6 +867,7 @@ export function OnboardingWizard({
         await setOnboardingCompleted(true);
         await setShowWalkthroughAfterOnboarding(false);
         await setShowPostOnboardingAIWelcome(true);
+        await setFocusedDisplayMode("memoryBalanceRings");
         router.replace("/(tabs)");
       } catch (err) {
         void logError("OnboardingSave:handleSave", err, {

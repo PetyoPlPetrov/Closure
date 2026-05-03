@@ -5,7 +5,11 @@
  * The central avatar shows sunny vs cloudy percentage for the specific sphere.
  */
 
-import { ConstellationBackground } from "@/components/constellation-background";
+import {
+  ConstellationBackground,
+  sampleCornerBiasedPosition,
+} from "@/components/constellation-background";
+import { SferaInsightEmptyGuideLink } from "@/components/sfera-insight-empty-guide-link";
 import { ThemedText } from "@/components/themed-text";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { BaseEntity, IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
@@ -16,13 +20,15 @@ import {
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { useVisualSettings } from "@/utils/VisualSettingsProvider";
+import { sferaInsightEmptyEntitiesTranslationKey } from "@/utils/sfera-insight-empty-entities";
 import {
   getSphereGradientColors,
   getSphereShadowColor,
 } from "@/utils/sphere-styles";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -31,6 +37,7 @@ import {
   PanResponder,
   Platform,
   Pressable,
+  StyleSheet,
   View,
 } from "react-native";
 import Animated, {
@@ -215,9 +222,9 @@ const SmallFloatingMomentIcon = React.memo(function SmallFloatingMomentIcon({
 // ───────────────────── Sparkled dots ─────────────────────
 
 const SparkledDots = React.memo(function SparkledDots({
-  avatarSize,
-  avatarCenterX,
-  avatarCenterY,
+  avatarSize: _avatarSize,
+  avatarCenterX: _avatarCenterX,
+  avatarCenterY: _avatarCenterY,
   colorScheme,
   sunnyBackground,
   animationsEnabled,
@@ -232,34 +239,24 @@ const SparkledDots = React.memo(function SparkledDots({
   const { isTablet } = useLargeDevice();
 
   const dots = useMemo(() => {
-    const numDots = isTablet ? 55 : 40;
+    const numDots = isTablet ? 22 : 16;
     const padding = 20;
 
     return Array.from({ length: numDots }, (_, i) => {
-      let x: number, y: number;
-
-      if (i < numDots * 0.4) {
-        const minRadius = avatarSize / 2 + 20;
-        const maxRadius = Math.min(SW, SH) * 0.42;
-        const angle = Math.random() * 2 * Math.PI;
-        const radius = minRadius + Math.random() * (maxRadius - minRadius);
-        x = avatarCenterX + Math.cos(angle) * radius;
-        y = avatarCenterY + Math.sin(angle) * radius;
-      } else {
-        x = padding + Math.random() * (SW - padding * 2);
-        y = padding + Math.random() * (SH - padding * 2);
-      }
-
-      x = Math.max(padding, Math.min(SW - padding, x));
-      y = Math.max(padding, Math.min(SH - padding, y));
-
+      const { x: rawX, y: rawY } = sampleCornerBiasedPosition(
+        SW,
+        SH,
+        i * 31.41 + 7.77,
+      );
+      const x = Math.max(padding, Math.min(SW - padding, rawX));
+      const y = Math.max(padding, Math.min(SH - padding, rawY));
       const size = 2 + Math.random() * 2;
       const delay = Math.random() * 2000;
       const duration = 2500 + Math.random() * 1500;
 
       return { x, y, size, delay, duration, id: i };
     });
-  }, [avatarSize, avatarCenterX, avatarCenterY, isTablet]);
+  }, [isTablet]);
 
   return (
     <>
@@ -768,6 +765,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   x,
   y,
   animationsEnabled,
+  sphere3DEffect = false,
 }: {
   sphere: LifeSphere;
   entities: FocusedEntitiesViewProps["entities"];
@@ -779,6 +777,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   x: number;
   y: number;
   animationsEnabled: boolean;
+  sphere3DEffect?: boolean;
 }) {
   const t = useTranslate();
   const { momentColors } = useMomentColors();
@@ -930,7 +929,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   ).current;
 
   const modeAnimStyle = useAnimatedStyle(() => ({ opacity: modeOpacity.value }));
-  const gradientColors = colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
+  const insightCardBg =
+    colorScheme === "dark" ? COSMIC_INNER_DARK[2] : COSMIC_INNER_LIGHT[2];
+  const gradientColors =
+    colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
 
   const totalW = INSIGHT_CARD_W + INSIGHT_ARROW_HIT * 2;
   const wrapperStyle = {
@@ -956,6 +958,38 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const borderColor = (isUrgent && mode === 1) ? "#F5A623AA" : isMoodCard ? moodBorderColor : shadowColor + "99";
   const shadowGlowColor = isMoodCard ? (mode === 4 ? momentColors.cloudy.background : momentColors.sunny.background) : (isUrgent && mode === 1 ? "#F5A623" : shadowColor);
 
+  const insightCardEmptyShadow = sphere3DEffect
+    ? {
+        shadowColor,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.85,
+        shadowRadius: 22,
+        elevation: 12,
+      }
+    : {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: colorScheme === "dark" ? 0.32 : 0.16,
+        shadowRadius: 10,
+        elevation: 6,
+      };
+
+  const insightCardMainOuterShadow = sphere3DEffect
+    ? {
+        shadowColor: shadowGlowColor,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.9,
+        shadowRadius: 24,
+        elevation: 14,
+      }
+    : {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: colorScheme === "dark" ? 0.35 : 0.2,
+        shadowRadius: 10,
+        elevation: 8,
+      };
+
   // Human-readable time since interaction (must be before early return)
   const timeAgoLabel = useMemo(() => {
     const ts = mode === 1 ? oldestMemTime : newestTime;
@@ -979,35 +1013,56 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   ];
   const cardLabel = cardLabels[mode] ?? cardLabels[0];
 
+  const emptyEntityCardStyle = {
+    flex: 1,
+    minHeight: INSIGHT_CARD_H,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: shadowColor + "99",
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+    padding: 14,
+    ...insightCardEmptyShadow,
+  };
+
   if (numEntities === 0) {
     return (
-      <View style={wrapperStyle} pointerEvents="box-none">
+      <View
+        style={[wrapperStyle, { height: undefined, minHeight: INSIGHT_CARD_H }]}
+        pointerEvents="box-none"
+      >
         <View style={{ width: INSIGHT_ARROW_HIT }} />
-        <LinearGradient
-          colors={[...gradientColors]}
-          style={{
-            flex: 1,
-            height: INSIGHT_CARD_H,
-            borderRadius: 22,
-            borderWidth: 1.5,
-            borderColor: shadowColor + "99",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: 14,
-            shadowColor,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.85,
-            shadowRadius: 22,
-            elevation: 12,
-          }}
-        >
-          <MaterialIcons name="add-circle-outline" size={32} color={shadowColor} />
-          <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 11, textAlign: "center", marginTop: 8 }}>
-            {sphere === "relationships"
-              ? t("sferaInsight.addPeopleAndMemories")
-              : t("sferaInsight.addMemories")}
-          </ThemedText>
-        </LinearGradient>
+        {sphere3DEffect ? (
+          <LinearGradient colors={[...gradientColors]} style={emptyEntityCardStyle}>
+            <ThemedText
+              style={{
+                color: COSMIC_TEXT_COLOR,
+                fontSize: 13,
+                fontWeight: "600",
+                textAlign: "center",
+                paddingHorizontal: 12,
+              }}
+            >
+              {t(sferaInsightEmptyEntitiesTranslationKey(sphere))}
+            </ThemedText>
+            <SferaInsightEmptyGuideLink sphere={sphere} />
+          </LinearGradient>
+        ) : (
+          <View style={{ ...emptyEntityCardStyle, backgroundColor: insightCardBg }}>
+            <ThemedText
+              style={{
+                color: COSMIC_TEXT_COLOR,
+                fontSize: 13,
+                fontWeight: "600",
+                textAlign: "center",
+                paddingHorizontal: 12,
+              }}
+            >
+              {t(sferaInsightEmptyEntitiesTranslationKey(sphere))}
+            </ThemedText>
+            <SferaInsightEmptyGuideLink sphere={sphere} />
+          </View>
+        )}
         <View style={{ width: INSIGHT_ARROW_HIT }} />
       </View>
     );
@@ -1024,32 +1079,69 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       <View style={zeroMemOuter} pointerEvents="box-none">
         <View style={{ flexDirection: "row", alignItems: "flex-start", width: "100%" }}>
           <View style={{ width: INSIGHT_ARROW_HIT }} />
-          <Pressable onPress={() => onNeedMemoriesHintCenter?.()} style={{ flex: 1 }}>
-            <LinearGradient
-              colors={[...gradientColors]}
-              style={{
-                flex: 1,
-                height: INSIGHT_CARD_H,
-                borderRadius: 22,
-                borderWidth: 1.5,
-                borderColor: shadowColor + "99",
-                justifyContent: "center",
-                alignItems: "center",
-                padding: 14,
-                shadowColor,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.85,
-                shadowRadius: 22,
-                elevation: 12,
-                gap: 8,
-              }}
-            >
-              <MaterialIcons name="add-photo-alternate" size={32} color={shadowColor} />
-              <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 13, textAlign: "center", fontWeight: "600" }}>
-                {t("sferaInsight.addMemories")}
-              </ThemedText>
-            </LinearGradient>
-          </Pressable>
+          <View style={{ flex: 1 }}>
+            {sphere3DEffect ? (
+              <LinearGradient
+                colors={[...gradientColors]}
+                style={{
+                  flex: 1,
+                  minHeight: INSIGHT_CARD_H,
+                  borderRadius: 22,
+                  borderWidth: 1.5,
+                  borderColor: shadowColor + "99",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: 14,
+                  ...insightCardEmptyShadow,
+                }}
+              >
+                <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
+                  <ThemedText
+                    style={{
+                      color: COSMIC_TEXT_COLOR,
+                      fontSize: 13,
+                      textAlign: "center",
+                      fontWeight: "600",
+                      paddingHorizontal: 12,
+                    }}
+                  >
+                    {t("sferaInsight.addMemories")}
+                  </ThemedText>
+                </Pressable>
+                <SferaInsightEmptyGuideLink sphere={sphere} />
+              </LinearGradient>
+            ) : (
+              <View
+                style={{
+                  flex: 1,
+                  minHeight: INSIGHT_CARD_H,
+                  borderRadius: 22,
+                  borderWidth: 1.5,
+                  borderColor: shadowColor + "99",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: 14,
+                  backgroundColor: insightCardBg,
+                  ...insightCardEmptyShadow,
+                }}
+              >
+                <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
+                  <ThemedText
+                    style={{
+                      color: COSMIC_TEXT_COLOR,
+                      fontSize: 13,
+                      textAlign: "center",
+                      fontWeight: "600",
+                      paddingHorizontal: 12,
+                    }}
+                  >
+                    {t("sferaInsight.addMemories")}
+                  </ThemedText>
+                </Pressable>
+                <SferaInsightEmptyGuideLink sphere={sphere} />
+              </View>
+            )}
+          </View>
           <View style={{ width: INSIGHT_ARROW_HIT }} />
         </View>
         {showNeedMemoriesHintBelowCard && (
@@ -1112,25 +1204,37 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         accessibilityLabel={entity ? `${cardLabel}: ${entityName}` : undefined}
         {...cardPanResponder.panHandlers}
       >
-        <LinearGradient
-          colors={[...gradientColors]}
+        <View
           style={{
             flex: 1,
             borderRadius: 22,
             borderWidth: 1.5,
             borderColor,
-            paddingHorizontal: 12,
-            paddingTop: 12,
-            paddingBottom: 10,
-            shadowColor: shadowGlowColor,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.9,
-            shadowRadius: 24,
-            elevation: 14,
-            gap: 8,
+            ...insightCardMainOuterShadow,
             overflow: "hidden",
+            position: "relative",
           }}
         >
+          {sphere3DEffect ? (
+            <LinearGradient
+              colors={[...gradientColors]}
+              style={StyleSheet.absoluteFillObject}
+            />
+          ) : (
+            <View
+              style={[StyleSheet.absoluteFillObject, { backgroundColor: insightCardBg }]}
+            />
+          )}
+          <View
+            style={{
+              flex: 1,
+              zIndex: 1,
+              paddingHorizontal: 12,
+              paddingTop: 12,
+              paddingBottom: 10,
+              gap: 8,
+            }}
+          >
           {/* Countdown to next insight — fills left→right over SFERA_INSIGHT_AUTO_MS */}
           {numModes > 1 ? (
             <View
@@ -1266,11 +1370,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                   borderStyle: "dashed",
                   justifyContent: "center",
                   alignItems: "center",
-                  gap: 6,
+                  paddingHorizontal: 8,
                 }}
               >
-                <MaterialIcons name="add-photo-alternate" size={24} color={shadowColor + "99"} />
-                <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 11 }}>
+                <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 11, textAlign: "center" }}>
                   {t("sferaInsight.zeroMemoriesAvailable")}
                 </ThemedText>
               </Pressable>
@@ -1418,7 +1521,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               />
             ))}
           </View>
-        </LinearGradient>
+          </View>
+        </View>
       </View>
 
       {/* Right arrow */}
@@ -1482,6 +1586,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
   isActive = true,
 }: FocusedEntitiesViewProps) {
   const { isTablet } = useLargeDevice();
+  const { sphere3DEffect } = useVisualSettings();
   const isScreenFocused = useIsFocused();
   const animationsEnabled = isActive && isScreenFocused && !hidden;
 
@@ -1604,6 +1709,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
           x={AVATAR_CX}
           y={AVATAR_CY}
           animationsEnabled={animationsEnabled}
+          sphere3DEffect={sphere3DEffect}
         />
       </View>
     );
@@ -1647,6 +1753,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         x={AVATAR_CX}
         y={AVATAR_CY}
         animationsEnabled={animationsEnabled}
+        sphere3DEffect={sphere3DEffect}
       />
 
       {/* Entities sliding clockwise around the card perimeter */}

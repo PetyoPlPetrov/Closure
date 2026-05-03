@@ -132,12 +132,13 @@ export default function AddFriendScreen() {
     const unregister = registerScreen(
       screenId,
       () => {
+        if (!navigation.isFocused()) return false;
         return !isNavigatingAway.current && !isSaving && hasUnsavedChanges();
       },
       resetToInitialState
     );
     return unregister;
-  }, [registerScreen, hasUnsavedChanges, isSaving]);
+  }, [navigation, registerScreen, hasUnsavedChanges, isSaving]);
 
   // Listen for navigation events to show confirmation dialog
   useEffect(() => {

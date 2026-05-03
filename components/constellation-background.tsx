@@ -1,6 +1,53 @@
 import React, { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 
+/** Deterministic 0–1 from seed (stable star layout across renders). */
+function sinRand01(seed: number): number {
+  const v = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+/**
+ * Screen position biased toward the four corners so dots stay away from the central sfera cluster.
+ */
+export function sampleCornerBiasedPosition(
+  width: number,
+  height: number,
+  seed: number,
+): { x: number; y: number } {
+  if (width <= 0 || height <= 0) return { x: 0, y: 0 };
+  const minSide = Math.min(width, height);
+  const pad = Math.max(6, minSide * 0.028);
+  const r1 = sinRand01(seed * 1.914);
+  const r2 = sinRand01(seed * 2.317 + 0.31);
+  const rY = sinRand01(seed * 4.27 + 0.52);
+  const quad = Math.floor(sinRand01(seed * 3.101 + 1.12) * 4) % 4;
+  /** How far each corner zone extends into the screen (keeps mass out of the middle). */
+  const depthX = 0.2 + r2 * 0.2;
+  const depthY = 0.2 + sinRand01(seed * 5.03 + 0.88) * 0.2;
+
+  let x: number;
+  let y: number;
+  if (quad === 0) {
+    x = pad + r1 * Math.max(pad * 2, width * depthX - pad);
+    y = pad + rY * Math.max(pad * 2, height * depthY - pad);
+  } else if (quad === 1) {
+    x = width - pad - r1 * Math.max(pad * 2, width * depthX - pad);
+    y = pad + rY * Math.max(pad * 2, height * depthY - pad);
+  } else if (quad === 2) {
+    x = pad + r1 * Math.max(pad * 2, width * depthX - pad);
+    y = height - pad - rY * Math.max(pad * 2, height * depthY - pad);
+  } else {
+    x = width - pad - r1 * Math.max(pad * 2, width * depthX - pad);
+    y = height - pad - rY * Math.max(pad * 2, height * depthY - pad);
+  }
+
+  return {
+    x: Math.max(pad, Math.min(width - pad, x)),
+    y: Math.max(pad, Math.min(height - pad, y)),
+  };
+}
+
 type ConstellationBackgroundProps = {
   width: number;
   height: number;
@@ -18,63 +65,35 @@ export const ConstellationBackground = React.memo(
     constellationOpacity = 10,
     starFieldMultiplier = 1,
   }: ConstellationBackgroundProps) {
-    if (width <= 0 || height <= 0) return null;
-    if (constellationAmount <= 0 || constellationOpacity <= 0) return null;
-
-    const amountNorm = Math.max(0, Math.min(1, constellationAmount / 10));
-    const opacityNorm = Math.max(0, Math.min(1, constellationOpacity / 10));
-    const densityNorm = Math.max(0.5, Math.min(2, starFieldMultiplier));
-    const baseDotCount = Math.round((130 + amountNorm * 120) * densityNorm);
-    const clusterDotCount = Math.round((110 + amountNorm * 120) * densityNorm);
-    const clusterCount = Math.max(6, Math.round(6 + amountNorm * 6));
-
     const dots = useMemo(() => {
-      const rand = (seed: number) => Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
-      const rand01 = (seed: number) => {
-        const v = rand(seed);
-        return v - Math.floor(v);
-      };
-      const result: Array<{ id: string; x: number; y: number; size: number; opacity: number }> = [];
+      if (width <= 0 || height <= 0) return [];
+      if (constellationAmount <= 0 || constellationOpacity <= 0) return [];
 
-      // Background stars spread across the full viewport.
-      for (let i = 0; i < baseDotCount; i += 1) {
+      const amountNorm = Math.max(0, Math.min(1, constellationAmount / 10));
+      const opacityNorm = Math.max(0, Math.min(1, constellationOpacity / 10));
+      const densityNorm = Math.max(0.5, Math.min(2, starFieldMultiplier));
+      /** Lower than before: fewer background stars while keeping the same setting range. */
+      const starScale = 0.42;
+      const baseDotCount = Math.round(
+        (130 + amountNorm * 120) * densityNorm * starScale,
+      );
+      const clusterDotCount = Math.round(
+        (110 + amountNorm * 120) * densityNorm * starScale,
+      );
+
+      const rand01 = sinRand01;
+      const result: { id: string; x: number; y: number; size: number; opacity: number }[] = [];
+
+      // Corner-biased stars (same distribution for base + former cluster count).
+      const totalDots = baseDotCount + clusterDotCount;
+      for (let i = 0; i < totalDots; i += 1) {
         const seed = i * 17.137 + 3.11;
-        const x = rand01(seed * 1.73) * width;
-        const y = rand01(seed * 2.11 + 1.2) * height;
+        const { x, y } = sampleCornerBiasedPosition(width, height, seed * 41.3 + 9.02);
         const tier = rand01(seed * 3.19);
         const size = tier > 0.96 ? 3.2 : tier > 0.82 ? 2.6 : tier > 0.5 ? 2.0 : 1.4;
         const baseOpacity = tier > 0.96 ? 0.76 : tier > 0.82 ? 0.58 : tier > 0.5 ? 0.44 : 0.32;
         result.push({
-          id: `base-${i}`,
-          x,
-          y,
-          size,
-          opacity: Math.min(0.95, baseOpacity * opacityNorm),
-        });
-      }
-
-      // Cluster hubs create denser "milky way" pockets while staying static.
-      const hubs = Array.from({ length: clusterCount }, (_, i) => {
-        const seed = 1000 + i * 37.17;
-        return {
-          x: rand01(seed * 1.31) * width,
-          y: rand01(seed * 1.71) * height,
-          radius: 24 + rand01(seed * 2.07) * (Math.min(width, height) * 0.12),
-        };
-      });
-
-      for (let i = 0; i < clusterDotCount; i += 1) {
-        const seed = 5000 + i * 11.73;
-        const hub = hubs[i % hubs.length];
-        const angle = rand01(seed * 1.07) * Math.PI * 2;
-        const r = Math.sqrt(rand01(seed * 1.43)) * hub.radius;
-        const x = Math.max(0, Math.min(width, hub.x + Math.cos(angle) * r));
-        const y = Math.max(0, Math.min(height, hub.y + Math.sin(angle) * r));
-        const tier = rand01(seed * 2.01 + 0.4);
-        const size = tier > 0.95 ? 3.0 : tier > 0.75 ? 2.4 : 1.7;
-        const baseOpacity = tier > 0.95 ? 0.7 : tier > 0.75 ? 0.54 : 0.36;
-        result.push({
-          id: `cluster-${i}`,
+          id: `star-${i}`,
           x,
           y,
           size,
@@ -83,18 +102,19 @@ export const ConstellationBackground = React.memo(
       }
 
       // Safety cap for very high multipliers.
-      if (result.length > 1400) {
-        return result.slice(0, 1400);
+      if (result.length > 600) {
+        return result.slice(0, 600);
       }
       return result;
     }, [
-      baseDotCount,
-      clusterCount,
-      clusterDotCount,
-      height,
-      opacityNorm,
       width,
+      height,
+      constellationAmount,
+      constellationOpacity,
+      starFieldMultiplier,
     ]);
+
+    if (dots.length === 0) return null;
 
     return (
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 0 }]}>

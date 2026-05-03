@@ -285,6 +285,7 @@ export default function AddExProfileScreen() {
     const unregister = registerScreen(
       screenId,
       () => {
+        if (!navigation.isFocused()) return false;
         // Return true if there are unsaved changes AND we're not navigating away or saving
         return !isNavigatingAway.current && !isSaving.current && hasUnsavedChanges();
       },
@@ -292,7 +293,7 @@ export default function AddExProfileScreen() {
     );
 
     return unregister;
-  }, [registerScreen, hasUnsavedChanges]);
+  }, [navigation, registerScreen, hasUnsavedChanges]);
 
   // Intercept navigation to show confirmation dialog if there are unsaved changes
   useEffect(() => {

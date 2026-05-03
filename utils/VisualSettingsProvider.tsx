@@ -20,6 +20,7 @@ const COSMIC_BACKGROUND_OPACITY_KEY = "@sferas:cosmic_background_opacity";
 const APP_USABILITY_HINTS_KEY = "@sferas:app_usability_hints";
 const STOP_PULSING_ANIMATIONS_KEY = "@sferas:stop_pulsing_animations";
 export const SPLASH_ANIMATION_KEY = "@sferas:splash_animation";
+const SPHERE_3D_EFFECT_KEY = "@sferas:sphere_3d_effect";
 
 const DEFAULT_ORBIT_DURATION_MS = 60000;
 const MIN_ORBIT_DURATION_MS = 20000;
@@ -33,7 +34,7 @@ const DEFAULT_CONSTELLATION_OPACITY = 5;
 const MIN_CONSTELLATION_OPACITY = 0;
 const MAX_CONSTELLATION_OPACITY = 10;
 
-const DEFAULT_COSMIC_BACKGROUND_OPACITY = 2;
+const DEFAULT_COSMIC_BACKGROUND_OPACITY = 0;
 const MIN_COSMIC_BACKGROUND_OPACITY = 0;
 const MAX_COSMIC_BACKGROUND_OPACITY = 10;
 
@@ -52,6 +53,9 @@ type VisualSettingsContextValue = {
   setPulsingAnimations: (value: boolean) => void;
   splashAnimation: boolean;
   setSplashAnimation: (value: boolean) => void;
+  /** Glossy radial spheres + gradient insight cards (focused sferas / entity orbit). Default off. */
+  sphere3DEffect: boolean;
+  setSphere3DEffect: (value: boolean) => void;
 };
 
 const VisualSettingsContext = createContext<VisualSettingsContextValue | null>(
@@ -76,6 +80,7 @@ export function VisualSettingsProvider({
   const [appUsabilityHints, setAppUsabilityHintsState] = useState(true);
   const [pulsingAnimations, setPulsingAnimationsState] = useState(true);
   const [splashAnimation, setSplashAnimationState] = useState(true);
+  const [sphere3DEffect, setSphere3DEffectState] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -87,6 +92,7 @@ export function VisualSettingsProvider({
       APP_USABILITY_HINTS_KEY,
       STOP_PULSING_ANIMATIONS_KEY,
       SPLASH_ANIMATION_KEY,
+      SPHERE_3D_EFFECT_KEY,
     ]).then(
       ([
         [, orbit],
@@ -96,6 +102,7 @@ export function VisualSettingsProvider({
         [, hints],
         [, stopPulsing],
         [, splash],
+        [, sphere3d],
       ]) => {
         if (orbit != null) {
           const n = parseInt(orbit, 10);
@@ -150,6 +157,9 @@ export function VisualSettingsProvider({
         }
         if (splash === "false") {
           setSplashAnimationState(false);
+        }
+        if (sphere3d === "true") {
+          setSphere3DEffectState(true);
         }
         setLoaded(true);
       },
@@ -213,6 +223,11 @@ export function VisualSettingsProvider({
     AsyncStorage.setItem(SPLASH_ANIMATION_KEY, String(value));
   }, []);
 
+  const setSphere3DEffect = useCallback((value: boolean) => {
+    setSphere3DEffectState(value);
+    AsyncStorage.setItem(SPHERE_3D_EFFECT_KEY, String(value));
+  }, []);
+
   const value = useMemo<VisualSettingsContextValue>(
     () => ({
       orbitDurationMs,
@@ -229,6 +244,8 @@ export function VisualSettingsProvider({
       setPulsingAnimations,
       splashAnimation,
       setSplashAnimation,
+      sphere3DEffect,
+      setSphere3DEffect,
     }),
     [
       orbitDurationMs,
@@ -245,6 +262,8 @@ export function VisualSettingsProvider({
       setPulsingAnimations,
       splashAnimation,
       setSplashAnimation,
+      sphere3DEffect,
+      setSphere3DEffect,
     ],
   );
 
@@ -273,6 +292,8 @@ export function useVisualSettings(): VisualSettingsContextValue {
       setPulsingAnimations: () => {},
       splashAnimation: true,
       setSplashAnimation: () => {},
+      sphere3DEffect: false,
+      setSphere3DEffect: () => {},
     };
   }
   return ctx;

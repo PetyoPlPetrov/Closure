@@ -110,6 +110,20 @@ export interface Translations {
   "sferaInsight.sunnyMomentsMany": string;
   "sferaInsight.lessonsCardTitle": string;
   "sferaInsight.lessonsCardSubtitle": string;
+  /** Empty insight card — no entities on this sphere (no "+" treat as add-action) */
+  "sferaInsight.emptyEntities.relationships": string;
+  "sferaInsight.emptyEntities.career": string;
+  "sferaInsight.emptyEntities.family": string;
+  "sferaInsight.emptyEntities.friends": string;
+  "sferaInsight.emptyEntities.hobbies": string;
+  /** Ends with spacing so inline “here” reads naturally (Recording Memories guide). */
+  "sferaInsight.emptyStateGuide.beforeLink.relationships": string;
+  "sferaInsight.emptyStateGuide.beforeLink.career": string;
+  "sferaInsight.emptyStateGuide.beforeLink.family": string;
+  "sferaInsight.emptyStateGuide.beforeLink.friends": string;
+  "sferaInsight.emptyStateGuide.beforeLink.hobbies": string;
+  "sferaInsight.emptyStateGuide.linkHere": string;
+  "sferaInsight.emptyStateGuide.a11yHint": string;
 
   // Settings
   "settings.title": string;
@@ -149,6 +163,8 @@ export interface Translations {
   "settings.usability.stopPulsingAnimationsDescription": string;
   "settings.usability.splashAnimation": string;
   "settings.usability.splashAnimationDescription": string;
+  "settings.usability.sphere3DEffect": string;
+  "settings.usability.sphere3DEffectDescription": string;
   "settings.aiInsights.title": string;
   "settings.aiInsights.enable": string;
   "settings.aiInsights.description": string;
@@ -3918,11 +3934,11 @@ const translations: Record<Language, Translations> = {
       "Add at least {minMemories} memories and {minMoments} total moments to unlock this new experience.\n\nYou currently have {currentMemories} memories and {currentMoments} moments.",
     "avatar.sunnyLife": "Sunny",
     "avatar.sunnyCongrats": "{pct}% Sunny!",
-    "avatar.addMemories": "Add memories",
+    "avatar.addMemories": "No memories",
     "sferaInsight.addPeople": "Add people",
     "sferaInsight.addPeopleAndMemories": "Add people and memories",
-    "sferaInsight.leastMemories": "Least documented",
-    "sferaInsight.mostMemories": "Most documented",
+    "sferaInsight.leastMemories": "Least memories",
+    "sferaInsight.mostMemories": "Most memories",
     "sferaInsight.lastUpdated": "Recently active",
     "sferaInsight.mostRecent": "Most recent memory",
     "sferaInsight.mostOld": "Oldest interaction",
@@ -3932,7 +3948,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.timeAgo.months": "mo ago",
     "sferaInsight.timeAgo.today": "today",
     "sferaInsight.remindMe": "Remind me",
-    "sferaInsight.mostMemories2": "Most documented",
+    "sferaInsight.mostMemories2": "Most memories",
     "sferaInsight.oldestMemory": "Oldest memory",
     "sferaInsight.mostCloudy": "Most cloudy",
     "sferaInsight.mostSunny": "Most sunny",
@@ -3941,7 +3957,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.zeroMemoriesAvailable": "0 memories available",
     "sferaInsight.memories": "memories",
     "sferaInsight.leastInteracted": "Least interacted",
-    "sferaInsight.addMemories": "Add memories",
+    "sferaInsight.addMemories": "No memories",
     "sferaInsight.needMemoriesFirst": "You need to add memories",
     "sferaInsight.cloudyMomentsOne": "1 cloudy moment",
     "sferaInsight.cloudyMomentsMany": "{count} cloudy moments",
@@ -3949,10 +3965,24 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.sunnyMomentsMany": "{count} sunny moments",
     "sferaInsight.lessonsCardTitle": "Your lessons",
     "sferaInsight.lessonsCardSubtitle": "Open the Lessons tab to browse everything you've saved",
+    "sferaInsight.emptyEntities.relationships": "No relationships added.",
+    "sferaInsight.emptyEntities.career": "No careers added.",
+    "sferaInsight.emptyEntities.family": "No family members added.",
+    "sferaInsight.emptyEntities.friends": "No Sfera friends added.",
+    "sferaInsight.emptyEntities.hobbies": "No hobbies added.",
+    "sferaInsight.emptyStateGuide.beforeLink.relationships":
+      "Learn how to create relationships ",
+    "sferaInsight.emptyStateGuide.beforeLink.career": "Learn how to add careers ",
+    "sferaInsight.emptyStateGuide.beforeLink.family": "Learn how to create family members ",
+    "sferaInsight.emptyStateGuide.beforeLink.friends":
+      "Learn how to create Sfera friends ",
+    "sferaInsight.emptyStateGuide.beforeLink.hobbies": "Learn how to add hobbies ",
+    "sferaInsight.emptyStateGuide.linkHere": "here",
+    "sferaInsight.emptyStateGuide.a11yHint": "Opens the Recording Memories guide section.",
     "sferaInsight.addHobbies": "Add hobbies",
     "sferaInsight.mostRecentHobby": "Most recently done",
     "sferaInsight.lastPracticed": "Longest not done",
-    "sferaInsight.leastPracticed": "Least documented",
+    "sferaInsight.leastPracticed": "Least memories",
     "events.section.social": "Social",
     "events.section.private": "Private",
     "events.section.plus": "Plus Events",
@@ -4059,6 +4089,9 @@ const translations: Record<Language, Translations> = {
     "settings.usability.splashAnimation": "App launch animation",
     "settings.usability.splashAnimationDescription":
       "When enabled, shows the animated intro screen on app launch.",
+    "settings.usability.sphere3DEffect": "3D sfera look",
+    "settings.usability.sphere3DEffectDescription":
+      "When enabled, sferas use glossy gradients and soft highlights (focused home, per-sfera orbit, and classic wheel).",
     "settings.aiInsights.title": "AI Insights",
     "settings.aiInsights.enable": "Enable AI Insights",
     "settings.aiInsights.description":
@@ -5855,6 +5888,24 @@ const translations: Record<Language, Translations> = {
       "I deserve someone who puts effort into making me happy",
     "suggestions.gift.lessons.2":
       "Material things matter less than the gesture",
+    "suggestions.tea.hardTruths.0":
+      "Tea together became quiet in the wrong way",
+    "suggestions.tea.hardTruths.1":
+      "They seemed elsewhere even when our cups were full",
+    "suggestions.tea.hardTruths.2":
+      "Slow moments over tea lost their warmth between us",
+    "suggestions.tea.goodFacts.0":
+      "I enjoy tea as a calm ritual on my own",
+    "suggestions.tea.goodFacts.1":
+      "A warm cup helps me pause and breathe again",
+    "suggestions.tea.goodFacts.2":
+      "I can share tea with people who show up fully",
+    "suggestions.tea.lessons.0":
+      "Gentle rituals deserve real presence",
+    "suggestions.tea.lessons.1":
+      "The warmth is about connection, not the drink",
+    "suggestions.tea.lessons.2":
+      "I deserve someone who can be still with me",
     "suggestions.text.hardTruths.0": "They left my messages on read for days",
     "suggestions.text.hardTruths.1":
       "One-word replies showed their disinterest",
@@ -6188,6 +6239,24 @@ const translations: Record<Language, Translations> = {
     "suggestions.rain.lessons.0": "Rain can be cleansing and renewing",
     "suggestions.rain.lessons.1": "I can find peace in the sound of rain",
     "suggestions.rain.lessons.2": "Storms pass, and growth follows",
+    "suggestions.snack.hardTruths.0":
+      "The little snacks we shared stopped feeling sweet",
+    "suggestions.snack.hardTruths.1":
+      "Quick bites together became another source of tension",
+    "suggestions.snack.hardTruths.2":
+      "Even casual food moments carried unspoken awkwardness",
+    "suggestions.snack.goodFacts.0":
+      "I can enjoy small treats without guilt or drama",
+    "suggestions.snack.goodFacts.1":
+      "Tiny comforts became gentle rituals for myself",
+    "suggestions.snack.goodFacts.2":
+      "I'm allowed pleasure in simple, everyday moments",
+    "suggestions.snack.lessons.0":
+      "Little comforts support emotional regulation",
+    "suggestions.snack.lessons.1":
+      "I don't need permission to enjoy food",
+    "suggestions.snack.lessons.2":
+      "Small kindnesses to myself add up over time",
     "suggestions.snow.hardTruths.0": "Snowy days we planned never happened",
     "suggestions.snow.hardTruths.1":
       "The snow reminded me of coldness between us",
@@ -6466,6 +6535,24 @@ const translations: Record<Language, Translations> = {
       "Love alone isn't enough without respect and compatibility",
     "suggestions.love.lessons.2":
       "I deserve someone who loves me as much as I love them",
+    "suggestions.lunch.hardTruths.0":
+      "Lunch together stopped feeling like a real break",
+    "suggestions.lunch.hardTruths.1":
+      "We sat across from each other but felt miles apart",
+    "suggestions.lunch.hardTruths.2":
+      "Midday meals became rushed, tense, or silent",
+    "suggestions.lunch.goodFacts.0":
+      "I reclaim lunch as a pause that belongs to me",
+    "suggestions.lunch.goodFacts.1":
+      "I can eat slowly and enjoy food without tension",
+    "suggestions.lunch.goodFacts.2":
+      "I'm learning to nourish myself with intention",
+    "suggestions.lunch.lessons.0":
+      "Sharing food reflects the quality of connection",
+    "suggestions.lunch.lessons.1":
+      "I deserve ease and warmth at the table",
+    "suggestions.lunch.lessons.2":
+      "A simple meal can feel sacred when there's mutual care",
     "suggestions.interview.hardTruths.0":
       "The interview didn't go as well as I hoped",
     "suggestions.interview.hardTruths.1": "I felt unprepared and nervous",
@@ -7356,6 +7443,17 @@ const translations: Record<Language, Translations> = {
     "suggestions.love.lessons.3": "Growth comes from facing difficult truths",
     "suggestions.love.lessons.4":
       "I'm stronger and wiser because of this experience",
+    "suggestions.lunch.hardTruths.3":
+      "I faced challenges that revealed deeper truths about this situation",
+    "suggestions.lunch.hardTruths.4":
+      "The reality was harder than I wanted to admit",
+    "suggestions.lunch.goodFacts.3":
+      "I discovered strength I didn't know I had",
+    "suggestions.lunch.goodFacts.4":
+      "This experience taught me valuable lessons about myself",
+    "suggestions.lunch.lessons.3": "Growth comes from facing difficult truths",
+    "suggestions.lunch.lessons.4":
+      "I'm stronger and wiser because of this experience",
     "suggestions.meeting.hardTruths.3":
       "I faced challenges that revealed deeper truths about this situation",
     "suggestions.meeting.hardTruths.4":
@@ -7670,6 +7768,17 @@ const translations: Record<Language, Translations> = {
       "Growth comes from facing difficult truths",
     "suggestions.sibling.lessons.4":
       "I'm stronger and wiser because of this experience",
+    "suggestions.snack.hardTruths.3":
+      "I faced challenges that revealed deeper truths about this situation",
+    "suggestions.snack.hardTruths.4":
+      "The reality was harder than I wanted to admit",
+    "suggestions.snack.goodFacts.3":
+      "I discovered strength I didn't know I had",
+    "suggestions.snack.goodFacts.4":
+      "This experience taught me valuable lessons about myself",
+    "suggestions.snack.lessons.3": "Growth comes from facing difficult truths",
+    "suggestions.snack.lessons.4":
+      "I'm stronger and wiser because of this experience",
     "suggestions.snow.hardTruths.3":
       "I faced challenges that revealed deeper truths about this situation",
     "suggestions.snow.hardTruths.4":
@@ -7746,6 +7855,17 @@ const translations: Record<Language, Translations> = {
       "This experience taught me valuable lessons about myself",
     "suggestions.sunset.lessons.3": "Growth comes from facing difficult truths",
     "suggestions.sunset.lessons.4":
+      "I'm stronger and wiser because of this experience",
+    "suggestions.tea.hardTruths.3":
+      "I faced challenges that revealed deeper truths about this situation",
+    "suggestions.tea.hardTruths.4":
+      "The reality was harder than I wanted to admit",
+    "suggestions.tea.goodFacts.3":
+      "I discovered strength I didn't know I had",
+    "suggestions.tea.goodFacts.4":
+      "This experience taught me valuable lessons about myself",
+    "suggestions.tea.lessons.3": "Growth comes from facing difficult truths",
+    "suggestions.tea.lessons.4":
       "I'm stronger and wiser because of this experience",
     "suggestions.text.hardTruths.3":
       "I faced challenges that revealed deeper truths about this situation",
@@ -8757,11 +8877,11 @@ const translations: Record<Language, Translations> = {
       "Добави поне {minMemories} спомена и {minMoments} момента общо, за да отключиш това ново преживяване.\n\nВ момента имаш {currentMemories} спомена и {currentMoments} момента.",
     "avatar.sunnyLife": "Слънчево",
     "avatar.sunnyCongrats": "{pct}% Слънчево!",
-    "avatar.addMemories": "Добави спомени",
+    "avatar.addMemories": "Няма спомени",
     "sferaInsight.addPeople": "Добави хора",
     "sferaInsight.addPeopleAndMemories": "Добави хора и спомени",
-    "sferaInsight.leastMemories": "Най-малко документирани",
-    "sferaInsight.mostMemories": "Най-много документирани",
+    "sferaInsight.leastMemories": "Най-малко спомени",
+    "sferaInsight.mostMemories": "Най-много спомени",
     "sferaInsight.lastUpdated": "Скоро активен",
     "sferaInsight.mostRecent": "Последна среща",
     "sferaInsight.mostOld": "Най-стара среща",
@@ -8771,7 +8891,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.timeAgo.months": "м назад",
     "sferaInsight.timeAgo.today": "днес",
     "sferaInsight.remindMe": "Напомни ми",
-    "sferaInsight.mostMemories2": "Най-много документирани",
+    "sferaInsight.mostMemories2": "Най-много спомени",
     "sferaInsight.oldestMemory": "Най-стар спомен",
     "sferaInsight.mostCloudy": "Най-облачен",
     "sferaInsight.mostSunny": "Най-слънчев",
@@ -8780,7 +8900,7 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.zeroMemoriesAvailable": "0 налични спомена",
     "sferaInsight.memories": "спомена",
     "sferaInsight.leastInteracted": "Най-малко взаимодействие",
-    "sferaInsight.addMemories": "Добави спомени",
+    "sferaInsight.addMemories": "Няма спомени",
     "sferaInsight.needMemoriesFirst": "Трябва да добавиш спомени",
     "sferaInsight.cloudyMomentsOne": "1 облачен момент",
     "sferaInsight.cloudyMomentsMany": "{count} облачни момента",
@@ -8788,10 +8908,26 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.sunnyMomentsMany": "{count} слънчеви момента",
     "sferaInsight.lessonsCardTitle": "Вашите уроци",
     "sferaInsight.lessonsCardSubtitle": "Отвори раздел Уроци, за да прегледаш всичко записано",
+    "sferaInsight.emptyEntities.relationships": "Няма добавени връзки.",
+    "sferaInsight.emptyEntities.career": "Няма добавени записи по кариера.",
+    "sferaInsight.emptyEntities.family": "Няма добавени членове на семейството.",
+    "sferaInsight.emptyEntities.friends": "Няма добавени приятели в Sfera.",
+    "sferaInsight.emptyEntities.hobbies": "Няма добавени хобита.",
+    "sferaInsight.emptyStateGuide.beforeLink.relationships": "Научи как да добавяш отношения ",
+    "sferaInsight.emptyStateGuide.beforeLink.career":
+      "Научи как да добавяш записи по кариера ",
+    "sferaInsight.emptyStateGuide.beforeLink.family":
+      "Научи как да добавяш членове на семейството ",
+    "sferaInsight.emptyStateGuide.beforeLink.friends":
+      "Научи как да добавяш приятели в Sfera ",
+    "sferaInsight.emptyStateGuide.beforeLink.hobbies": "Научи как да добавяш хобита ",
+    "sferaInsight.emptyStateGuide.linkHere": "тук",
+    "sferaInsight.emptyStateGuide.a11yHint":
+      "Отваря раздела „Запис на спомени“ в упътването на приложението.",
     "sferaInsight.addHobbies": "Добави хобита",
     "sferaInsight.mostRecentHobby": "Последно практикувано",
     "sferaInsight.lastPracticed": "Най-дълго непрактикувано",
-    "sferaInsight.leastPracticed": "Най-малко документирано",
+    "sferaInsight.leastPracticed": "Най-малко спомени",
     "events.section.social": "Social",
     "events.section.private": "Private",
     "events.section.plus": "Plus Events",
@@ -8899,6 +9035,9 @@ const translations: Record<Language, Translations> = {
     "settings.usability.splashAnimation": "Анимация при стартиране",
     "settings.usability.splashAnimationDescription":
       "Когато е включено, показва анимирания начален екран при стартиране на приложението.",
+    "settings.usability.sphere3DEffect": "3D вид на сферите",
+    "settings.usability.sphere3DEffectDescription":
+      "Когато е включено, сферите използват гланцирани градиенти и меки отблясъци (фокусиран начален екран, орбита по сфера и класическото колело).",
     "settings.aiInsights.title": "AI Инсайти",
     "settings.aiInsights.enable": "Включи AI Инсайти",
     "settings.aiInsights.description":
@@ -10752,6 +10891,24 @@ const translations: Record<Language, Translations> = {
       "Заслужавам някой, който влага усилия да ме направи щастлив",
     "suggestions.gift.lessons.2":
       "Материалните неща имат по-малко значение от жеста",
+    "suggestions.tea.hardTruths.0":
+      "Чаят заедно стана неловко мълчалив",
+    "suggestions.tea.hardTruths.1":
+      "Изглеждаха далечни дори когато чашите бяха пълни",
+    "suggestions.tea.hardTruths.2":
+      "Бавните моменти с чай загубиха топлината си между нас",
+    "suggestions.tea.goodFacts.0":
+      "Наслаждавам се на чая като на спокоен ритуал сам",
+    "suggestions.tea.goodFacts.1":
+      "Топла чаша ми помага да спра и отново да дишам",
+    "suggestions.tea.goodFacts.2":
+      "Мога да споделя чай с хора, които наистина присъстват",
+    "suggestions.tea.lessons.0":
+      "Нежните ритуали заслужават истинско присъствие",
+    "suggestions.tea.lessons.1":
+      "Топлината е за връзката, а не за напитъка",
+    "suggestions.tea.lessons.2":
+      "Заслужавам някой, който може да бъде спокоен до мен",
     "suggestions.text.hardTruths.0":
       "Оставяха съобщенията ми непрочетени в продължение на дни",
     "suggestions.text.hardTruths.1":
@@ -11122,6 +11279,24 @@ const translations: Record<Language, Translations> = {
     "suggestions.rain.lessons.0": "Дъждът може да бъде очистващ и обновяващ",
     "suggestions.rain.lessons.1": "Мога да намеря мир в звука на дъжда",
     "suggestions.rain.lessons.2": "Бурите минават, и растежът следва",
+    "suggestions.snack.hardTruths.0":
+      "Малките закуски, които споделяхме, спряха да са сладки",
+    "suggestions.snack.hardTruths.1":
+      "Бързите хапки заедно станаха още един източник на напрежение",
+    "suggestions.snack.hardTruths.2":
+      "Дори случайните моменти с храна носеха несказана неловкост",
+    "suggestions.snack.goodFacts.0":
+      "Мога да се радвам на малки глезотии без вина или драма",
+    "suggestions.snack.goodFacts.1":
+      "Дребните утехи станаха нежни ритуали за мен самия",
+    "suggestions.snack.goodFacts.2":
+      "Имам право на удоволствие в прости, ежедневни моменти",
+    "suggestions.snack.lessons.0":
+      "Дребните утехи подкрепят емоционалното равновесие",
+    "suggestions.snack.lessons.1":
+      "Не се нуждая от разрешение да се наслаждавам на храна",
+    "suggestions.snack.lessons.2":
+      "Малките добрини към себе си се натрупват с времето",
     "suggestions.snow.hardTruths.0":
       "Снежните дни, които планирахме, никога не се случиха",
     "suggestions.snow.hardTruths.1":
@@ -11434,6 +11609,24 @@ const translations: Record<Language, Translations> = {
       "Любовта сама по себе си не е достатъчна без уважение и съвместимост",
     "suggestions.love.lessons.2":
       "Заслужавам някой, който ме обича толкова, колкото и аз го обичам",
+    "suggestions.lunch.hardTruths.0":
+      "Обядът заедно спря да се усеща като истинска почивка",
+    "suggestions.lunch.hardTruths.1":
+      "Седяхме един срещу друг, но се чувствахме на километри разстояние",
+    "suggestions.lunch.hardTruths.2":
+      "Среднодневните хранения станаха бързи, напрегнати или мълчаливи",
+    "suggestions.lunch.goodFacts.0":
+      "Възвръщам си обяда като пауза, която принадлежи на мен",
+    "suggestions.lunch.goodFacts.1":
+      "Мога да ям бавно и да се наслаждавам на храната без напрежение",
+    "suggestions.lunch.goodFacts.2":
+      "Уча се да се храня с намерение и грижа към себе си",
+    "suggestions.lunch.lessons.0":
+      "Споделянето на храна отразява качеството на връзката",
+    "suggestions.lunch.lessons.1":
+      "Заслужавам лекота и топлина на масата",
+    "suggestions.lunch.lessons.2":
+      "Простото хранене може да е свещено, когато има взаимна грижа",
     "suggestions.interview.hardTruths.0":
       "Интервюто не мина добре, както се надявах",
     "suggestions.interview.hardTruths.1": "Усетих се неподготвен и нервен",
@@ -12344,6 +12537,17 @@ const translations: Record<Language, Translations> = {
       "Растежът идва от изправянето срещу трудни истини",
     "suggestions.love.lessons.4":
       "По-силен и по-мъдър съм заради това преживяване",
+    "suggestions.lunch.hardTruths.3":
+      "Изправих се с предизвикателства, които разкриха по-дълбоки истини за тази ситуация",
+    "suggestions.lunch.hardTruths.4":
+      "Реалността беше по-трудна, отколкото исках да призная",
+    "suggestions.lunch.goodFacts.3": "Открих сила, която не знаех, че имам",
+    "suggestions.lunch.goodFacts.4":
+      "Това преживяване ме научи на ценни уроци за себе си",
+    "suggestions.lunch.lessons.3":
+      "Растежът идва от изправянето срещу трудни истини",
+    "suggestions.lunch.lessons.4":
+      "По-силен и по-мъдър съм заради това преживяване",
     "suggestions.meeting.hardTruths.3":
       "Изправих се с предизвикателства, които разкриха по-дълбоки истини за тази ситуация",
     "suggestions.meeting.hardTruths.4":
@@ -12653,6 +12857,17 @@ const translations: Record<Language, Translations> = {
       "Растежът идва от изправянето срещу трудни истини",
     "suggestions.sibling.lessons.4":
       "По-силен и по-мъдър съм заради това преживяване",
+    "suggestions.snack.hardTruths.3":
+      "Изправих се с предизвикателства, които разкриха по-дълбоки истини за тази ситуация",
+    "suggestions.snack.hardTruths.4":
+      "Реалността беше по-трудна, отколкото исках да призная",
+    "suggestions.snack.goodFacts.3": "Открих сила, която не знаех, че имам",
+    "suggestions.snack.goodFacts.4":
+      "Това преживяване ме научи на ценни уроци за себе си",
+    "suggestions.snack.lessons.3":
+      "Растежът идва от изправянето срещу трудни истини",
+    "suggestions.snack.lessons.4":
+      "По-силен и по-мъдър съм заради това преживяване",
     "suggestions.snow.hardTruths.3":
       "Изправих се с предизвикателства, които разкриха по-дълбоки истини за тази ситуация",
     "suggestions.snow.hardTruths.4":
@@ -12729,6 +12944,17 @@ const translations: Record<Language, Translations> = {
     "suggestions.sunset.lessons.3":
       "Растежът идва от изправянето срещу трудни истини",
     "suggestions.sunset.lessons.4":
+      "По-силен и по-мъдър съм заради това преживяване",
+    "suggestions.tea.hardTruths.3":
+      "Изправих се с предизвикателства, които разкриха по-дълбоки истини за тази ситуация",
+    "suggestions.tea.hardTruths.4":
+      "Реалността беше по-трудна, отколкото исках да призная",
+    "suggestions.tea.goodFacts.3": "Открих сила, която не знаех, че имам",
+    "suggestions.tea.goodFacts.4":
+      "Това преживяване ме научи на ценни уроци за себе си",
+    "suggestions.tea.lessons.3":
+      "Растежът идва от изправянето срещу трудни истини",
+    "suggestions.tea.lessons.4":
       "По-силен и по-мъдър съм заради това преживяване",
     "suggestions.text.hardTruths.3":
       "Изправих се с предизвикателства, които разкриха по-дълбоки истини за тази ситуация",
