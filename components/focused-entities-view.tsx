@@ -67,6 +67,14 @@ const COSMIC_INNER_LIGHT = ["rgba(42,42,58,0.55)", "rgba(58,58,78,0.6)", "rgba(7
 /** Auto-advance interval for cycling sfera insight modes (ms). */
 const SFERA_INSIGHT_AUTO_MS = 5000;
 
+/** Title row crossfade when switching insight modes (ms). */
+const INSIGHT_TITLE_OUT_MS = 260;
+const INSIGHT_TITLE_IN_LABEL_MS = 360;
+const INSIGHT_TITLE_IN_PERSON_MS = 320;
+const INSIGHT_TITLE_STAGGER_MS = 80;
+/** Horizontal slide distance (next = exit left / enter from right, like swiping the card left). */
+const INSIGHT_TITLE_SLIDE_X = Math.round(36 * IPAD_ENTITIES_CARD_SCALE);
+
 // Central avatar configuration
 const AVATAR_SIZE = 100;
 const AVATAR_CX = SW / 2;
@@ -817,7 +825,14 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const [isAutoLoopPaused, setIsAutoLoopPaused] = useState(false);
   const prevSphereRef = useRef(sphere);
   const mode = allowedModes[modeIdx] ?? allowedModes[0] ?? 0;
-  const modeOpacity = useSharedValue(1);
+  const insightLabelOpacity = useSharedValue(1);
+  const insightPersonOpacity = useSharedValue(1);
+  const insightLabelTranslateX = useSharedValue(0);
+  const insightPersonTranslateX = useSharedValue(0);
+  /** Kept at 0; separate SVs so worklets always bind (avoids stale HMR / cache refs to *TranslateY). */
+  const insightLabelTranslateY = useSharedValue(0);
+  const insightPersonTranslateY = useSharedValue(0);
+  const insightTitleTransitionLockRef = useRef(false);
   const shadowColor = getSphereShadowColor(sphere, colorScheme);
   const numEntities = entities.length;
   const totalMemoriesCount = useMemo(
@@ -836,6 +851,19 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     if (prevSphereRef.current !== sphere) {
       prevSphereRef.current = sphere;
       setIsAutoLoopPaused(false);
+      cancelAnimation(insightLabelOpacity);
+      cancelAnimation(insightPersonOpacity);
+      cancelAnimation(insightLabelTranslateX);
+      cancelAnimation(insightPersonTranslateX);
+      cancelAnimation(insightLabelTranslateY);
+      cancelAnimation(insightPersonTranslateY);
+      insightTitleTransitionLockRef.current = false;
+      insightLabelOpacity.value = 1;
+      insightPersonOpacity.value = 1;
+      insightLabelTranslateX.value = 0;
+      insightPersonTranslateX.value = 0;
+      insightLabelTranslateY.value = 0;
+      insightPersonTranslateY.value = 0;
       if (sphere === "family" || sphere === "friends") {
         const i = allowedModes.indexOf(1);
         setModeIdx(i >= 0 ? i : 0);
@@ -852,29 +880,108 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     });
   }, [allowedModes]);
 
-  const flashModeChange = useCallback(() => {
-    modeOpacity.value = withTiming(0, { duration: 100 }, () => {
-      modeOpacity.value = withTiming(1, { duration: 150 });
-    });
-  }, [modeOpacity]);
+  /** direction 1 = forward (auto / swipe left / chevron right): titles exit right, new ones enter from the left. -1 = reverse. */
+  const runInsightTitleTransition = useCallback(
+    (applyModeUpdate: () => void, direction: 1 | -1) => {
+      if (!animationsEnabled) {
+        applyModeUpdate();
+        return;
+      }
+      if (insightTitleTransitionLockRef.current) return;
+      insightTitleTransitionLockRef.current = true;
+      const easeOut = Easing.in(Easing.cubic);
+      const easeIn = Easing.out(Easing.cubic);
+      const slide = INSIGHT_TITLE_SLIDE_X;
+      const outX = direction === 1 ? slide : -slide;
+      const inFromX = direction === 1 ? -slide : slide;
+
+      const unlock = () => {
+        insightTitleTransitionLockRef.current = false;
+      };
+
+      insightLabelOpacity.value = withTiming(
+        0,
+        { duration: INSIGHT_TITLE_OUT_MS, easing: easeOut },
+        (finished) => {
+          if (!finished) {
+            runOnJS(unlock)();
+            return;
+          }
+          runOnJS(applyModeUpdate)();
+          insightLabelTranslateX.value = inFromX;
+          insightPersonTranslateX.value = inFromX * 1.08;
+          insightPersonOpacity.value = 0;
+          insightLabelOpacity.value = 0;
+
+          insightLabelOpacity.value = withTiming(1, {
+            duration: INSIGHT_TITLE_IN_LABEL_MS,
+            easing: easeIn,
+          });
+          insightLabelTranslateX.value = withTiming(0, {
+            duration: INSIGHT_TITLE_IN_LABEL_MS,
+            easing: easeIn,
+          });
+          insightPersonOpacity.value = withDelay(
+            INSIGHT_TITLE_STAGGER_MS,
+            withTiming(1, {
+              duration: INSIGHT_TITLE_IN_PERSON_MS,
+              easing: easeIn,
+            }),
+          );
+          insightPersonTranslateX.value = withDelay(
+            INSIGHT_TITLE_STAGGER_MS,
+            withTiming(0, { duration: INSIGHT_TITLE_IN_PERSON_MS, easing: easeIn }, (done) => {
+              if (done) runOnJS(unlock)();
+            }),
+          );
+        },
+      );
+      insightPersonOpacity.value = withTiming(0, {
+        duration: INSIGHT_TITLE_OUT_MS,
+        easing: easeOut,
+      });
+      insightLabelTranslateX.value = withTiming(outX, {
+        duration: INSIGHT_TITLE_OUT_MS,
+        easing: easeOut,
+      });
+      insightPersonTranslateX.value = withTiming(outX, {
+        duration: INSIGHT_TITLE_OUT_MS,
+        easing: easeOut,
+      });
+    },
+    [
+      animationsEnabled,
+      insightLabelOpacity,
+      insightLabelTranslateX,
+      insightPersonOpacity,
+      insightPersonTranslateX,
+    ],
+  );
 
   const animateAndSet = useCallback(
     (nextIdx: number) => {
-      flashModeChange();
-      setModeIdx(nextIdx);
+      if (nextIdx === modeIdx) return;
+      const forward = (nextIdx - modeIdx + numModes) % numModes;
+      const backward = numModes - forward;
+      const dir: 1 | -1 = forward === 0 ? 1 : forward <= backward ? 1 : -1;
+      runInsightTitleTransition(() => setModeIdx(nextIdx), dir);
     },
-    [flashModeChange],
+    [runInsightTitleTransition, modeIdx, numModes],
   );
 
   const goNext = useCallback(() => {
-    flashModeChange();
-    setModeIdx((prev) => (prev + 1) % numModes);
-  }, [flashModeChange, numModes]);
+    runInsightTitleTransition(
+      () => setModeIdx((prev) => (prev + 1) % numModes),
+      1,
+    );
+  }, [runInsightTitleTransition, numModes]);
 
   const goPrev = useCallback(() => {
-    flashModeChange();
-    setModeIdx((prev) => (prev - 1 + numModes) % numModes);
-  }, [flashModeChange, numModes]);
+    runInsightTitleTransition(
+      () => setModeIdx((prev) => (prev - 1 + numModes) % numModes),
+      -1,
+    );
+  }, [runInsightTitleTransition, numModes]);
 
   const progress = useSharedValue(0);
   const progressBarStyle = useAnimatedStyle(() => ({
@@ -932,7 +1039,20 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     }),
   ).current;
 
-  const modeAnimStyle = useAnimatedStyle(() => ({ opacity: modeOpacity.value }));
+  const insightLabelAnimStyle = useAnimatedStyle(() => ({
+    opacity: insightLabelOpacity.value,
+    transform: [
+      { translateX: insightLabelTranslateX.value },
+      { translateY: insightLabelTranslateY.value },
+    ],
+  }));
+  const insightPersonAnimStyle = useAnimatedStyle(() => ({
+    opacity: insightPersonOpacity.value,
+    transform: [
+      { translateX: insightPersonTranslateX.value },
+      { translateY: insightPersonTranslateY.value },
+    ],
+  }));
   const insightCardBg =
     colorScheme === "dark" ? COSMIC_INNER_DARK[2] : COSMIC_INNER_LIGHT[2];
   const gradientColors =
@@ -1260,14 +1380,14 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           ) : null}
 
           {/* Top label — the insight, not the person */}
-          <Animated.View style={modeAnimStyle} accessibilityLiveRegion="polite">
+          <Animated.View style={insightLabelAnimStyle} accessibilityLiveRegion="polite">
             <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 16, textAlign: "center", fontWeight: "700", letterSpacing: 0.2 }} numberOfLines={1}>
               {cardLabel}
             </ThemedText>
           </Animated.View>
 
           {/* Person block */}
-          <Animated.View style={[modeAnimStyle, { gap: 3 }]}>
+          <Animated.View style={[insightPersonAnimStyle, { gap: 3 }]}>
             <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 12, fontWeight: "600" }} numberOfLines={1}>
               {entityName}
             </ThemedText>

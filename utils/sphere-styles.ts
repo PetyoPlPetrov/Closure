@@ -209,6 +209,17 @@ export function getSphereShadowColor(
   }
 }
 
+/** Stroke/glow hue used by CosmicPulseRings — pair AI tab / chrome to the same accent. */
+export function getCosmicPulseRingAccent(
+  sphereType: LifeSphere,
+  colorScheme: "light" | "dark",
+): string {
+  if (colorScheme === "light") {
+    return getSphereSferaColor(sphereType, "light");
+  }
+  return getSphereShadowColor(sphereType, "dark");
+}
+
 /**
  * Three-color gradient for sphere background (sunny vs cloudy).
  * Same logic as SphereAvatar in the classic home view.
@@ -310,4 +321,41 @@ export function getSphereGradientColors(
     `rgba(154, 52, 18, ${baseOpacity})`,
     `rgba(164, 62, 28, ${baseOpacity + 0.05})`,
   ];
+}
+
+/** Solid UI accents for sphere-scoped screens (manual edit, empty states, add-entity flows). */
+export function getSphereAccentColor(
+  sphereType: LifeSphere,
+  colorScheme: "light" | "dark",
+): string {
+  if (colorScheme === "light") {
+    switch (sphereType) {
+      case "relationships":
+        return "#D32F2F";
+      case "career":
+        return "#1976D2";
+      case "family":
+        return "#388E3C";
+      case "friends":
+        return "#7B1FA2";
+      case "hobbies":
+        return "#F57C00";
+      default:
+        return "#1976D2";
+    }
+  }
+  switch (sphereType) {
+    case "relationships":
+      return "#E57373";
+    case "career":
+      return "#64B5F6";
+    case "family":
+      return "#81C784";
+    case "friends":
+      return "#BA68C8";
+    case "hobbies":
+      return "#FFB74D";
+    default:
+      return "#64B5F6";
+  }
 }

@@ -114,13 +114,14 @@ export function AIInsightsConsentModal({
                   </ThemedText>
                 </Pressable>
                 <Pressable
-                  style={styles.secondaryButton}
+                  style={[styles.secondaryButton, styles.manualTipDismissButton]}
                   onPress={handleManualTipDontShowAgainPress}
                 >
                   <ThemedText
-                    size="sm"
-                    weight="bold"
-                    style={styles.secondaryButtonText}
+                    size="xs"
+                    weight="medium"
+                    emphasis="medium"
+                    style={styles.manualTipDismissText}
                   >
                     {t("guidePrompt.dismiss")}
                   </ThemedText>
@@ -225,6 +226,13 @@ function createStyles(
     },
     secondaryButtonText: {
       color: colors.text,
+    },
+    manualTipDismissButton: {
+      paddingVertical: 10 * fontScale,
+    },
+    manualTipDismissText: {
+      color: colors.textMediumEmphasis ?? colors.text,
+      opacity: 0.92,
     },
   });
 }

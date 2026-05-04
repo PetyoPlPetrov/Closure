@@ -12,6 +12,7 @@ import { useSubscription } from "@/utils/SubscriptionProvider";
 import { getFreeEntityLimitPerSfera } from "@/utils/badge-rewards";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
+import { getSphereAccentColor } from "@/utils/sphere-styles";
 import { useUnsavedChanges } from "@/utils/UnsavedChangesContext";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as ImagePicker from "expo-image-picker";
@@ -29,6 +30,10 @@ import {
 export default function AddFamilyMemberScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const sphereAccent = getSphereAccentColor(
+    "family",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
   const fontScale = useFontScale();
   const {
     addFamilyMember,
@@ -288,7 +293,7 @@ export default function AddFamilyMemberScreen() {
           <MaterialIcons
             name="settings"
             size={20 * fontScale}
-            color={colors.primary}
+            color={sphereAccent}
           />
           <ThemedText size="l" weight="bold" letterSpacing="s">
             Sferas
@@ -362,7 +367,7 @@ export default function AddFamilyMemberScreen() {
         <TouchableOpacity
           style={[
             styles.button,
-            { backgroundColor: colors.primary },
+            { backgroundColor: sphereAccent },
             !isSaveEnabled && styles.buttonDisabled,
           ]}
           onPress={handleSubmit}

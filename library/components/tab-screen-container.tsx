@@ -1,9 +1,14 @@
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMomentColors } from '@/utils/MomentColorsProvider';
-import { useVisualSettings } from '@/utils/VisualSettingsProvider';
+import {
+  MAX_COSMIC_BACKGROUND_OPACITY,
+  useVisualSettings,
+} from '@/utils/VisualSettingsProvider';
 import { LinearGradient } from 'expo-linear-gradient';
+import { memo } from 'react';
 import { Image, StyleSheet, View, type ViewProps, type ViewStyle } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const cosmicBackground = require('@/assets/images/cosmic-background.png');
 
@@ -39,6 +44,100 @@ export const LIGHT_GRADIENT_COLORS = [
   '#DCDEE2',
   '#DEE0E4',
 ] as const;
+
+/**
+ * Single radial vignette — smooth falloff from center (no four-edge “cross” / boxy seam).
+ * Static SVG only; still lighter than blur.
+ */
+const VIGNETTE_GRAD_ID = 'tabScreenViewportVignette';
+
+/** Light theme: full strength when Cosmic background slider = 10 (strong edge preset). */
+const VIGNETTE_LIGHT_MAX = {
+  rgb: '88,98,114',
+  edgeOpacity: 0.52,
+  rx: '90%',
+  ry: '94%',
+} as const;
+
+/** Dark theme: fixed vignette (cosmic slider only affects the starfield image). */
+const VIGNETTE_DARK = { rgb: '6,10,20', edgeOpacity: 0.54 } as const;
+
+const ViewportEdgeVignette = memo(function ViewportEdgeVignette({
+  isDark,
+  lightStrength = 0,
+}: {
+  isDark: boolean;
+  /** 0–1 from Cosmic background slider in light mode; ignored in dark mode. */
+  lightStrength?: number;
+}) {
+  if (!isDark) {
+    const s = Math.max(0, Math.min(1, lightStrength));
+    if (s <= 0) return null;
+    const edgeOpacity = VIGNETTE_LIGHT_MAX.edgeOpacity * s;
+    const c = `rgb(${VIGNETTE_LIGHT_MAX.rgb})`;
+    const o = (t: number) => Math.round(edgeOpacity * t * 1000) / 1000;
+    return (
+      <Svg
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
+        width="100%"
+        height="100%"
+      >
+        <Defs>
+          <RadialGradient
+            id={VIGNETTE_GRAD_ID}
+            cx="50%"
+            cy="50%"
+            rx={VIGNETTE_LIGHT_MAX.rx}
+            ry={VIGNETTE_LIGHT_MAX.ry}
+            fx="50%"
+            fy="50%"
+          >
+            <Stop offset="0%" stopColor={c} stopOpacity={0} />
+            <Stop offset="24%" stopColor={c} stopOpacity={0} />
+            <Stop offset="44%" stopColor={c} stopOpacity={o(0.2)} />
+            <Stop offset="62%" stopColor={c} stopOpacity={o(0.48)} />
+            <Stop offset="80%" stopColor={c} stopOpacity={o(0.78)} />
+            <Stop offset="100%" stopColor={c} stopOpacity={edgeOpacity} />
+          </RadialGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${VIGNETTE_GRAD_ID})`} />
+      </Svg>
+    );
+  }
+
+  const { rgb, edgeOpacity } = VIGNETTE_DARK;
+  const c = `rgb(${rgb})`;
+  const o = (t: number) => Math.round(edgeOpacity * t * 1000) / 1000;
+  return (
+    <Svg
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+      width="100%"
+      height="100%"
+    >
+      <Defs>
+        <RadialGradient
+          id={VIGNETTE_GRAD_ID}
+          cx="50%"
+          cy="50%"
+          rx="78%"
+          ry="84%"
+          fx="50%"
+          fy="50%"
+        >
+          <Stop offset="0%" stopColor={c} stopOpacity={0} />
+          <Stop offset="32%" stopColor={c} stopOpacity={0} />
+          <Stop offset="50%" stopColor={c} stopOpacity={o(0.18)} />
+          <Stop offset="68%" stopColor={c} stopOpacity={o(0.45)} />
+          <Stop offset="84%" stopColor={c} stopOpacity={o(0.72)} />
+          <Stop offset="100%" stopColor={c} stopOpacity={edgeOpacity} />
+        </RadialGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${VIGNETTE_GRAD_ID})`} />
+    </Svg>
+  );
+});
 
 type MomentType = 'lessons' | 'sunnyMoments' | 'hardTruths';
 
@@ -85,8 +184,9 @@ export function TabScreenContainer({
   const { cosmicBackgroundOpacity } = useVisualSettings();
   const isDark = colorScheme === 'dark';
   const cosmicImageOpacity = cosmicBackgroundOpacity / 10;
+  const lightVignetteStrength =
+    cosmicBackgroundOpacity / MAX_COSMIC_BACKGROUND_OPACITY;
   const cornerAccentColor = getCornerAccentColor(momentType, momentColors);
-  const insets = useSafeAreaInsets();
 
   return (
     <SafeAreaView
@@ -107,6 +207,7 @@ export function TabScreenContainer({
             end={{ x: 0, y: 1 }}
             style={StyleSheet.absoluteFill}
           >
+            <ViewportEdgeVignette isDark />
             {momentType && momentTypeOpacity > 0 && (
               <>
                 <LinearGradient
@@ -155,6 +256,10 @@ export function TabScreenContainer({
           end={{ x: 0, y: 1 }}
           style={StyleSheet.absoluteFill}
         >
+          <ViewportEdgeVignette
+            isDark={false}
+            lightStrength={lightVignetteStrength}
+          />
           {/* Corner accent overlays - only visible when moment type is selected */}
           {momentType && momentTypeOpacity > 0 && (
             <>

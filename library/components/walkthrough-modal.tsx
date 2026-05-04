@@ -7,7 +7,15 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Fragment, useMemo } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text, Modal, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  type ViewStyle,
+} from "react-native";
 
 type SectionItem = {
   id: string;
@@ -41,6 +49,16 @@ export function WalkthroughModal({
   const styles = useMemo(
     () =>
       StyleSheet.create({
+        root: {
+          flex: 1,
+        },
+        backdrop: {
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(0, 0, 0, 0.45)"
+              : "rgba(0, 0, 0, 0.28)",
+        },
         overlay: {
           flex: 1,
           justifyContent: "flex-start",
@@ -52,11 +70,8 @@ export function WalkthroughModal({
           paddingVertical: 10 * fontScale,
           paddingHorizontal: 12 * fontScale,
           width: "100%",
-          maxWidth: 460 * fontScale,
-          marginTop: insets.top + 8 * fontScale,
           position: "relative",
           overflow: "hidden",
-          alignSelf: "center",
         },
         gradientBackground: {
           position: "absolute",
@@ -64,7 +79,7 @@ export function WalkthroughModal({
           left: 0,
           right: 0,
           bottom: 0,
-          borderRadius: 20 * fontScale,
+          borderRadius: 16 * fontScale,
         },
         content: {
           position: "relative",
@@ -173,8 +188,8 @@ export function WalkthroughModal({
               : "rgba(0, 0, 0, 0.1)",
         },
         dismissForeverText: {
-          fontSize: 12 * fontScale,
-          fontWeight: "700",
+          fontSize: 11 * fontScale,
+          fontWeight: "500",
           color: colors.textMediumEmphasis,
           letterSpacing: 0.2 * fontScale,
         },
@@ -209,12 +224,41 @@ export function WalkthroughModal({
       fontScale,
       colorScheme,
       colors.background,
+      colors.text,
       colors.primary,
       colors.primaryLight,
       colors.textMediumEmphasis,
       insets.top,
     ],
   );
+
+  // Keep shadow/elevation off StyleSheet.registered ids — conditional spreads inside
+  // StyleSheet.create are unreliable across RN builds and have caused the card layer to omit paint.
+  const cardShadowWrapStyle = useMemo((): ViewStyle => {
+    const base: ViewStyle = {
+      width: "100%",
+      maxWidth: 460 * fontScale,
+      marginTop: insets.top + 8 * fontScale,
+      alignSelf: "center",
+      borderRadius: 16 * fontScale,
+      overflow: "visible",
+      // Opaque fill so iOS shadow path matches the rounded rect (avoids white corner glitches).
+      backgroundColor: colors.background,
+    };
+    if (Platform.OS === "android") {
+      return { ...base, elevation: 4 };
+    }
+    return {
+      ...base,
+      shadowColor: "#000000",
+      shadowOffset: {
+        width: 0,
+        height: Math.min(2 * fontScale, 2.5),
+      },
+      shadowOpacity: colorScheme === "dark" ? 0.32 : 0.12,
+      shadowRadius: Math.min(6 * fontScale, 8),
+    };
+  }, [fontScale, insets.top, colors.background, colorScheme]);
 
   return (
     <Modal
@@ -225,8 +269,11 @@ export function WalkthroughModal({
       presentationStyle="overFullScreen"
       statusBarTranslucent
     >
-      <View style={styles.overlay} pointerEvents="box-none">
-        <View style={styles.container}>
+      <View style={styles.root}>
+        <View style={styles.backdrop} pointerEvents="auto" />
+        <View style={styles.overlay} pointerEvents="box-none">
+          <View style={cardShadowWrapStyle} collapsable={false}>
+            <View style={styles.container}>
           {/* Gradient background */}
           <LinearGradient
             colors={
@@ -255,12 +302,12 @@ export function WalkthroughModal({
               right: 0,
               top: 0,
               bottom: 0,
-              borderRadius: 20 * fontScale,
-              borderWidth: 1.5,
+              borderRadius: 16 * fontScale,
+              borderWidth: 2,
               borderColor:
                 colorScheme === "dark"
-                  ? "rgba(100, 150, 255, 0.4)"
-                  : "rgba(100, 150, 255, 0.3)",
+                  ? "rgba(120, 170, 255, 0.58)"
+                  : "rgba(70, 130, 215, 0.48)",
             }}
           />
 
@@ -408,6 +455,8 @@ export function WalkthroughModal({
               </TouchableOpacity>
             </View>
           </View>
+          </View>
+        </View>
         </View>
       </View>
     </Modal>

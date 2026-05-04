@@ -11,7 +11,7 @@ import {
 } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
 import { SferaInsightEmptyGuideLink } from "@/components/sfera-insight-empty-guide-link";
-import { Colors, memoryCardStatIconColors } from "@/constants/theme";
+import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
@@ -25,6 +25,7 @@ import type { Translations } from "@/utils/languages/translations";
 import { FOCUSED_DISPLAY_MODE_STORAGE_KEY } from "@/utils/focused-display-mode-storage";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { sferaInsightEmptyEntitiesTranslationKey } from "@/utils/sfera-insight-empty-entities";
+import { reportCosmicPulseAccentSphere } from "@/utils/cosmic-pulse-accent-sphere";
 import {
   getSphere3DGradientColors,
   getSphereIconColor,
@@ -39,7 +40,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   AppState,
@@ -155,6 +163,12 @@ const MEMORY_BALANCE_NAME_BELOW = scaleFocused(30);
 /** Soft cyan-white for orbit sfera names, avatar labels, and insights chrome. */
 const COSMIC_TEXT = "#B8E8EC";
 const INSIGHTS_HUB_SIZE = scaleFocused(100);
+/**
+ * Nudge the overview insights hub down so it does not cover Memory Balance stats under sphere
+ * labels. Apply the same offset in default orbit overview too so the hub stays fixed when
+ * toggling display mode (top-right control).
+ */
+const INSIGHTS_HUB_MEMORY_BALANCE_OFFSET_Y = scaleFocused(18);
 
 /** Scalable gap between rotating entities and the label block (3% of screen height) */
 const FOCUSED_LABEL_GAP = SH * 0.03 * IPAD_FOCUSED_SCALE;
@@ -2679,12 +2693,13 @@ function MemoryBalanceView({
   sphere3DEffect?: boolean;
 }) {
   const t = useTranslate();
+  const { momentColors } = useMomentColors();
   const balanceStatNumberColor =
     colorScheme === "dark"
       ? "rgba(255, 255, 255, 0.92)"
       : Colors.light.text;
-  const { sunny: balanceSunnyIconColor, cloudy: balanceCloudIconColor } =
-    memoryCardStatIconColors[colorScheme];
+  const balanceSunnyIconColor = momentColors.sunny.background;
+  const balanceCloudIconColor = momentColors.cloudy.background;
   return (
     <>
       {SPHERE_LIST.map((sphere, i) => {
@@ -3429,6 +3444,9 @@ export function FocusedSferaView({
 
   const t = useTranslate();
   const focusedSphere = SPHERE_LIST[focusedIdx];
+  useLayoutEffect(() => {
+    reportCosmicPulseAccentSphere(focusedSphere.type);
+  }, [focusedSphere.type]);
   const isMemoryBalanceMode =
     selectedSphere === null && displayMode === "memoryBalanceRings";
   // Run expensive orbit GPU/CPU animations only when the orbit view is the active visible mode.
@@ -3529,34 +3547,6 @@ export function FocusedSferaView({
 
     return result;
   }, [memoryCountBySphere]);
-
-  /** Slight downward nudge of the insights hub when the top Memory Balance sfera + stats encroach. Capped so tall phones don't shove it into the hint / tab area. */
-  const memoryBalanceInsightsHubCenterY = useMemo(() => {
-    const i = 0;
-    const layout = MEMORY_BALANCE_RING_LAYOUT[i];
-    const rad = (layout.angleDeg * Math.PI) / 180;
-    const size = memoryBalanceSizeBySphere[SPHERE_LIST[i].type];
-    const rawCenterY = SUN_CENTER_Y + Math.sin(rad) * layout.radius;
-    const safeTop = size / 2 + scaleFocused(42);
-    const safeBottom = SH - size / 2 - scaleFocused(140);
-    const centerY = Math.max(safeTop, Math.min(safeBottom, rawCenterY));
-    const tailBelow =
-      MEMORY_BALANCE_NAME_GAP +
-      MEMORY_BALANCE_NAME_BELOW +
-      MEMORY_BALANCE_STATS_MARGIN_TOP +
-      MEMORY_BALANCE_STATS_BELOW;
-    const statsBottomY = centerY + size / 2 + tailBelow;
-    const hubHalf = INSIGHTS_HUB_SIZE / 2;
-    const clearance = scaleFocused(8);
-    const hubTopAtDefault = SUN_CENTER_Y - hubHalf;
-    if (statsBottomY <= hubTopAtDefault - clearance) {
-      return SUN_CENTER_Y;
-    }
-    const idealCenterY = statsBottomY + clearance + hubHalf;
-    const delta = idealCenterY - SUN_CENTER_Y;
-    const maxNudge = Math.min(scaleFocused(36), SH * 0.038);
-    return SUN_CENTER_Y + Math.min(Math.max(0, delta), maxNudge);
-  }, [memoryBalanceSizeBySphere]);
 
   const momentStatsBySphere = useMemo(() => {
     const result = {} as Record<LifeSphere, { sunny: number; cloudy: number }>;
@@ -4128,10 +4118,9 @@ export function FocusedSferaView({
             position: "absolute",
             left: SUN_CENTER_X - INSIGHTS_HUB_SIZE / 2,
             top:
-              (isMemoryBalanceMode
-                ? memoryBalanceInsightsHubCenterY
-                : SUN_CENTER_Y) -
-              INSIGHTS_HUB_SIZE / 2,
+              SUN_CENTER_Y -
+              INSIGHTS_HUB_SIZE / 2 +
+              INSIGHTS_HUB_MEMORY_BALANCE_OFFSET_Y,
             width: INSIGHTS_HUB_SIZE,
             height: INSIGHTS_HUB_SIZE,
             zIndex: 20,

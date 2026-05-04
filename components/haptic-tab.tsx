@@ -2,7 +2,8 @@ import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { PlatformPressable } from '@react-navigation/elements';
 import * as Haptics from 'expo-haptics';
 import * as Device from 'expo-device';
-import { Alert, Platform, TouchableOpacity } from 'react-native';
+import { Alert, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
@@ -15,11 +16,17 @@ import Animated, {
   Easing,
   cancelAnimation,
 } from 'react-native-reanimated';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { emitEventsTabPress } from '@/utils/events-tab-press';
 import { emitHomeTabPress } from '@/utils/home-tab-press';
 import { emitAIButtonPress } from '@/utils/ai-button-press';
 import { emitSpheresTabPress } from '@/utils/spheres-tab-press';
+import {
+  getCosmicPulseAccentSphere,
+  subscribeCosmicPulseAccentSphere,
+} from '@/utils/cosmic-pulse-accent-sphere';
+import { getCosmicPulseRingAccent } from '@/utils/sphere-styles';
+import { hexToRgb } from '@/utils/moment-pill-glyph';
 import { useSegments } from 'expo-router';
 import { useUnsavedChanges } from '@/utils/UnsavedChangesContext';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -349,6 +356,21 @@ export function AITabButton({
   const pressScale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
 
+  const [accentSphere, setAccentSphere] = useState(getCosmicPulseAccentSphere);
+
+  useEffect(() => {
+    return subscribeCosmicPulseAccentSphere(() => {
+      setAccentSphere(getCosmicPulseAccentSphere());
+    });
+  }, []);
+
+  const orbitScheme = isDark ? 'dark' : 'light';
+  const accentRgb = useMemo(() => {
+    const hex = getCosmicPulseRingAccent(accentSphere, orbitScheme);
+    return hexToRgb(hex);
+  }, [accentSphere, orbitScheme]);
+  const { r: accR, g: accG, b: accB } = accentRgb;
+
   useEffect(() => {
     const peak = aiPulsePeak(spotlight, isDark);
     pulseScale.value = withRepeat(
@@ -396,45 +418,80 @@ export function AITabButton({
 
   const iconSize = size * 0.42;
 
+  const lightShadowWrap = {
+    width: size,
+    height: size,
+    borderRadius: size / 2,
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: spotlight ? 5 : 4 },
+    shadowOpacity: spotlight ? 0.32 : 0.2,
+    shadowRadius: spotlight ? 16 : 12,
+    elevation: spotlight ? 12 : 9,
+  };
+
+  /** Orbit cosmic-ring hue — border only; fill/shadow stay theme defaults. */
+  const lightInner = {
+    width: size,
+    height: size,
+    borderRadius: size / 2,
+    overflow: 'hidden' as const,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    borderWidth: spotlight ? 1.5 : 1.25,
+    borderColor: spotlight
+      ? `rgba(${accR}, ${accG}, ${accB}, 0.48)`
+      : `rgba(${accR}, ${accG}, ${accB}, 0.3)`,
+  };
+
   return (
     <Animated.View style={animatedStyle}>
-      <TouchableOpacity
-        onPress={handlePress}
-        activeOpacity={1}
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: isDark ? '#1A2F4A' : palette.surfaceElevated8,
-          justifyContent: 'center',
-          alignItems: 'center',
-          shadowColor: isDark ? '#64B5F6' : '#000000',
-          shadowOffset: { width: 0, height: isDark ? 0 : 2 },
-          shadowOpacity: isDark
-            ? spotlight
-              ? 0.9
-              : 0.6
-            : spotlight
-              ? 0.11
-              : 0.06,
-          shadowRadius: spotlight ? 14 : 10,
-          elevation: spotlight ? 14 : 10,
-          borderWidth: isDark ? 1.5 : 1,
-          borderColor: isDark
-            ? spotlight
-              ? 'rgba(110, 210, 255, 0.95)'
-              : 'rgba(100, 181, 246, 0.5)'
-            : spotlight
-              ? 'rgba(0, 0, 0, 0.11)'
-              : 'rgba(0, 0, 0, 0.07)',
-        }}
-      >
-        {isDark ? (
+      {isDark ? (
+        <TouchableOpacity
+          onPress={handlePress}
+          activeOpacity={1}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: '#1A2F4A',
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: '#64B5F6',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: spotlight ? 0.9 : 0.6,
+            shadowRadius: spotlight ? 14 : 10,
+            elevation: spotlight ? 14 : 10,
+            borderWidth: 1.5,
+            borderColor: spotlight
+              ? `rgba(${accR}, ${accG}, ${accB}, 0.95)`
+              : `rgba(${accR}, ${accG}, ${accB}, 0.58)`,
+          }}
+        >
           <Animated.Text style={{ fontSize: iconSize, lineHeight: size * 0.5 }}>✨</Animated.Text>
-        ) : (
-          <MaterialIcons name="auto-awesome" size={iconSize} color={palette.icon} />
-        )}
-      </TouchableOpacity>
+        </TouchableOpacity>
+      ) : (
+        <View style={lightShadowWrap}>
+          <TouchableOpacity
+            onPress={handlePress}
+            activeOpacity={1}
+            style={lightInner}
+          >
+            <LinearGradient
+              colors={['#FFFFFF', '#F3FAF5', '#E3F0E8']}
+              locations={[0, 0.45, 1]}
+              start={{ x: 0.2, y: 0 }}
+              end={{ x: 0.85, y: 1 }}
+              style={[StyleSheet.absoluteFillObject, { borderRadius: size / 2 }]}
+            />
+            <MaterialIcons
+              name="auto-awesome"
+              size={iconSize}
+              color={palette.icon}
+              style={{ zIndex: 1 }}
+            />
+          </TouchableOpacity>
+        </View>
+      )}
     </Animated.View>
   );
 }

@@ -159,18 +159,18 @@ export function InAppNotification({
           </ThemedText>
         ) : null}
         <Animated.View style={styles.textContainer}>
-          <ThemedText size="l" weight="bold" style={[styles.title, { color: titleColor }]}>
+          <ThemedText size="sm" weight="semibold" style={[styles.title, { color: titleColor }]}>
             {title}
           </ThemedText>
           {hasMessageRow ? (
             <View style={styles.messageRow}>
-              <ThemedText size="sm" style={[styles.message, { color: messageColor }]}>
+              <ThemedText size="xs" style={[styles.message, { color: messageColor }]}>
                 {message}
               </ThemedText>
               {trailingIcon && trailingIcon !== 'auto-awesome' ? (
                 <MaterialIcons
                   name={trailingIcon as keyof typeof MaterialIcons.glyphMap}
-                  size={16}
+                  size={14}
                   color={messageColor}
                   style={styles.messageTrailingIcon}
                 />
@@ -252,7 +252,8 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   message: {
-    lineHeight: 18,
+    lineHeight: 16,
+    marginTop: 1,
   },
   contentPressable: {
     flex: 1,

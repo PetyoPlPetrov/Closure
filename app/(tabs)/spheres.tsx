@@ -28,6 +28,7 @@ import type {
 import { useJourney } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForPremiumAccess } from "@/utils/premium-access";
+import { getSphereAccentColor } from "@/utils/sphere-styles";
 import { onSpheresTabPress } from "@/utils/spheres-tab-press";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
@@ -74,6 +75,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 export default function SpheresScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const accentScheme = (colorScheme ?? "dark") as "light" | "dark";
   const {
     constellationAmount,
     constellationOpacity,
@@ -677,39 +679,11 @@ export default function SpheresScreen() {
       .slice(0, 5);
   }, [allEntitiesFlat]);
 
-  const getSphereAccentColor = (sphereType: LifeSphere): string => {
-    const scheme = (colorScheme ?? "dark") as "light" | "dark";
-    if (scheme === "light") {
-      switch (sphereType) {
-        case "relationships":
-          return "#D32F2F";
-        case "career":
-          return "#1976D2";
-        case "family":
-          return "#388E3C";
-        case "friends":
-          return "#7B1FA2";
-        case "hobbies":
-          return "#F57C00";
-        default:
-          return "#1976D2";
-      }
-    }
-    switch (sphereType) {
-      case "relationships":
-        return "#E57373";
-      case "career":
-        return "#64B5F6";
-      case "family":
-        return "#81C784";
-      case "friends":
-        return "#BA68C8";
-      case "hobbies":
-        return "#FFB74D";
-      default:
-        return "#64B5F6";
-    }
-  };
+  /** Contrasting label for filled CTAs using `getSphereAccentColor` (not global `primary`). */
+  const sphereEmptyCtaLabelColor =
+    (colorScheme ?? "dark") === "dark"
+      ? Colors.dark.primaryText
+      : Colors.light.primaryText;
 
   const _overallPercentage = useMemo(
     () => getOverallSunnyPercentage(),
@@ -1785,9 +1759,7 @@ export default function SpheresScreen() {
               <MaterialIcons
                 name="psychology"
                 size={100 * fontScale * iconScale}
-                color={
-                  colorScheme === "dark" ? colors.primaryLight : colors.primary
-                }
+                color={getSphereAccentColor("relationships", accentScheme)}
               />
             </View>
             <View style={styles.textContainer}>
@@ -1804,14 +1776,17 @@ export default function SpheresScreen() {
               </ThemedText>
             </View>
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: colors.primary }]}
+              style={[
+                styles.button,
+                { backgroundColor: getSphereAccentColor("relationships", accentScheme) },
+              ]}
               activeOpacity={0.8}
               onPress={() => handleAddEntity("relationships")}
             >
               <ThemedText
                 weight="bold"
                 letterSpacing="l"
-                style={styles.buttonText}
+                style={[styles.buttonText, { color: sphereEmptyCtaLabelColor }]}
               >
                 {t("profile.emptyState.button")}
               </ThemedText>
@@ -1898,9 +1873,7 @@ export default function SpheresScreen() {
               <MaterialIcons
                 name="work"
                 size={100 * fontScale * iconScale}
-                color={
-                  colorScheme === "dark" ? colors.primaryLight : colors.primary
-                }
+                color={getSphereAccentColor("career", accentScheme)}
               />
             </View>
             <View style={styles.textContainer}>
@@ -1917,14 +1890,17 @@ export default function SpheresScreen() {
               </ThemedText>
             </View>
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: colors.primary }]}
+              style={[
+                styles.button,
+                { backgroundColor: getSphereAccentColor("career", accentScheme) },
+              ]}
               activeOpacity={0.8}
               onPress={() => router.push("/add-job")}
             >
               <ThemedText
                 weight="bold"
                 letterSpacing="l"
-                style={styles.buttonText}
+                style={[styles.buttonText, { color: sphereEmptyCtaLabelColor }]}
               >
                 {t("job.jobEmptyState.button")}
               </ThemedText>
@@ -2018,9 +1994,7 @@ export default function SpheresScreen() {
               <MaterialIcons
                 name="family-restroom"
                 size={100 * fontScale * iconScale}
-                color={
-                  colorScheme === "dark" ? colors.primaryLight : colors.primary
-                }
+                color={getSphereAccentColor("family", accentScheme)}
               />
             </View>
             <View style={styles.textContainer}>
@@ -2037,14 +2011,17 @@ export default function SpheresScreen() {
               </ThemedText>
             </View>
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: colors.primary }]}
+              style={[
+                styles.button,
+                { backgroundColor: getSphereAccentColor("family", accentScheme) },
+              ]}
               activeOpacity={0.8}
               onPress={() => router.push("/add-family-member")}
             >
               <ThemedText
                 weight="bold"
                 letterSpacing="l"
-                style={styles.buttonText}
+                style={[styles.buttonText, { color: sphereEmptyCtaLabelColor }]}
               >
                 {t("profile.familyEmptyState.button")}
               </ThemedText>
@@ -2082,7 +2059,7 @@ export default function SpheresScreen() {
                         <MaterialIcons
                           name="person"
                           size={24 * fontScale}
-                          color={colors.primary}
+                          color={getSphereAccentColor("family", accentScheme)}
                         />
                       </View>
                     )}
@@ -2188,9 +2165,7 @@ export default function SpheresScreen() {
               <MaterialIcons
                 name="people"
                 size={100 * fontScale * iconScale}
-                color={
-                  colorScheme === "dark" ? colors.primaryLight : colors.primary
-                }
+                color={getSphereAccentColor("friends", accentScheme)}
               />
             </View>
             <View style={styles.textContainer}>
@@ -2207,14 +2182,17 @@ export default function SpheresScreen() {
               </ThemedText>
             </View>
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: colors.primary }]}
+              style={[
+                styles.button,
+                { backgroundColor: getSphereAccentColor("friends", accentScheme) },
+              ]}
               activeOpacity={0.8}
               onPress={() => router.push("/add-friend")}
             >
               <ThemedText
                 weight="bold"
                 letterSpacing="l"
-                style={styles.buttonText}
+                style={[styles.buttonText, { color: sphereEmptyCtaLabelColor }]}
               >
                 {t("profile.friendEmptyState.button")}
               </ThemedText>
@@ -2252,7 +2230,7 @@ export default function SpheresScreen() {
                         <MaterialIcons
                           name="people"
                           size={24 * fontScale}
-                          color={colors.primary}
+                          color={getSphereAccentColor("friends", accentScheme)}
                         />
                       </View>
                     )}
@@ -2353,9 +2331,7 @@ export default function SpheresScreen() {
               <MaterialIcons
                 name="sports-esports"
                 size={100 * fontScale * iconScale}
-                color={
-                  colorScheme === "dark" ? colors.primaryLight : colors.primary
-                }
+                color={getSphereAccentColor("hobbies", accentScheme)}
               />
             </View>
             <View style={styles.textContainer}>
@@ -2372,14 +2348,17 @@ export default function SpheresScreen() {
               </ThemedText>
             </View>
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: colors.primary }]}
+              style={[
+                styles.button,
+                { backgroundColor: getSphereAccentColor("hobbies", accentScheme) },
+              ]}
               activeOpacity={0.8}
               onPress={() => router.push("/add-hobby")}
             >
               <ThemedText
                 weight="bold"
                 letterSpacing="l"
-                style={styles.buttonText}
+                style={[styles.buttonText, { color: sphereEmptyCtaLabelColor }]}
               >
                 {t("profile.hobbyEmptyState.button")}
               </ThemedText>
@@ -2417,7 +2396,7 @@ export default function SpheresScreen() {
                         <MaterialIcons
                           name="sports-esports"
                           size={24 * fontScale}
-                          color={colors.primary}
+                          color={getSphereAccentColor("hobbies", accentScheme)}
                         />
                       </View>
                     )}
@@ -2535,10 +2514,10 @@ export default function SpheresScreen() {
                   }}
                 >
                   {subsectionEntities.map((entity) => {
-                    const accent = getSphereAccentColor(entity.sphere);
+                    const accent = getSphereAccentColor(entity.sphere, accentScheme);
                     return (
                       <TouchableOpacity
-                        key={entity.id}
+                        key={`${entity.sphere}:${entity.id}`}
                         style={[
                           styles.subsectionCard,
                           { borderLeftColor: accent, borderLeftWidth: 3 },
@@ -2596,7 +2575,7 @@ export default function SpheresScreen() {
               </View>
             )}
             {spheres.map((sphere) => {
-              const accent = getSphereAccentColor(sphere.type);
+              const accent = getSphereAccentColor(sphere.type, accentScheme);
               const count = sphere.entities.length;
               return (
                 <TouchableOpacity

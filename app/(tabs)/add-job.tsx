@@ -13,6 +13,7 @@ import { useSubscription } from "@/utils/SubscriptionProvider";
 import { getFreeEntityLimitPerSfera } from "@/utils/badge-rewards";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
+import { getSphereAccentColor } from "@/utils/sphere-styles";
 import { useUnsavedChanges } from "@/utils/UnsavedChangesContext";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -32,6 +33,10 @@ import {
 export default function AddJobScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const sphereAccent = getSphereAccentColor(
+    "career",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
   const fontScale = useFontScale();
   const { addJob, updateJob, getJob, jobs } = useJourney();
   const { ensureSubscriptionResolved } = useSubscription();
@@ -523,7 +528,7 @@ export default function AddJobScreen() {
           <MaterialIcons
             name="work"
             size={20 * fontScale}
-            color={colors.primary}
+            color={sphereAccent}
           />
           <ThemedText size="l" weight="bold" letterSpacing="s">
             {isEditMode ? t("job.editJob.title") : t("job.addJob")}
@@ -616,7 +621,7 @@ export default function AddJobScreen() {
                 <MaterialIcons
                   name="calendar-today"
                   size={20 * fontScale}
-                  color={colors.primary}
+                  color={sphereAccent}
                 />
               </TouchableOpacity>
               {Platform.OS === "ios" ? (
@@ -662,7 +667,7 @@ export default function AddJobScreen() {
                         >
                           <ThemedText
                             size="l"
-                            style={{ color: colors.primary }}
+                            style={{ color: sphereAccent }}
                           >
                             {t("common.cancel")}
                           </ThemedText>
@@ -687,7 +692,7 @@ export default function AddJobScreen() {
                         >
                           <ThemedText
                             size="l"
-                            style={{ color: colors.primary, fontWeight: "600" }}
+                            style={{ color: sphereAccent, fontWeight: "600" }}
                           >
                             {t("common.ok")}
                           </ThemedText>
@@ -752,12 +757,12 @@ export default function AddJobScreen() {
                     width: 24 * fontScale,
                     height: 24 * fontScale,
                     borderWidth: 2,
-                    borderColor: colors.primary,
+                    borderColor: sphereAccent,
                     borderRadius: 4,
                     marginRight: 8 * fontScale,
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: isCurrent ? colors.primary : "transparent",
+                    backgroundColor: isCurrent ? sphereAccent : "transparent",
                   }}
                   onPress={() => setIsCurrent(!isCurrent)}
                   activeOpacity={0.7}
@@ -766,7 +771,7 @@ export default function AddJobScreen() {
                     <MaterialIcons
                       name="check"
                       size={16 * fontScale}
-                      color={colors.background}
+                      color="#ffffff"
                     />
                   )}
                 </TouchableOpacity>
@@ -817,7 +822,7 @@ export default function AddJobScreen() {
                   <MaterialIcons
                     name="calendar-today"
                     size={20 * fontScale}
-                    color={colors.primary}
+                    color={sphereAccent}
                   />
                 </TouchableOpacity>
                 {Platform.OS === "ios" ? (
@@ -863,7 +868,7 @@ export default function AddJobScreen() {
                           >
                             <ThemedText
                               size="l"
-                              style={{ color: colors.primary }}
+                              style={{ color: sphereAccent }}
                             >
                               {t("common.cancel")}
                             </ThemedText>
@@ -889,7 +894,7 @@ export default function AddJobScreen() {
                             <ThemedText
                               size="l"
                               style={{
-                                color: colors.primary,
+                                color: sphereAccent,
                                 fontWeight: "600",
                               }}
                             >
@@ -963,7 +968,7 @@ export default function AddJobScreen() {
         <TouchableOpacity
           style={[
             styles.button,
-            { backgroundColor: colors.primary },
+            { backgroundColor: sphereAccent },
             !isSaveEnabled && styles.buttonDisabled,
           ]}
           onPress={handleSubmit}

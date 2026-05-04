@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sferas",
     "slug": "sphere",
-    "version": "1.0.260",
+    "version": "1.0.262",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-v2.png",
     "scheme": "sphere",
@@ -28,7 +28,7 @@
           "com.petyoplpetrov.Sphere.ai-processing"
         ]
       },
-      "buildNumber": "1.0.261",
+      "buildNumber": "1.0.263",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -39,7 +39,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "splash": {
-        "backgroundColor": "#101A3D",
+        "backgroundColor": "#D5D8DE",
         "resizeMode": "contain",
         "dark": {
           "backgroundColor": "#101A3D"
@@ -51,7 +51,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 264,
+      "versionCode": 266,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -77,7 +77,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#101A3D",
+          "backgroundColor": "#D5D8DE",
           "dark": {
             "backgroundColor": "#101A3D"
           },

@@ -12,6 +12,7 @@ import { useJourney, type ExProfile } from "@/utils/JourneyProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { getFreeEntityLimitPerSfera } from "@/utils/badge-rewards";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { getSphereAccentColor } from "@/utils/sphere-styles";
 import { useUnsavedChanges } from "@/utils/UnsavedChangesContext";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -33,6 +34,10 @@ import {
 export default function AddExProfileScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const sphereAccent = getSphereAccentColor(
+    "relationships",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
   const fontScale = useFontScale();
   const { addProfile, updateProfile, getProfile, profiles, isLoading } =
     useJourney();
@@ -611,7 +616,7 @@ export default function AddExProfileScreen() {
           <MaterialIcons
             name="settings"
             size={20 * fontScale}
-            color={colors.primary}
+            color={sphereAccent}
           />
           <ThemedText size="l" weight="bold" letterSpacing="s">
             Sferas
@@ -708,7 +713,7 @@ export default function AddExProfileScreen() {
                 <MaterialIcons
                   name="calendar-today"
                   size={20 * fontScale}
-                  color={colors.primary}
+                  color={sphereAccent}
                 />
               </TouchableOpacity>
               {Platform.OS === "ios" ? (
@@ -754,7 +759,7 @@ export default function AddExProfileScreen() {
                         >
                           <ThemedText
                             size="l"
-                            style={{ color: colors.primary }}
+                            style={{ color: sphereAccent }}
                           >
                             {t("common.cancel")}
                           </ThemedText>
@@ -787,7 +792,7 @@ export default function AddExProfileScreen() {
                         >
                           <ThemedText
                             size="l"
-                            style={{ color: colors.primary, fontWeight: "600" }}
+                            style={{ color: sphereAccent, fontWeight: "600" }}
                           >
                             {t("common.ok")}
                           </ThemedText>
@@ -858,12 +863,12 @@ export default function AddExProfileScreen() {
                     width: 24 * fontScale,
                     height: 24 * fontScale,
                     borderWidth: 2,
-                    borderColor: colors.primary,
+                    borderColor: sphereAccent,
                     borderRadius: 4,
                     marginRight: 8 * fontScale,
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: isOngoing ? colors.primary : "transparent",
+                    backgroundColor: isOngoing ? sphereAccent : "transparent",
                     opacity: canSetAsOngoing ? 1 : 0.5,
                   }}
                   onPress={() => {
@@ -884,7 +889,7 @@ export default function AddExProfileScreen() {
                     <MaterialIcons
                       name="check"
                       size={16 * fontScale}
-                      color={colors.background}
+                      color="#ffffff"
                     />
                   )}
                 </TouchableOpacity>
@@ -960,7 +965,7 @@ export default function AddExProfileScreen() {
                   <MaterialIcons
                     name="calendar-today"
                     size={20 * fontScale}
-                    color={colors.primary}
+                    color={sphereAccent}
                   />
                 </TouchableOpacity>
                 {Platform.OS === "ios" ? (
@@ -1006,7 +1011,7 @@ export default function AddExProfileScreen() {
                           >
                             <ThemedText
                               size="l"
-                              style={{ color: colors.primary }}
+                              style={{ color: sphereAccent }}
                             >
                               {t("common.cancel")}
                             </ThemedText>
@@ -1040,7 +1045,7 @@ export default function AddExProfileScreen() {
                             <ThemedText
                               size="l"
                               style={{
-                                color: colors.primary,
+                                color: sphereAccent,
                                 fontWeight: "600",
                               }}
                             >
@@ -1121,7 +1126,7 @@ export default function AddExProfileScreen() {
         <TouchableOpacity
           style={[
             styles.button,
-            { backgroundColor: colors.primary },
+            { backgroundColor: sphereAccent },
             !isSaveEnabled && styles.buttonDisabled,
           ]}
           onPress={handleSubmit}

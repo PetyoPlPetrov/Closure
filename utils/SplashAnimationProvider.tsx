@@ -1,5 +1,3 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { LinearGradient } from "expo-linear-gradient";
 import * as SplashScreen from "expo-splash-screen";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
@@ -11,6 +9,9 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { SplashHubOrb, SplashOrbitOrb } from "@/components/splash-sfera-orbs";
+import { Colors } from "@/constants/theme";
+import { useTheme } from "@/utils/ThemeContext";
 import { SPLASH_ANIMATION_KEY } from "@/utils/VisualSettingsProvider";
 import {
   Dimensions,
@@ -43,12 +44,14 @@ const SparkledDot = React.memo(function SparkledDot({
   size,
   delay,
   duration,
+  glowColor,
 }: {
   x: number;
   y: number;
   size: number;
   delay: number;
   duration: number;
+  glowColor: string;
 }) {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.7);
@@ -91,8 +94,6 @@ const SparkledDot = React.memo(function SparkledDot({
       top: y - size / 2,
     };
   });
-
-  const glowColor = "rgba(255, 255, 255, 0.65)";
 
   return (
     <Animated.View
@@ -201,8 +202,20 @@ const CONSTELLATIONS: Array<{
   },
 ];
 
-const ConstellationBackground = React.memo(function ConstellationBackground() {
+const ConstellationBackground = React.memo(function ConstellationBackground({
+  colorScheme,
+}: {
+  colorScheme: "light" | "dark";
+}) {
   const opacity = useSharedValue(0);
+  const strokeColor =
+    colorScheme === "light"
+      ? "rgba(13, 13, 13, 0.14)"
+      : "rgba(255, 255, 255, 0.2)";
+  const starFill =
+    colorScheme === "light"
+      ? "rgba(13, 13, 13, 0.38)"
+      : "rgba(255, 255, 255, 0.5)";
 
   useEffect(() => {
     opacity.value = withDelay(
@@ -237,7 +250,7 @@ const ConstellationBackground = React.memo(function ConstellationBackground() {
                 y1={s1.y * SCREEN_HEIGHT}
                 x2={s2.x * SCREEN_WIDTH}
                 y2={s2.y * SCREEN_HEIGHT}
-                stroke="rgba(255, 255, 255, 0.2)"
+                stroke={strokeColor}
                 strokeWidth={1}
                 strokeLinecap="round"
               />
@@ -251,7 +264,7 @@ const ConstellationBackground = React.memo(function ConstellationBackground() {
               cx={star.x * SCREEN_WIDTH}
               cy={star.y * SCREEN_HEIGHT}
               r={1.5}
-              fill="rgba(255, 255, 255, 0.5)"
+              fill={starFill}
             />
           )),
         )}
@@ -284,6 +297,7 @@ interface SplashAnimationProviderProps {
 export function SplashAnimationProvider({
   children,
 }: SplashAnimationProviderProps) {
+  const { colorScheme } = useTheme();
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
   const [isReplayPriming, setIsReplayPriming] = useState(false);
@@ -341,15 +355,36 @@ export function SplashAnimationProvider({
     scale: useSharedValue(0),
   };
 
-  // Dynamic quote style based on device size
+  // Dynamic quote style based on device size and theme
   const quoteStyle = useMemo(
     () => ({
       ...styles.quote,
       fontSize: isTablet ? 32 : 20, // Larger for impact
       lineHeight: isTablet ? 44 : 32,
       letterSpacing: isTablet ? 4 : 3, // More spacing on tablets
+      ...(colorScheme === "light"
+        ? {
+            color: Colors.light.text,
+            textShadowColor: "transparent",
+            textShadowRadius: 0,
+            textShadowOffset: { width: 0, height: 0 },
+          }
+        : {
+            color: Colors.dark.text,
+            textShadowColor: "transparent",
+            textShadowRadius: 0,
+            textShadowOffset: { width: 0, height: 0 },
+          }),
     }),
-    [isTablet],
+    [isTablet, colorScheme],
+  );
+
+  const sparkleGlowColor = useMemo(
+    () =>
+      colorScheme === "light"
+        ? "rgba(19, 94, 40, 0.42)"
+        : "rgba(255, 255, 255, 0.65)",
+    [colorScheme],
   );
 
   // Generate sparkled dots - scattered across the screen
@@ -892,13 +927,18 @@ export function SplashAnimationProvider({
           pointerEvents="box-none"
         >
           <View style={styles.container}>
-            {/* Solid background matching home screen dark mode */}
+            {/* Solid background matching app theme (light / dark) */}
             <View
-              style={[StyleSheet.absoluteFill, { backgroundColor: "#1A2332" }]}
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: Colors[colorScheme].background },
+              ]}
             />
 
             {/* Constellation background */}
-            {!isReplayPriming && <ConstellationBackground />}
+            {!isReplayPriming && (
+              <ConstellationBackground colorScheme={colorScheme} />
+            )}
 
             {/* Sparkled Dots */}
             {!isReplayPriming &&
@@ -910,6 +950,7 @@ export function SplashAnimationProvider({
                   size={dot.size}
                   delay={dot.delay}
                   duration={dot.duration}
+                  glowColor={sparkleGlowColor}
                 />
               ))}
 
@@ -922,7 +963,7 @@ export function SplashAnimationProvider({
                   { width: avatarContainerSize, height: avatarContainerSize },
                 ]}
               >
-                {/* Central Avatar */}
+                {/* Center = Sfera Insights entry (purple), orbit = life spheres from sphere-styles */}
                 <Animated.View
                   style={[
                     styles.avatarWrapper,
@@ -930,32 +971,14 @@ export function SplashAnimationProvider({
                     { width: avatarSize, height: avatarSize },
                   ]}
                 >
-                  <LinearGradient
-                    colors={[
-                      "rgba(14, 165, 233, 0.3)",
-                      "rgba(14, 165, 233, 0.15)",
-                      "rgba(14, 165, 233, 0.05)",
-                    ]}
-                    style={[
-                      styles.avatar,
-                      {
-                        width: avatarSize,
-                        height: avatarSize,
-                        borderRadius: avatarSize / 2,
-                      },
-                    ]}
-                  >
-                    <View style={styles.avatarInner}>
-                      <MaterialIcons
-                        name="person"
-                        size={isTablet ? 60 : 40}
-                        color="rgba(255, 215, 0, 0.9)"
-                      />
-                    </View>
-                  </LinearGradient>
+                  <SplashHubOrb
+                    size={avatarSize}
+                    colorScheme={colorScheme}
+                    iconSize={isTablet ? 60 : 40}
+                  />
                 </Animated.View>
 
-                {/* Floating Element 1 - Relationships (Heart) */}
+                {/* Floating Element 1 - Relationships */}
                 <Animated.View
                   style={[
                     styles.floatingElement,
@@ -963,30 +986,15 @@ export function SplashAnimationProvider({
                     { width: sphereSize, height: sphereSize },
                   ]}
                 >
-                  <LinearGradient
-                    colors={[
-                      "rgba(255, 150, 150, 0.4)",
-                      "rgba(255, 150, 150, 0.2)",
-                      "rgba(255, 150, 150, 0.05)",
-                    ]}
-                    style={[
-                      styles.floatingElementInner,
-                      {
-                        width: sphereSize,
-                        height: sphereSize,
-                        borderRadius: sphereSize / 2,
-                      },
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="favorite"
-                      size={isTablet ? 60 : 40}
-                      color="rgba(255, 180, 180, 0.9)"
-                    />
-                  </LinearGradient>
+                  <SplashOrbitOrb
+                    sphere="relationships"
+                    size={sphereSize}
+                    colorScheme={colorScheme}
+                    iconSize={isTablet ? 54 : 36}
+                  />
                 </Animated.View>
 
-                {/* Floating Element 2 - Career (Briefcase) */}
+                {/* Floating Element 2 - Career */}
                 <Animated.View
                   style={[
                     styles.floatingElement,
@@ -994,27 +1002,12 @@ export function SplashAnimationProvider({
                     { width: sphereSize, height: sphereSize },
                   ]}
                 >
-                  <LinearGradient
-                    colors={[
-                      "rgba(150, 200, 255, 0.4)",
-                      "rgba(150, 200, 255, 0.2)",
-                      "rgba(150, 200, 255, 0.05)",
-                    ]}
-                    style={[
-                      styles.floatingElementInner,
-                      {
-                        width: sphereSize,
-                        height: sphereSize,
-                        borderRadius: sphereSize / 2,
-                      },
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="work"
-                      size={isTablet ? 60 : 40}
-                      color="rgba(180, 220, 255, 0.9)"
-                    />
-                  </LinearGradient>
+                  <SplashOrbitOrb
+                    sphere="career"
+                    size={sphereSize}
+                    colorScheme={colorScheme}
+                    iconSize={isTablet ? 54 : 36}
+                  />
                 </Animated.View>
 
                 {/* Floating Element 3 - Family */}
@@ -1025,27 +1018,12 @@ export function SplashAnimationProvider({
                     { width: sphereSize, height: sphereSize },
                   ]}
                 >
-                  <LinearGradient
-                    colors={[
-                      "rgba(200, 150, 255, 0.4)",
-                      "rgba(200, 150, 255, 0.2)",
-                      "rgba(200, 150, 255, 0.05)",
-                    ]}
-                    style={[
-                      styles.floatingElementInner,
-                      {
-                        width: sphereSize,
-                        height: sphereSize,
-                        borderRadius: sphereSize / 2,
-                      },
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="family-restroom"
-                      size={isTablet ? 60 : 40}
-                      color="rgba(220, 180, 255, 0.9)"
-                    />
-                  </LinearGradient>
+                  <SplashOrbitOrb
+                    sphere="family"
+                    size={sphereSize}
+                    colorScheme={colorScheme}
+                    iconSize={isTablet ? 54 : 36}
+                  />
                 </Animated.View>
 
                 {/* Floating Element 4 - Friends */}
@@ -1056,27 +1034,12 @@ export function SplashAnimationProvider({
                     { width: sphereSize, height: sphereSize },
                   ]}
                 >
-                  <LinearGradient
-                    colors={[
-                      "rgba(139, 92, 246, 0.4)",
-                      "rgba(139, 92, 246, 0.2)",
-                      "rgba(139, 92, 246, 0.05)",
-                    ]}
-                    style={[
-                      styles.floatingElementInner,
-                      {
-                        width: sphereSize,
-                        height: sphereSize,
-                        borderRadius: sphereSize / 2,
-                      },
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="people"
-                      size={isTablet ? 60 : 40}
-                      color="rgba(167, 139, 250, 0.9)"
-                    />
-                  </LinearGradient>
+                  <SplashOrbitOrb
+                    sphere="friends"
+                    size={sphereSize}
+                    colorScheme={colorScheme}
+                    iconSize={isTablet ? 54 : 36}
+                  />
                 </Animated.View>
 
                 {/* Floating Element 5 - Hobbies */}
@@ -1087,27 +1050,12 @@ export function SplashAnimationProvider({
                     { width: sphereSize, height: sphereSize },
                   ]}
                 >
-                  <LinearGradient
-                    colors={[
-                      "rgba(249, 115, 22, 0.4)",
-                      "rgba(249, 115, 22, 0.2)",
-                      "rgba(249, 115, 22, 0.05)",
-                    ]}
-                    style={[
-                      styles.floatingElementInner,
-                      {
-                        width: sphereSize,
-                        height: sphereSize,
-                        borderRadius: sphereSize / 2,
-                      },
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="sports-esports"
-                      size={isTablet ? 60 : 40}
-                      color="rgba(255, 157, 88, 0.9)"
-                    />
-                  </LinearGradient>
+                  <SplashOrbitOrb
+                    sphere="hobbies"
+                    size={sphereSize}
+                    colorScheme={colorScheme}
+                    iconSize={isTablet ? 54 : 36}
+                  />
                 </Animated.View>
               </View>
 
@@ -1124,8 +1072,23 @@ export function SplashAnimationProvider({
               style={[styles.skipButton, skipStyle]}
               pointerEvents="box-none"
             >
-              <Pressable onPress={handleSkip} style={styles.skipPressable}>
-                <Text style={styles.skipText}>Skip</Text>
+              <Pressable
+                onPress={handleSkip}
+                style={[
+                  styles.skipPressable,
+                  colorScheme === "light"
+                    ? styles.skipPressableLight
+                    : styles.skipPressableDark,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.skipText,
+                    colorScheme === "light" && styles.skipTextLight,
+                  ]}
+                >
+                  Skip
+                </Text>
               </Pressable>
             </Animated.View>
           </View>
@@ -1171,46 +1134,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  avatar: {
-    width: 80, // Base size, will be overridden dynamically
-    height: 80,
-    borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-    // Subtle mask/shadow effect
-    shadowColor: "#0EA5E9",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  avatarInner: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   floatingElement: {
     position: "absolute",
     width: 80, // Base size, will be overridden dynamically
     height: 80,
     justifyContent: "center",
     alignItems: "center",
-  },
-  floatingElementInner: {
-    width: 80, // Base size, will be overridden dynamically
-    height: 80,
-    borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-    // Subtle mask effect with glow
-    shadowColor: "#FFF",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
   },
   textContainer: {
     paddingHorizontal: 32,
@@ -1254,14 +1183,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+  },
+  skipPressableDark: {
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.45)",
+  },
+  skipPressableLight: {
+    backgroundColor: "rgba(13, 13, 13, 0.06)",
+    borderColor: "#767676",
   },
   skipText: {
-    color: "rgba(255,255,255,0.7)",
+    color: "rgba(255,255,255,0.92)",
     fontSize: 14,
     fontWeight: "500",
     letterSpacing: 0.5,
+  },
+  skipTextLight: {
+    color: Colors.light.textMediumEmphasis,
   },
 });

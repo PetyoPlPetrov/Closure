@@ -1,5 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
-import { Colors, memoryCardStatIconColors } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useTranslate } from '@/utils/languages/use-translate';
@@ -49,7 +49,6 @@ export function MemoryCard({
   const fontScale = useFontScale();
   const { momentColors } = useMomentColors();
   const colors = Colors[colorScheme ?? 'dark'];
-  const statIconColors = memoryCardStatIconColors[colorScheme ?? 'dark'];
   const footerIconMuted =
     colorScheme === 'dark'
       ? 'rgba(226, 232, 240, 0.55)'
@@ -359,7 +358,11 @@ export function MemoryCard({
                 <MaterialIcons
                   name="cloud"
                   size={16 * fontScale}
-                  color={hasHardTruths ? statIconColors.cloudy : footerIconMuted}
+                  color={
+                    hasHardTruths
+                      ? momentColors.cloudy.background
+                      : footerIconMuted
+                  }
                 />
                 <ThemedText
                   size="xs"
@@ -377,7 +380,11 @@ export function MemoryCard({
                 <MaterialIcons
                   name="wb-sunny"
                   size={16 * fontScale}
-                  color={hasGoodFacts ? statIconColors.sunny : footerIconMuted}
+                  color={
+                    hasGoodFacts
+                      ? momentColors.sunny.background
+                      : footerIconMuted
+                  }
                 />
                 <ThemedText
                   size="xs"
@@ -395,7 +402,11 @@ export function MemoryCard({
                 <MaterialIcons
                   name="lightbulb"
                   size={16 * fontScale}
-                  color={hasLessons ? statIconColors.lesson : footerIconMuted}
+                  color={
+                    hasLessons
+                      ? momentColors.lesson.background
+                      : footerIconMuted
+                  }
                 />
                 <ThemedText
                   size="xs"

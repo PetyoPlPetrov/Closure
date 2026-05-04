@@ -12,6 +12,7 @@ import { useSubscription } from "@/utils/SubscriptionProvider";
 import { getFreeEntityLimitPerSfera } from "@/utils/badge-rewards";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
+import { getSphereAccentColor } from "@/utils/sphere-styles";
 import { useUnsavedChanges } from "@/utils/UnsavedChangesContext";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as ImagePicker from "expo-image-picker";
@@ -29,6 +30,10 @@ import {
 export default function AddFriendScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const sphereAccent = getSphereAccentColor(
+    "friends",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
   const fontScale = useFontScale();
   const { addFriend, updateFriend, getFriend, friends } = useJourney();
   const { ensureSubscriptionResolved } = useSubscription();
@@ -261,7 +266,7 @@ export default function AddFriendScreen() {
           <MaterialIcons
             name="people"
             size={20 * fontScale}
-            color={colors.primary}
+            color={sphereAccent}
           />
           <ThemedText size="l" weight="bold" letterSpacing="s">
             Sferas
@@ -326,7 +331,7 @@ export default function AddFriendScreen() {
         <TouchableOpacity
           style={[
             styles.button,
-            { backgroundColor: colors.primary },
+            { backgroundColor: sphereAccent },
             !isSaveEnabled && styles.buttonDisabled,
           ]}
           onPress={handleSubmit}

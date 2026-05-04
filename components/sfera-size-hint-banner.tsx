@@ -2,6 +2,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React from "react";
@@ -65,14 +66,14 @@ export function SferaSizeHintBanner({
   messageIconColor,
 }: Props) {
   const t = useTranslate();
+  const { momentColors } = useMomentColors();
   const { pulsingAnimations } = useVisualSettings();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
   const hasTrailingActions = !!(onSecondaryActionPress || onActionPress);
+  const sunnyMomentFill = momentColors.sunny.background;
   const sunnyActionIconColor =
-    actionIconName === "wb-sunny"
-      ? "#FACC15"
-      : colors.tint;
+    actionIconName === "wb-sunny" ? sunnyMomentFill : colors.tint;
 
   const bg =
     colorScheme === "dark"
@@ -191,7 +192,7 @@ export function SferaSizeHintBanner({
             <MaterialIcons
               name={messageIconName}
               size={22}
-              color={messageIconColor ?? "#FACC15"}
+              color={messageIconColor ?? sunnyMomentFill}
               style={styles.messageIcon}
             />
           ) : null}
@@ -206,13 +207,7 @@ export function SferaSizeHintBanner({
           ]}
         >
           <Pressable onPress={onDontShowAgain} style={styles.dismissRow}>
-            <ThemedText
-              emphasis="medium"
-              style={[
-                styles.dismissText,
-                { textDecorationLine: "underline" },
-              ]}
-            >
+            <ThemedText emphasis="medium" style={styles.dismissPersistText}>
               {dismissLabel}
             </ThemedText>
           </Pressable>
@@ -270,7 +265,7 @@ export function SferaSizeHintBanner({
                     />
                     {actionLabel ? (
                       <ThemedText
-                        style={[styles.dismissText, styles.actionText, { color: colors.tint, opacity: 0.95 }]}
+                        style={[styles.actionLinkLabel, styles.actionText, { color: colors.tint, opacity: 0.95 }]}
                         type="link"
                       >
                         {actionLabel}
@@ -316,7 +311,7 @@ const styles = StyleSheet.create({
   body: {
     fontSize: 14,
     lineHeight: 20,
-    opacity: 0.82,
+    opacity: 1,
     textAlign: "center",
     flexShrink: 1,
   },
@@ -363,7 +358,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  dismissText: {
+  /** Don't show again — tertiary, smaller than banner body */
+  dismissPersistText: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "400",
+  },
+  actionLinkLabel: {
     fontSize: 13,
     fontWeight: "600",
   },

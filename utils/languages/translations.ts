@@ -3930,9 +3930,9 @@ const translations: Record<Language, Translations> = {
     "home.sferaSizeHint":
       "Each sfera is sized by its share of moments compared to the other sferas.",
     "home.sunnyVsCloudy.congrats":
-      "You are doing great ☀️ {percentage}% of your sunny and cloudy moments feel sunny. Keep going, you are growing every day.",
+      "You are doing great ☀️ {percentage}% of your moments of life feel sunny. Keep going, you are growing every day.",
     "home.sunnyVsCloudy.tapSunFlow":
-      "You've saved beautiful sunny moments ☀️ Tap the sun to watch them flow again and soak in the good.",
+      "You've saved beautiful sunny moments ☀️ Tap the sun to watch them flow again and soak in the good. Life spherically, in all directions of life!",
     "home.sunnyCelebrate.speedA11y":
       "Animation speed. Higher speeds finish sooner when you have many sunny moments.",
     "home.sunnyCelebrate.densityA11y":
@@ -8877,9 +8877,9 @@ const translations: Record<Language, Translations> = {
     "home.sferaSizeHint":
       "Всяка сфера е с размер според относителния дял моменти спрямо другите сфери.",
     "home.sunnyVsCloudy.congrats":
-      "Много добре ☀️ {percentage}% от слънчевите и облачни ти моменти усещат се слънчеви. Продължавай — всеки ден порастваш малко повече.",
+      "Много добре ☀️ {percentage}% от моментите ти в живота усещат се слънчеви. Продължавай — всеки ден порастваш малко повече.",
     "home.sunnyVsCloudy.tapSunFlow":
-      "Имаш красиви слънчеви моменти ☀️ Докосни слънцето отдясно, за да видиш потока им отново и да усетиш доброто.",
+      "Имаш красиви слънчеви моменти ☀️ Докосни слънцето отдясно, за да видиш потока им отново и да усетиш доброто. Живей сферично — във всички посоки на живота!",
     "home.sunnyCelebrate.speedA11y":
       "Скорост на анимацията. По-високата скорост приключва по-бързо при много слънчеви моменти.",
     "home.sunnyCelebrate.densityA11y":

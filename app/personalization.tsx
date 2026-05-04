@@ -410,7 +410,7 @@ export default function PersonalizationScreen() {
             >
               <View style={styles.dropdownContent}>
                 <MaterialIcons
-                  name="auto-awesome"
+                  name="blur-circular"
                   size={24 * fontScale}
                   color={colors.icon}
                 />

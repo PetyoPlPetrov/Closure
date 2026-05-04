@@ -73,26 +73,6 @@ export const Colors = {
 /** Floating + / FAB fill in both themes (`Colors.light.primary` is brand green). */
 export const fabAccentBackground = Colors.dark.primary;
 
-/**
- * Sunny / cloudy / lesson icons on memory cards and Memory Balance stats — same tints as
- * `MemoryBalanceView` on the main focused hub (not moment-customization swatches).
- * Counts beside icons use theme body text (`Colors[scheme].text` / balance stat numbers).
- */
-export const memoryCardStatIconColors = {
-  light: {
-    sunny: '#854D0E',
-    cloudy: '#37474F',
-    /** Teal: distinct from sun amber + cloud blue-grey; aligns with cosmic accents */
-    lesson: '#0F766E',
-  },
-  dark: {
-    sunny: '#FFE566',
-    cloudy: '#CFD8DC',
-    /** Same family as cosmic chrome (`COSMIC_TEXT` in focused-sfera-view) */
-    lesson: '#B8E8EC',
-  },
-} as const;
-
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */
