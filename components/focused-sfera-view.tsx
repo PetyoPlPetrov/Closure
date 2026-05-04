@@ -3530,43 +3530,32 @@ export function FocusedSferaView({
     return result;
   }, [memoryCountBySphere]);
 
-  /** Vertically nudge the hub when Memory Balance sferas + stats would overlap the insight button. */
+  /** Slight downward nudge of the insights hub when the top Memory Balance sfera + stats encroach. Capped so tall phones don't shove it into the hint / tab area. */
   const memoryBalanceInsightsHubCenterY = useMemo(() => {
-    const hubHalf = INSIGHTS_HUB_SIZE / 2;
-    const hubTopAtDefault = SUN_CENTER_Y - hubHalf;
-    const hubLeft = SUN_CENTER_X - hubHalf;
-    const hubRight = SUN_CENTER_X + hubHalf;
+    const i = 0;
+    const layout = MEMORY_BALANCE_RING_LAYOUT[i];
+    const rad = (layout.angleDeg * Math.PI) / 180;
+    const size = memoryBalanceSizeBySphere[SPHERE_LIST[i].type];
+    const rawCenterY = SUN_CENTER_Y + Math.sin(rad) * layout.radius;
+    const safeTop = size / 2 + scaleFocused(42);
+    const safeBottom = SH - size / 2 - scaleFocused(140);
+    const centerY = Math.max(safeTop, Math.min(safeBottom, rawCenterY));
     const tailBelow =
       MEMORY_BALANCE_NAME_GAP +
       MEMORY_BALANCE_NAME_BELOW +
       MEMORY_BALANCE_STATS_MARGIN_TOP +
       MEMORY_BALANCE_STATS_BELOW;
-    const clearance = scaleFocused(10);
-    let maxIntrusionBottom = 0;
-
-    for (let i = 0; i < SPHERE_LIST.length; i++) {
-      const layout = MEMORY_BALANCE_RING_LAYOUT[i];
-      const rad = (layout.angleDeg * Math.PI) / 180;
-      const size = memoryBalanceSizeBySphere[SPHERE_LIST[i].type];
-      const rawCenterX = SUN_CENTER_X + Math.cos(rad) * layout.radius;
-      const rawCenterY = SUN_CENTER_Y + Math.sin(rad) * layout.radius;
-      const safeLeft = size / 2 + 10;
-      const safeRight = SW - size / 2 - 10;
-      const safeTop = size / 2 + scaleFocused(42);
-      const safeBottom = SH - size / 2 - scaleFocused(140);
-      const centerX = Math.max(safeLeft, Math.min(safeRight, rawCenterX));
-      const centerY = Math.max(safeTop, Math.min(safeBottom, rawCenterY));
-      const statsBottomY = centerY + size / 2 + tailBelow;
-      const sphereLeft = centerX - size / 2;
-      const sphereRight = centerX + size / 2;
-      const xOverlap = sphereRight > hubLeft && sphereLeft < hubRight;
-      if (xOverlap && statsBottomY > hubTopAtDefault - clearance) {
-        maxIntrusionBottom = Math.max(maxIntrusionBottom, statsBottomY);
-      }
+    const statsBottomY = centerY + size / 2 + tailBelow;
+    const hubHalf = INSIGHTS_HUB_SIZE / 2;
+    const clearance = scaleFocused(8);
+    const hubTopAtDefault = SUN_CENTER_Y - hubHalf;
+    if (statsBottomY <= hubTopAtDefault - clearance) {
+      return SUN_CENTER_Y;
     }
-
-    if (maxIntrusionBottom <= 0) return SUN_CENTER_Y;
-    return Math.max(SUN_CENTER_Y, maxIntrusionBottom + clearance + hubHalf);
+    const idealCenterY = statsBottomY + clearance + hubHalf;
+    const delta = idealCenterY - SUN_CENTER_Y;
+    const maxNudge = Math.min(scaleFocused(36), SH * 0.038);
+    return SUN_CENTER_Y + Math.min(Math.max(0, delta), maxNudge);
   }, [memoryBalanceSizeBySphere]);
 
   const momentStatsBySphere = useMemo(() => {

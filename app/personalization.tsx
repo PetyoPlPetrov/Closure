@@ -309,10 +309,7 @@ export default function PersonalizationScreen() {
                 onValueChange={handleToggleAIInsights}
                 trackColor={{
                   false: "rgba(150,150,150,0.35)",
-                  true:
-                    colorScheme === "light"
-                      ? "rgba(45, 45, 45, 0.45)"
-                      : colors.primary,
+                  true: colors.primary,
                 }}
                 thumbColor="#FFFFFF"
               />
