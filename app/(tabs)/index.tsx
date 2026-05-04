@@ -180,6 +180,35 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
 }
 
+/** Frosted glass tint under entity-wheel bottom selectors — follows Moments Colors backgrounds. */
+function momentWheelGlassGradient(
+  bgHex: string,
+  selected: boolean,
+): [string, string, string] {
+  const { r, g, b } = hexToRgb(bgHex);
+  return selected
+    ? [
+        `rgba(${r}, ${g}, ${b}, 0.22)`,
+        `rgba(${r}, ${g}, ${b}, 0.1)`,
+        `rgba(${r}, ${g}, ${b}, 0.055)`,
+      ]
+    : [
+        `rgba(${r}, ${g}, ${b}, 0.065)`,
+        `rgba(${r}, ${g}, ${b}, 0.025)`,
+        `rgba(${r}, ${g}, ${b}, 0.038)`,
+      ];
+}
+
+/** Ring overlay on selectors — hue from Moments Colors background. */
+function momentWheelRingGradient(bgHex: string): [string, string, string] {
+  const { r, g, b } = hexToRgb(bgHex);
+  return [
+    `rgba(${r}, ${g}, ${b}, 0.5)`,
+    `rgba(${r}, ${g}, ${b}, 0.26)`,
+    `rgba(${r}, ${g}, ${b}, 0.11)`,
+  ];
+}
+
 // Draggable Moment Component (for focused memory view)
 const DraggableMoment = React.memo(function DraggableMoment({
   initialX,
@@ -3023,14 +3052,23 @@ const FloatingAvatar = React.memo(
       };
     });
 
-    // Entity wheel button animated styles (match main wheel transparency)
-    const cosmicUnselected = "rgba(26, 36, 64, 0.06)"; // Extra transparent to match main wheel
-    const cosmicSelected = "rgba(92, 225, 230, 0.45)"; // Muted cyan - less bright
+    // Entity wheel bottom selectors — background/border interpolate with Moments Colors
+    const wheelBtnUnselected =
+      colorScheme === "dark"
+        ? "rgba(26, 36, 64, 0.08)"
+        : "rgba(0, 0, 0, 0.07)";
+    const lessonRgb = hexToRgb(momentColors.lesson.background);
+    const sunnyRgb = hexToRgb(momentColors.sunny.background);
+    const cloudyRgb = hexToRgb(momentColors.cloudy.background);
+    const lessonWheelSelectedGlass = `rgba(${lessonRgb.r}, ${lessonRgb.g}, ${lessonRgb.b}, 0.42)`;
+    const sunnyWheelSelectedGlass = `rgba(${sunnyRgb.r}, ${sunnyRgb.g}, ${sunnyRgb.b}, 0.42)`;
+    const cloudyWheelSelectedGlass = `rgba(${cloudyRgb.r}, ${cloudyRgb.g}, ${cloudyRgb.b}, 0.42)`;
+
     const entityLessonButtonStyle = useAnimatedStyle(() => {
       const backgroundColor = interpolateColor(
         entityLessonButtonSelection.value,
         [0, 1],
-        [cosmicUnselected, cosmicSelected],
+        [wheelBtnUnselected, lessonWheelSelectedGlass],
       );
       const borderWidth = entityLessonButtonSelection.value * 2;
 
@@ -3038,7 +3076,7 @@ const FloatingAvatar = React.memo(
         transform: [{ scale: entityLessonButtonPressScale.value }],
         backgroundColor,
         borderWidth,
-        borderColor: cosmicSelected,
+        borderColor: momentColors.lesson.text,
       };
     });
 
@@ -3050,7 +3088,7 @@ const FloatingAvatar = React.memo(
       const backgroundColor = interpolateColor(
         entitySunnyButtonSelection.value,
         [0, 1],
-        [cosmicUnselected, cosmicSelected],
+        [wheelBtnUnselected, sunnyWheelSelectedGlass],
       );
       const borderWidth = entitySunnyButtonSelection.value * 2;
 
@@ -3058,7 +3096,7 @@ const FloatingAvatar = React.memo(
         transform: [{ scale: entitySunnyButtonPressScale.value }],
         backgroundColor,
         borderWidth,
-        borderColor: cosmicSelected,
+        borderColor: momentColors.sunny.text,
       };
     });
 
@@ -3070,7 +3108,7 @@ const FloatingAvatar = React.memo(
       const backgroundColor = interpolateColor(
         entityCloudyButtonSelection.value,
         [0, 1],
-        [cosmicUnselected, cosmicSelected],
+        [wheelBtnUnselected, cloudyWheelSelectedGlass],
       );
       const borderWidth = entityCloudyButtonSelection.value * 2;
 
@@ -3078,7 +3116,7 @@ const FloatingAvatar = React.memo(
         transform: [{ scale: entityCloudyButtonPressScale.value }],
         backgroundColor,
         borderWidth,
-        borderColor: cosmicSelected,
+        borderColor: momentColors.cloudy.text,
       };
     });
 
@@ -4828,26 +4866,21 @@ const FloatingAvatar = React.memo(
                           {/* Cosmic frosted glass - lighter when unselected (match main wheel) */}
                           <View style={StyleSheet.absoluteFillObject}>
                             <LinearGradient
-                              colors={
-                                selectedMomentType === item.type
-                                  ? [
-                                      "rgba(92, 225, 230, 0.12)",
-                                      "rgba(92, 225, 230, 0.04)",
-                                      "rgba(157, 123, 219, 0.08)",
-                                    ]
-                                  : [
-                                      "rgba(92, 225, 230, 0.015)",
-                                      "rgba(92, 225, 230, 0.005)",
-                                      "rgba(157, 123, 219, 0.01)",
-                                    ]
-                              }
+                              colors={momentWheelGlassGradient(
+                                item.type === "lesson"
+                                  ? momentColors.lesson.background
+                                  : item.type === "sunny"
+                                    ? momentColors.sunny.background
+                                    : momentColors.cloudy.background,
+                                selectedMomentType === item.type,
+                              )}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
                               style={StyleSheet.absoluteFillObject}
                             />
                           </View>
 
-                          {/* Avatar ring gradient overlay */}
+                          {/* Hue ring overlay (Moments Colors, not cosmic purple/teal) */}
                           <Animated.View
                             style={[
                               StyleSheet.absoluteFillObject,
@@ -4856,11 +4889,13 @@ const FloatingAvatar = React.memo(
                             pointerEvents="none"
                           >
                             <LinearGradient
-                              colors={[
-                                COSMIC_RING_START,
-                                COSMIC_RING_MID,
-                                COSMIC_RING_END,
-                              ]}
+                              colors={momentWheelRingGradient(
+                                item.type === "lesson"
+                                  ? momentColors.lesson.background
+                                  : item.type === "sunny"
+                                    ? momentColors.sunny.background
+                                    : momentColors.cloudy.background,
+                              )}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
                               style={StyleSheet.absoluteFillObject}
@@ -4945,13 +4980,19 @@ const FloatingAvatar = React.memo(
                               name={item.icon}
                               size={28}
                               color={
-                                selectedMomentType === item.type
-                                  ? item.type === "lesson"
-                                    ? momentColors.lesson.background
-                                    : item.type === "sunny"
-                                      ? momentColors.sunny.background
-                                      : momentColors.cloudy.background
-                                  : "rgba(184, 232, 236, 0.95)"
+                                isDisabled
+                                  ? colors.textTertiary
+                                  : selectedMomentType === item.type
+                                    ? item.type === "lesson"
+                                      ? momentColors.lesson.text
+                                      : item.type === "sunny"
+                                        ? momentColors.sunny.text
+                                        : momentColors.cloudy.text
+                                    : item.type === "lesson"
+                                      ? momentColors.lesson.background
+                                      : item.type === "sunny"
+                                        ? momentColors.sunny.background
+                                        : momentColors.cloudy.background
                               }
                             />
                           </Pressable>

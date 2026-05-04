@@ -62,7 +62,14 @@ const IPAD_ENTITIES_AVATAR_SCALE = IS_IPAD ? 1.5 : 1;
 
 // Avatar constants (from focused-sfera-view.tsx)
 const COSMIC_INNER_DARK = ["rgba(10,14,26,0.55)", "rgba(15,20,34,0.6)", "rgba(21,28,46,0.65)", "rgba(26,36,64,0.6)", "rgba(30,42,74,0.55)"] as const;
-const COSMIC_INNER_LIGHT = ["rgba(42,42,58,0.55)", "rgba(58,58,78,0.6)", "rgba(74,74,98,0.65)", "rgba(90,90,118,0.6)", "rgba(106,106,138,0.55)"] as const;
+/** True light cosmic surface (prior version reused dark hues for “light” and failed WCAG AAA for meta text). */
+const COSMIC_INNER_LIGHT = [
+  "rgba(255,252,251,0.97)",
+  "rgba(247,251,255,0.97)",
+  "rgba(240,246,252,0.97)",
+  "rgba(233,241,249,0.97)",
+  "rgba(227,237,246,0.97)",
+] as const;
 
 /** Auto-advance interval for cycling sfera insight modes (ms). */
 const SFERA_INSIGHT_AUTO_MS = 5000;
@@ -712,8 +719,45 @@ const EntityRing = React.memo(function EntityRing({
 const INSIGHT_ARROW_SIZE = 28;
 const INSIGHT_ARROW_HIT = 36;
 
-const COSMIC_TEXT_COLOR = "#FFFFFF"; // matches inactive tab label — white, ~12:1 on dark bg
-const COSMIC_TEXT_DIM = "#90CAF9"; // matches active tab tint — sky blue, ~5.8:1 on dark bg
+/**
+ * Insight card copy — AAA-oriented vs the actual cosmic card face (tiny meta stays ≥7:1 typical).
+ */
+function insightCardInk(colorScheme: "light" | "dark"): {
+  ink: string;
+  inkMuted: string;
+} {
+  if (colorScheme === "dark") {
+    return { ink: "#FFFFFF", inkMuted: "#DDE6EF" };
+  }
+  return { ink: "#121212", inkMuted: "#393939" };
+}
+
+/** Moody meta line (cloudy/sunny counts): avoid pillar fill on pillar fill contrast traps. */
+function insightSunnyCloudyMetaColors(
+  colorScheme: "light" | "dark",
+  cloudyBackground: string,
+): { cloudy: string; sunny: string } {
+  if (colorScheme === "dark") {
+    return { cloudy: "#E9EEF6", sunny: "#FFECBF" };
+  }
+  return {
+    cloudy: cloudyBackground,
+    sunny: "#9A6700",
+  };
+}
+
+/** Caption strip over a light mood tint band — dark theme keeps white-on-tint readability. */
+function insightMemoryCaptionTextColor(
+  colorScheme: "light" | "dark",
+  sunnyText: string,
+  cloudyFill: string,
+  isMostlyCloudy: boolean,
+): string {
+  if (colorScheme === "light") {
+    return isMostlyCloudy ? cloudyFill : sunnyText;
+  }
+  return "#FFFFFF";
+}
 
 /** Most recent / most old last-interaction for an entity set */
 function getInteractionIndices(memoriesPerEntity: IdealizedMemory[][]) {
@@ -834,6 +878,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const insightPersonTranslateY = useSharedValue(0);
   const insightTitleTransitionLockRef = useRef(false);
   const shadowColor = getSphereShadowColor(sphere, colorScheme);
+  const { ink: insightInk, inkMuted: insightInkMuted } = insightCardInk(colorScheme);
+  const { cloudy: insightCloudyMeta, sunny: insightSunnyMeta } = insightSunnyCloudyMetaColors(
+    colorScheme,
+    momentColors.cloudy.background,
+  );
   const numEntities = entities.length;
   const totalMemoriesCount = useMemo(
     () => memoriesPerEntity.reduce((sum, arr) => sum + arr.length, 0),
@@ -1160,7 +1209,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           <LinearGradient colors={[...gradientColors]} style={emptyEntityCardStyle}>
             <ThemedText
               style={{
-                color: COSMIC_TEXT_COLOR,
+                color: insightInk,
                 fontSize: 13,
                 fontWeight: "600",
                 textAlign: "center",
@@ -1175,7 +1224,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           <View style={{ ...emptyEntityCardStyle, backgroundColor: insightCardBg }}>
             <ThemedText
               style={{
-                color: COSMIC_TEXT_COLOR,
+                color: insightInk,
                 fontSize: 13,
                 fontWeight: "600",
                 textAlign: "center",
@@ -1222,7 +1271,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
                   <ThemedText
                     style={{
-                      color: COSMIC_TEXT_COLOR,
+                      color: insightInk,
                       fontSize: 13,
                       textAlign: "center",
                       fontWeight: "600",
@@ -1252,7 +1301,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
                   <ThemedText
                     style={{
-                      color: COSMIC_TEXT_COLOR,
+                      color: insightInk,
                       fontSize: 13,
                       textAlign: "center",
                       fontWeight: "600",
@@ -1280,7 +1329,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             <ThemedText
               style={{
                 fontSize: 11,
-                color: COSMIC_TEXT_COLOR,
+                color: "#FFFFFF",
                 textAlign: "center",
                 lineHeight: 15,
               }}
@@ -1381,27 +1430,27 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
           {/* Top label — the insight, not the person */}
           <Animated.View style={insightLabelAnimStyle} accessibilityLiveRegion="polite">
-            <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 16, textAlign: "center", fontWeight: "700", letterSpacing: 0.2 }} numberOfLines={1}>
+            <ThemedText style={{ color: insightInk, fontSize: 16, textAlign: "center", fontWeight: "700", letterSpacing: 0.2 }} numberOfLines={1}>
               {cardLabel}
             </ThemedText>
           </Animated.View>
 
           {/* Person block */}
           <Animated.View style={[insightPersonAnimStyle, { gap: 3 }]}>
-            <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 12, fontWeight: "600" }} numberOfLines={1}>
+            <ThemedText style={{ color: insightInk, fontSize: 12, fontWeight: "600" }} numberOfLines={1}>
               {entityName}
             </ThemedText>
             {/* Meta row varies by mode */}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               {/* Mode 0/1/2: time-ago */}
               {(mode === 0 || mode === 1 || mode === 2) && timeAgoLabel ? (
-                <ThemedText style={{ color: isUrgent && mode === 1 ? "#F5A623" : COSMIC_TEXT_DIM, fontSize: 10 }}>
+                <ThemedText style={{ color: isUrgent && mode === 1 ? "#F5A623" : insightInkMuted, fontSize: 10 }}>
                   {timeAgoLabel}
                 </ThemedText>
               ) : null}
               {/* Mode 3: most memory count */}
               {mode === 3 ? (
-                <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 10 }}>
+                <ThemedText style={{ color: insightInkMuted, fontSize: 10 }}>
                   {(memoriesPerEntity[entityIdx]?.length ?? 0)} {t("sferaInsight.memories")}
                 </ThemedText>
               ) : null}
@@ -1413,7 +1462,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                   count === 1
                     ? t("sferaInsight.cloudyMomentsOne")
                     : t("sferaInsight.cloudyMomentsMany", { count });
-                return <ThemedText style={{ color: momentColors.cloudy.background, fontSize: 10 }}>{label}</ThemedText>;
+                return <ThemedText style={{ color: insightCloudyMeta, fontSize: 10 }}>{label}</ThemedText>;
               })() : null}
               {mode === 5 ? (() => {
                 const mems = memoriesPerEntity[entityIdx] ?? [];
@@ -1422,11 +1471,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                   count === 1
                     ? t("sferaInsight.sunnyMomentsOne")
                     : t("sferaInsight.sunnyMomentsMany", { count });
-                return <ThemedText style={{ color: momentColors.sunny.background, fontSize: 10 }}>{label}</ThemedText>;
+                return <ThemedText style={{ color: insightSunnyMeta, fontSize: 10 }}>{label}</ThemedText>;
               })() : null}
               {/* Bell for modes 0/1 */}
               {showReminderBell && timeAgoLabel ? (
-                <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 10 }}>·</ThemedText>
+                <ThemedText style={{ color: insightInkMuted, fontSize: 10 }}>·</ThemedText>
               ) : null}
               {showReminderBell && (
                 <Pressable
@@ -1469,11 +1518,17 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               const moodSunny = mem.goodFacts?.length ?? 0;
               const moodCloudy = mem.hardTruths?.length ?? 0;
               const moodColor = moodSunny >= moodCloudy ? momentColors.sunny.background : momentColors.cloudy.background;
+              const stripCaptionColor = insightMemoryCaptionTextColor(
+                colorScheme,
+                momentColors.sunny.text,
+                momentColors.cloudy.background,
+                moodCloudy > moodSunny,
+              );
               return (
                 <View style={{ flex: 1, alignSelf: "stretch", borderRadius: 10, overflow: "hidden", borderWidth: 1.5, borderColor: moodColor + "88" }}>
                   <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
                   <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
-                    <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10 }} numberOfLines={1}>
+                    <ThemedText style={{ color: stripCaptionColor, fontSize: 10 }} numberOfLines={1}>
                       {mem.title}
                     </ThemedText>
                   </View>
@@ -1497,7 +1552,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                   paddingHorizontal: 8,
                 }}
               >
-                <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 11, textAlign: "center" }}>
+                <ThemedText style={{ color: insightInkMuted, fontSize: 11, textAlign: "center" }}>
                   {t("sferaInsight.zeroMemoriesAvailable")}
                 </ThemedText>
               </Pressable>
@@ -1574,6 +1629,12 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             const moodSunny = mem.goodFacts?.length ?? 0;
             const moodCloudy = mem.hardTruths?.length ?? 0;
             const moodColor = moodSunny >= moodCloudy ? momentColors.sunny.background : momentColors.cloudy.background;
+            const memoryStripCaption = insightMemoryCaptionTextColor(
+              colorScheme,
+              momentColors.sunny.text,
+              momentColors.cloudy.background,
+              moodCloudy > moodSunny,
+            );
             const titleText =
               mem.title?.trim() ||
               (mode === 4 ? mem.hardTruths?.[0]?.text : undefined) ||
@@ -1604,18 +1665,18 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                     <>
                       <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1, minHeight: 72 }} contentFit="cover" />
                       <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
-                        <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 10 }} numberOfLines={1}>
+                        <ThemedText style={{ color: memoryStripCaption, fontSize: 10 }} numberOfLines={1}>
                           {mem.title?.trim() || titleText}
                         </ThemedText>
                       </View>
                     </>
                   ) : (
                     <View style={{ flex: 1, padding: 10, justifyContent: "center" }}>
-                      <ThemedText style={{ color: COSMIC_TEXT_COLOR, fontSize: 12, fontWeight: "600" }} numberOfLines={2}>
+                      <ThemedText style={{ color: insightInk, fontSize: 12, fontWeight: "600" }} numberOfLines={2}>
                         {titleText}
                       </ThemedText>
                       {mem.description ? (
-                        <ThemedText style={{ color: COSMIC_TEXT_DIM, fontSize: 10, marginTop: 6 }} numberOfLines={6}>
+                        <ThemedText style={{ color: insightInkMuted, fontSize: 10, marginTop: 6 }} numberOfLines={6}>
                           {mem.description}
                         </ThemedText>
                       ) : null}
@@ -1678,7 +1739,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           <ThemedText
             style={{
               fontSize: 11,
-              color: COSMIC_TEXT_COLOR,
+              color: "#FFFFFF",
               textAlign: "center",
               lineHeight: 15,
             }}

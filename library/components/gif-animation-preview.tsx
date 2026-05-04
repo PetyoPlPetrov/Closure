@@ -5,7 +5,7 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS } from '@/library/components/tab-screen-container';
 import { createVideoFromFrames } from '@/modules/video-composer';
 import type { IdealizedMemory } from '@/utils/JourneyProvider';
-import { useMomentColors } from '@/utils/MomentColorsProvider';
+import { useMomentColorsRaw } from '@/utils/MomentColorsProvider';
 import { useVisualSettings } from '@/utils/VisualSettingsProvider';
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -79,7 +79,8 @@ function FloatingMoment({
   isCurrentlyPoppedUp: boolean;
   backgroundOpacity: number;
 }) {
-  const { momentColors } = useMomentColors();
+  // Raw palette: match Moments Colors / AsyncStorage (useMomentColors gates by subscription).
+  const { momentColors } = useMomentColorsRaw();
 
   // Use derived value to convert boolean prop to worklet-safe value
   const isHidden = useDerivedValue(() => isCurrentlyPoppedUp ? 1 : 0, [isCurrentlyPoppedUp]);
@@ -123,9 +124,17 @@ function FloatingMoment({
         momentAnimatedStyle,
       ]}
     >
-      <ThemedText style={{ fontSize: 12 }}>
-        {moment.type === 'lessons' ? '💡' : moment.type === 'sunnyMoments' ? '☀️' : '☁️'}
-      </ThemedText>
+      <MaterialIcons
+        name={moment.type === 'lessons' ? 'lightbulb' : moment.type === 'sunnyMoments' ? 'wb-sunny' : 'cloud'}
+        size={Math.max(10, momentSize * 0.52)}
+        color={
+          moment.type === 'lessons'
+            ? momentColors.lesson.text
+            : moment.type === 'sunnyMoments'
+              ? momentColors.sunny.text
+              : momentColors.cloudy.text
+        }
+      />
     </Animated.View>
   );
 }
@@ -344,7 +353,7 @@ function useOrbitSphereStyle(
 
 // Loading overlay with splash animation during video export
 function LoadingOverlay({ progress, colorScheme }: { progress: number; colorScheme: 'light' | 'dark' }) {
-  const { momentColors } = useMomentColors();
+  const { momentColors } = useMomentColorsRaw();
   const sunnyRgb = hexToRgb(momentColors.sunny.background);
   const orbitRadius = 60;
   const sphereSize = 40;
@@ -490,7 +499,7 @@ function PopUpMoment({
 }) {
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
-  const { momentColors } = useMomentColors();
+  const { momentColors } = useMomentColorsRaw();
 
   // Calculate dynamic size based on text length and moment type
   const textLength = moment.text.length;

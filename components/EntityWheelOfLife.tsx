@@ -79,7 +79,6 @@ interface Memory {
 interface MomentType {
   type: 'lesson' | 'sunny' | 'cloudy';
   icon: string;
-  color: string;
   label: string;
 }
 
@@ -300,15 +299,13 @@ const EntitySpiralingStars = React.memo(function EntitySpiralingStars({
   );
 });
 
-// Moment types configuration (uses custom colors)
-// Cosmic accent (aligned with circle avatar and home wheel selectors)
-const COSMIC_SELECTOR = '#5CE1E6';
-const COSMIC_UNSELECTED_BG = 'rgba(26, 36, 64, 0.9)';
-const COSMIC_ICON_UNSELECTED = 'rgba(184, 232, 236, 0.75)';
+// Moment types — circle chrome uses `momentColors` at runtime (see selector row below)
+const MOMENT_UNSELECTED_BG_DARK = 'rgba(26, 36, 64, 0.92)';
+const MOMENT_UNSELECTED_BG_LIGHT = 'rgba(0, 0, 0, 0.07)';
 const MOMENT_TYPES: MomentType[] = [
-  { type: 'lesson', icon: 'lightbulb', color: COSMIC_SELECTOR, label: 'Lesson' },
-  { type: 'sunny', icon: 'wb-sunny', color: COSMIC_SELECTOR, label: 'Sunny' },
-  { type: 'cloudy', icon: 'cloud', color: COSMIC_SELECTOR, label: 'Cloudy' },
+  { type: 'lesson', icon: 'lightbulb', label: 'Lesson' },
+  { type: 'sunny', icon: 'wb-sunny', label: 'Sunny' },
+  { type: 'cloudy', icon: 'cloud', label: 'Cloudy' },
 ];
 
 export function EntityWheelOfLife({
@@ -395,6 +392,28 @@ export function EntityWheelOfLife({
 
   const { momentColors } = useMomentColors();
 
+  const momentSelectorTint = useCallback(
+    (type: 'lesson' | 'sunny' | 'cloudy') => {
+      switch (type) {
+        case 'lesson':
+          return {
+            bg: momentColors.lesson.background,
+            fg: momentColors.lesson.text,
+          };
+        case 'sunny':
+          return {
+            bg: momentColors.sunny.background,
+            fg: momentColors.sunny.text,
+          };
+        case 'cloudy':
+          return {
+            bg: momentColors.cloudy.background,
+            fg: momentColors.cloudy.text,
+          };
+      }
+    },
+    [momentColors],
+  );
 
   // Collect all moments by type
   const momentsByType = useMemo(() => {
@@ -962,10 +981,15 @@ export function EntityWheelOfLife({
           },
         ]}
       >
-        {MOMENT_TYPES.map((momentType, index) => {
+        {MOMENT_TYPES.map((momentType) => {
           const count = momentsByType[momentType.type].length;
           const isDisabled = count === 0;
           const isSelected = selectedMomentType === momentType.type;
+          const tint = momentSelectorTint(momentType.type);
+          const unselectedSurface =
+            colorScheme === 'dark'
+              ? MOMENT_UNSELECTED_BG_DARK
+              : MOMENT_UNSELECTED_BG_LIGHT;
 
           return (
             <Pressable
@@ -976,9 +1000,17 @@ export function EntityWheelOfLife({
                   width: momentIconSize,
                   height: momentIconSize,
                   borderRadius: momentIconSize / 2,
-                  backgroundColor: isSelected ? COSMIC_SELECTOR : COSMIC_UNSELECTED_BG,
-                  borderWidth: isSelected ? 2 : 0,
-                  borderColor: isSelected ? COSMIC_SELECTOR : 'transparent',
+                  backgroundColor: isDisabled
+                    ? unselectedSurface
+                    : isSelected
+                      ? tint.bg
+                      : unselectedSurface,
+                  borderWidth: isSelected ? 2 : 1,
+                  borderColor: isDisabled
+                    ? 'transparent'
+                    : isSelected
+                      ? tint.fg
+                      : `${tint.bg}55`,
                   opacity: isDisabled ? 0.3 : 1,
                 },
               ]}
@@ -996,12 +1028,8 @@ export function EntityWheelOfLife({
                   isDisabled
                     ? colors.textTertiary
                     : isSelected
-                      ? momentType.type === 'lesson'
-                        ? momentColors.lesson.background
-                        : momentType.type === 'sunny'
-                          ? momentColors.sunny.background
-                          : momentColors.cloudy.background
-                      : COSMIC_ICON_UNSELECTED
+                      ? tint.fg
+                      : tint.bg
                 }
               />
               <ThemedText
@@ -1012,12 +1040,8 @@ export function EntityWheelOfLife({
                     isDisabled
                       ? colors.textTertiary
                       : isSelected
-                        ? momentType.type === 'lesson'
-                          ? momentColors.lesson.background
-                          : momentType.type === 'sunny'
-                            ? momentColors.sunny.background
-                            : momentColors.cloudy.background
-                        : COSMIC_ICON_UNSELECTED
+                        ? tint.fg
+                        : tint.bg
                 }}
               >
                 {count}

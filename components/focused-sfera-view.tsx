@@ -161,7 +161,6 @@ const MEMORY_BALANCE_STATS_BELOW = scaleFocused(34);
 const MEMORY_BALANCE_NAME_GAP = scaleFocused(3);
 const MEMORY_BALANCE_NAME_BELOW = scaleFocused(30);
 /** Soft cyan-white for orbit sfera names, avatar labels, and insights chrome. */
-const COSMIC_TEXT = "#B8E8EC";
 const INSIGHTS_HUB_SIZE = scaleFocused(100);
 /**
  * Nudge the overview insights hub down so it does not cover Memory Balance stats under sphere
@@ -2076,12 +2075,12 @@ const COSMIC_INNER_DARK = [
   "#1E2A4A",
 ] as const; // deep space fill
 const COSMIC_INNER_LIGHT = [
-  "#2A2A3A",
-  "#3A3A4E",
-  "#4A4A62",
-  "#5A5A76",
-  "#6A6A8A",
-] as const; // light theme cosmic
+  "#FDFCFB",
+  "#F7FAFC",
+  "#F0F6FB",
+  "#E9F2F9",
+  "#E2EBF5",
+] as const; // light theme — high contrast with dark foreground (AAA-oriented)
 
 // ───────────────────── Sfera Insight Card ─────────────────────
 
@@ -2231,6 +2230,10 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     colorScheme === "dark" ? COSMIC_INNER_DARK[2] : COSMIC_INNER_LIGHT[2];
   const gradientColors =
     colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
+  const insightOrbitInk =
+    colorScheme === "dark" ? "#E8F4F6" : "#121212";
+  const insightOrbitInkMuted =
+    colorScheme === "dark" ? "#D0DDE6" : "#393939";
   const cardSize = INSIGHT_CARD_SIZE * sizeScale;
 
   const insightCardSurfaceShadow = sphere3DEffect
@@ -2281,7 +2284,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
           >
             <ThemedText
               style={{
-                color: COSMIC_TEXT,
+                color: insightOrbitInk,
                 fontSize: 11,
                 fontWeight: "600",
                 textAlign: "center",
@@ -2297,7 +2300,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
           <View style={{ ...emptyCardStyle, backgroundColor: insightCardBg, minHeight: cardSize }}>
             <ThemedText
               style={{
-                color: COSMIC_TEXT,
+                color: insightOrbitInk,
                 fontSize: 11,
                 fontWeight: "600",
                 textAlign: "center",
@@ -2342,7 +2345,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
               <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
                 <ThemedText
                   style={{
-                    color: COSMIC_TEXT,
+                    color: insightOrbitInk,
                     fontSize: 11,
                     textAlign: "center",
                     fontWeight: "600",
@@ -2364,7 +2367,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
               <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
                 <ThemedText
                   style={{
-                    color: COSMIC_TEXT,
+                    color: insightOrbitInk,
                     fontSize: 11,
                     textAlign: "center",
                     fontWeight: "600",
@@ -2390,7 +2393,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
             <ThemedText
               style={{
                 fontSize: 11,
-                color: COSMIC_TEXT,
+                color: "#FFFFFF",
                 textAlign: "center",
                 lineHeight: 15,
               }}
@@ -2490,7 +2493,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
         />
         <ThemedText
           style={{
-            color: COSMIC_TEXT,
+            color: insightOrbitInk,
             fontSize: 11,
             fontWeight: "600",
             textAlign: "center",
@@ -2502,11 +2505,10 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
         </ThemedText>
         <ThemedText
           style={{
-            color: COSMIC_TEXT,
+            color: insightOrbitInkMuted,
             fontSize: 9,
             textAlign: "center",
             marginTop: 3,
-            opacity: 0.65,
           }}
           numberOfLines={1}
         >
@@ -2576,7 +2578,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
         <ThemedText
           style={{
             fontSize: 11,
-            color: COSMIC_TEXT,
+            color: "#FFFFFF",
             textAlign: "center",
             lineHeight: 15,
           }}
