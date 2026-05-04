@@ -1,4 +1,5 @@
 import React from 'react';
+import { Colors, darkPrimaryShareGradient } from '@/constants/theme';
 import {
   Modal,
   View,
@@ -33,9 +34,10 @@ const COSMIC = {
   nebulaMid: '#1A2332',
   nebulaSoft: '#243041',
   nebulaGlow: '#2D3A4F',
-  primary: '#64B5F6',
-  primaryLight: '#90CAF9',
-  primaryGlow: 'rgba(100, 181, 246, 0.35)',
+  primary: Colors.dark.primary,
+  primaryLight: Colors.dark.primaryLight,
+  /** ~35% opacity of `Colors.dark.primary` */
+  primaryGlow: `${Colors.dark.primary}59`,
   star: 'rgba(255, 255, 255, 0.5)',
   starDim: 'rgba(255, 255, 255, 0.2)',
   overlay: 'rgba(8, 12, 24, 0.88)',
@@ -46,7 +48,7 @@ const LIGHT_COSMIC = {
   gradient: ['#FFFFFF', '#F0F4FA', '#E8EEF5'] as const,
   border: 'rgba(100, 181, 246, 0.25)',
   contentBg: 'rgba(255, 255, 255, 0.6)',
-  shareGradient: ['#42A5F5', '#64B5F6'] as const,
+  shareGradient: darkPrimaryShareGradient,
 };
 
 export default function ShareModal({ visible, onClose, title, content }: ShareModalProps) {

@@ -880,7 +880,7 @@ export default function RelationshipsComparisonScreen() {
                     <MaterialIcons 
                       name="chevron-right" 
                       size={24 * fontScale} 
-                      color={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'}
+                      color={colors.textMediumEmphasis}
                       style={styles.chevronIcon}
                     />
                   </View>

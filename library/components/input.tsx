@@ -49,8 +49,7 @@ export function Input({
     [fontScale, colorScheme]
   );
 
-  const defaultPlaceholderColor =
-    colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.4)';
+  const defaultPlaceholderColor = colors.textDisabled;
 
   return (
     <View style={[styles.container, containerStyle]}>

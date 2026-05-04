@@ -5,6 +5,7 @@
  * Uses primary blue to match app theme on cosmic dark background.
  */
 
+import { Colors } from "@/constants/theme";
 import { useHomeTransitionLoaderVisibility } from "@/utils/home-transition-loader-context";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
@@ -21,7 +22,7 @@ const PHASE1_TARGET = 0.8;
 const PHASE2_TARGET = 0.95;
 const PHASE_DURATION_MS = 1000;
 
-const LOADER_COLOR = "#64B5F6"; // Primary blue - matches app theme, desaturated for dark cosmic background
+const LOADER_COLOR = Colors.dark.primary;
 
 export function HomeTransitionLoader() {
   const progress = useSharedValue(0);

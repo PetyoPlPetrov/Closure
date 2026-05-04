@@ -125,7 +125,11 @@ export function ConfirmationModal({
                   }}
                   activeOpacity={0.8}
                 >
-                  <ThemedText size="l" weight="bold" style={{ color: '#ffffff' }}>
+                  <ThemedText
+                    size="l"
+                    weight="bold"
+                    style={{ color: destructive ? '#FFFFFF' : colors.primaryText }}
+                  >
                     {confirmLabel}
                   </ThemedText>
                 </TouchableOpacity>

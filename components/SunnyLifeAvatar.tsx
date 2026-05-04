@@ -186,7 +186,7 @@ export const SunnyLifeAvatar = React.memo(function SunnyLifeAvatar({
     primaryLight?: string;
     primaryDark?: string;
   };
-  const primaryHex = colors.primary ?? "#64B5F6";
+  const primaryHex = colors.primary ?? Colors.dark.primary;
   const sunnyHex = momentColors.sunny.background;
   const sunnyGlowMatrix = React.useMemo(() => {
     const rgb = hexToRgbNorm(sunnyHex);

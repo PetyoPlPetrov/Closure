@@ -1,7 +1,11 @@
 import { AIModal } from "@/components/ai-modal";
 import { ConstellationBackground } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
-import { Colors, fabAccentBackground } from "@/constants/theme";
+import {
+  Colors,
+  darkPrimaryGradient3,
+  fabAccentBackground,
+} from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
@@ -3724,7 +3728,7 @@ export default function EventsTab() {
                     ) : (
                       <Animated.View style={joinPulseAnimatedStyle}>
                         <LinearGradient
-                          colors={["#64B5F6", "#42A5F5", "#1E88E5"]}
+                          colors={[...darkPrimaryGradient3]}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={[

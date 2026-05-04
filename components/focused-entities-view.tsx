@@ -727,7 +727,7 @@ function insightCardInk(colorScheme: "light" | "dark"): {
   inkMuted: string;
 } {
   if (colorScheme === "dark") {
-    return { ink: "#FFFFFF", inkMuted: "#DDE6EF" };
+    return { ink: "#FFFFFF", inkMuted: "#E8EDF6" };
   }
   return { ink: "#121212", inkMuted: "#393939" };
 }
@@ -742,9 +742,12 @@ function insightSunnyCloudyMetaColors(
   }
   return {
     cloudy: cloudyBackground,
-    sunny: "#9A6700",
+    sunny: "#5C3700",
   };
 }
+
+/** Sunny meta tint + urgency copy — AAA vs creams / cosmic white. */
+const INSIGHT_LIGHT_URGENCY_AFFORDANCE = "#5C3700";
 
 /** Caption strip over a light mood tint band — dark theme keeps white-on-tint readability. */
 function insightMemoryCaptionTextColor(
@@ -1128,8 +1131,19 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   // Urgency border: amber tint when oldest interaction > 30 days
   const isMoodCard = mode === 4 || mode === 5;
   const moodBorderColor = mode === 4 ? (momentColors.cloudy.background + "AA") : (momentColors.sunny.background + "AA");
-  const borderColor = (isUrgent && mode === 1) ? "#F5A623AA" : isMoodCard ? moodBorderColor : shadowColor + "99";
-  const shadowGlowColor = isMoodCard ? (mode === 4 ? momentColors.cloudy.background : momentColors.sunny.background) : (isUrgent && mode === 1 ? "#F5A623" : shadowColor);
+  const borderColor =
+    isUrgent && mode === 1
+      ? "rgba(92, 55, 0, 0.45)"
+      : isMoodCard
+        ? moodBorderColor
+        : shadowColor + "99";
+  const shadowGlowColor = isMoodCard
+    ? mode === 4
+      ? momentColors.cloudy.background
+      : momentColors.sunny.background
+    : isUrgent && mode === 1
+      ? INSIGHT_LIGHT_URGENCY_AFFORDANCE
+      : shadowColor;
 
   const insightCardEmptyShadow = sphere3DEffect
     ? {
@@ -1444,7 +1458,13 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               {/* Mode 0/1/2: time-ago */}
               {(mode === 0 || mode === 1 || mode === 2) && timeAgoLabel ? (
-                <ThemedText style={{ color: isUrgent && mode === 1 ? "#F5A623" : insightInkMuted, fontSize: 10 }}>
+                <ThemedText
+                  style={{
+                    color:
+                      isUrgent && mode === 1 ? INSIGHT_LIGHT_URGENCY_AFFORDANCE : insightInkMuted,
+                    fontSize: 10,
+                  }}
+                >
                   {timeAgoLabel}
                 </ThemedText>
               ) : null}

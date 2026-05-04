@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
@@ -293,7 +294,7 @@ function PageContent({
   const hasImage = !!entry.memoryImageUri;
 
   const titleColor = lessonColor + (dimmed ? "60" : "CC");
-  const textColor = dimmed ? "rgba(255,255,255,0.40)" : "rgba(255,255,255,0.88)";
+  const textColor = dimmed ? Colors.dark.textDisabled : Colors.dark.textHighEmphasis;
 
   const imageEl = hasImage ? (
     <View
@@ -978,7 +979,7 @@ export function YourUniverseModal({
               <MaterialIcons
                 name="close"
                 size={22}
-                color="rgba(255,255,255,0.5)"
+                color={Colors.dark.textMediumEmphasis}
               />
             </Pressable>
           </View>
@@ -1150,7 +1151,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.38)",
+    color: Colors.dark.textDisabled,
     textAlign: "center",
     letterSpacing: 0.2,
   },
@@ -1169,11 +1170,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   tabActiveText: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
-  tabInactiveText: { fontSize: 14, color: "rgba(255,255,255,0.38)" },
+  tabInactiveText: { fontSize: 14, color: Colors.dark.textMediumEmphasis },
   sunSection: { alignItems: "center", marginBottom: 16, gap: 6 },
   sunLabels: { alignItems: "center", gap: 2 },
   youLabel: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
-  keepLearning: { fontSize: 12, color: "rgba(255,255,255,0.48)" },
+  keepLearning: { fontSize: 12, color: Colors.dark.textMediumEmphasis },
 
   emptyLessonsWrap: {
     minHeight: 220,
@@ -1185,7 +1186,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     textAlign: "center",
-    color: "rgba(255,255,255,0.65)",
+    color: Colors.dark.textMediumEmphasis,
     fontWeight: "500",
   },
 
@@ -1381,7 +1382,7 @@ const styles = StyleSheet.create({
   swipeHint: {
     textAlign: "center",
     fontSize: 12,
-    color: "rgba(255,255,255,0.35)",
+    color: Colors.dark.textDisabled,
     marginTop: 4,
     marginBottom: 20,
     letterSpacing: 0.3,
@@ -1404,7 +1405,7 @@ const styles = StyleSheet.create({
   challengeTitle: { fontSize: 16, fontWeight: "700", letterSpacing: 0.3 },
   challengeSub: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.38)",
+    color: Colors.dark.textDisabled,
     textAlign: "center",
   },
 

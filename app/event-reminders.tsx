@@ -28,7 +28,7 @@ export default function EventRemindersScreen() {
       primary: colors.primary,
       border: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.12)',
       card: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
-      muted: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.6)' : '#4a4a4a',
+      muted: colors.textMediumEmphasis,
       error: colors.error || '#e05555',
     }),
     [colorScheme, colors]

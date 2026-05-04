@@ -146,7 +146,7 @@ export function InAppNotification({
       >
         {eventDate != null ? (
           <View style={[styles.calendarTile, { backgroundColor: colorScheme === 'dark' ? '#4A2C2A' : '#FEE2E2' }]}>
-            <ThemedText size="xs" weight="medium" style={[styles.calendarMonth, { color: colorScheme === 'dark' ? '#FFFFFF' : '#B91C1C' }]}>
+            <ThemedText size="xs" weight="medium" style={[styles.calendarMonth, { color: colorScheme === 'dark' ? '#FFFFFF' : '#7F1D1D' }]}>
               {MONTH_ABBREV[eventDate.getMonth()]}
             </ThemedText>
             <ThemedText size="l" weight="bold" style={[styles.calendarDay, { color: colorScheme === 'dark' ? '#FFFFFF' : '#1A2332' }]}>

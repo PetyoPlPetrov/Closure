@@ -3737,7 +3737,7 @@ const FloatingAvatar = React.memo(
                             ? "rgba(100, 181, 246, 0.3)"
                             : "rgba(100, 181, 246, 0.2)",
                         shadowColor:
-                          colorScheme === "dark" ? "#64B5F6" : "#000",
+                          colorScheme === "dark" ? Colors.dark.primary : "#000",
                         shadowOffset: { width: 0, height: 8 },
                         shadowOpacity: colorScheme === "dark" ? 0.4 : 0.25,
                         shadowRadius: 16,
@@ -3856,7 +3856,7 @@ const FloatingAvatar = React.memo(
                           <MaterialIcons
                             name="text-fields"
                             size={20}
-                            color="#64B5F6"
+                            color={Colors.dark.primary}
                           />
                         </View>
                         <View
@@ -3931,7 +3931,7 @@ const FloatingAvatar = React.memo(
                           <MaterialIcons
                             name="videocam"
                             size={20}
-                            color="#64B5F6"
+                            color={Colors.dark.primary}
                           />
                         </View>
                         <View
@@ -4355,7 +4355,7 @@ const FloatingAvatar = React.memo(
                   android: { elevation: 4 },
                   default: {
                     shadowColor:
-                      colorScheme === "dark" ? "#64B5F6" : "rgba(25, 118, 210, 0.7)",
+                      colorScheme === "dark" ? Colors.dark.primary : "rgba(25, 118, 210, 0.7)",
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: colorScheme === "dark" ? 0.18 : 0.1,
                     shadowRadius: 10,
@@ -7887,7 +7887,7 @@ const MemoryActionButtons = React.memo(
                       <MaterialIcons
                         name="cloud"
                         size={isLargeDevice ? 44 : 40}
-                        color={colorScheme === "dark" ? "#FFFFFF" : "#555"}
+                        color={colorScheme === "dark" ? "#FFFFFF" : colors.textMediumEmphasis}
                       />
                     </View>
                     {/* Count badge */}
@@ -7906,7 +7906,7 @@ const MemoryActionButtons = React.memo(
                           style={{
                             fontSize: isLargeDevice ? 14 : 12,
                             fontWeight: "700",
-                            color: colorScheme === "dark" ? "#FFFFFF" : "#555",
+                            color: colorScheme === "dark" ? "#FFFFFF" : colors.textMediumEmphasis,
                             textAlign: "center",
                           }}
                         >
@@ -10068,10 +10068,10 @@ function wheelExamModalPalette(scheme: "light" | "dark") {
     borderColor: isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(92, 225, 230, 0.2)",
     loadingBorder: isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(92, 225, 230, 0.25)",
     bodyText: isLight ? Colors.light.text : COSMIC_TEXT,
-    placeholder: isLight ? "rgba(46, 46, 46, 0.45)" : "rgba(184, 232, 236, 0.5)",
+    placeholder: isLight ? Colors.light.textDisabled : Colors.dark.textMediumEmphasis,
     inputBg: isLight ? Colors.light.surfaceElevated2 : "rgba(13, 21, 37, 0.8)",
     inputBorder: isLight ? "rgba(0, 0, 0, 0.12)" : "rgba(92, 225, 230, 0.2)",
-    triesLabel: isLight ? Colors.light.textMediumEmphasis : "rgba(184, 232, 236, 0.65)",
+    triesLabel: isLight ? Colors.light.textMediumEmphasis : Colors.dark.textMediumEmphasis,
     closeBg: isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(92, 225, 230, 0.15)",
     closeBorder: isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(92, 225, 230, 0.3)",
     closeIcon: isLight ? Colors.light.text : COSMIC_TEXT,
@@ -10163,7 +10163,7 @@ const OverallPercentageAvatar = React.memo(function OverallPercentageAvatar({
   const { isTablet } = useLargeDevice();
   const t = useTranslate();
   const { language } = useLanguage();
-  const primaryHex = colors.primary ?? "#64B5F6";
+  const primaryHex = colors.primary ?? Colors.dark.primary;
   const emptyAddFill = fabAccentBackground;
   const emptyAddIcon = Colors.dark.primaryLight;
   const glowMatrixValues = React.useMemo(() => {
@@ -14853,7 +14853,7 @@ export default function HomeScreen() {
           justifyContent: "center",
           alignItems: "center",
           zIndex: 999,
-          shadowColor: "#64B5F6",
+          shadowColor: Colors.dark.primary,
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.2,
           shadowRadius: 8,
@@ -14862,7 +14862,7 @@ export default function HomeScreen() {
         <MaterialIcons
           name="arrow-back"
           size={20 * fontScale}
-          color="#64B5F6"
+          color={Colors.dark.primary}
         />
       </Pressable>
     ) : (

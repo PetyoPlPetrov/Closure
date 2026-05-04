@@ -328,7 +328,7 @@ export function AIActionModal({
                         styles.hintText,
                         {
                           marginBottom: 16 * fontScale,
-                          color: colorScheme === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                          color: colors.textMediumEmphasis,
                         },
                       ]}
                     >
@@ -342,7 +342,7 @@ export function AIActionModal({
                         styles.hintText,
                         {
                           marginBottom: 16 * fontScale,
-                          color: colorScheme === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                          color: colors.textMediumEmphasis,
                         },
                       ]}
                     >
@@ -387,12 +387,12 @@ export function AIActionModal({
                         activeOpacity={1}
                         style={[styles.button, styles.buttonDisabled]}
                       >
-                        <MaterialIcons name="memory" size={24 * fontScale} color={colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'} />
-                        <ThemedText size="l" weight="bold" style={[styles.buttonText, { color: colorScheme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }]}>
+                        <MaterialIcons name="memory" size={24 * fontScale} color={colors.textDisabled} />
+                        <ThemedText size="l" weight="bold" style={[styles.buttonText, { color: colors.textMediumEmphasis }]}>
                           {t('ai.action.createMemory')}
                         </ThemedText>
                       </TouchableOpacity>
-                      <ThemedText size="xs" style={[styles.hintText, { color: colorScheme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }]}>
+                      <ThemedText size="xs" style={[styles.hintText, { color: colors.textMediumEmphasis }]}>
                         {hasAIEntitlement && remainingAIRequests === 0
                           ? (t('ai.rateLimit.premiumMessage') || "You've reached the daily limit. Try again tomorrow.")
                           : t('ai.action.createMemoryHint')}

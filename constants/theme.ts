@@ -6,28 +6,31 @@
 import { Platform } from 'react-native';
 
 /**
- * Theme colors following Material Design and iOS dark mode principles:
- * - Dark background: #121212 (dark grey, not pure black) for reduced eye strain
- * - Text opacity levels: 87% (high), 60% (medium), 38% (disabled)
- * - Desaturated colors for better readability on dark backgrounds
- * - Elevation-based surfaces that get lighter with higher elevation
+ * Theme colors following Material Design elevation:
+ * - **Light**: grey chrome tuned so primary greens + `#424242` disabled copy stay ≥7:1 vs `#D5D8DE` (WCAG 2.1 AAA / 1.4.6).
+ * - **Dark**: opaque slate text tokens (opacity-on-glass fails AAA on brightest cards). Elevated slate steps are
+ *   slightly subdued so `#E8EDF6` / `#E4EDF8` stay ≥7:1 vs every surface incl. cards (AAA).
  */
 
 export const Colors = {
   light: {
-    // Softer than #FFF/#FAFAFA to reduce glare; still AAA-friendly for #0D0D0D body text.
+    // Softer than #FFF/#FAFAFA to reduce glare. Body text stays AAA vs background; greens are
+    // tuned so primary / primaryLight also meet AAA when used as text on this grey (see 1.4.6).
     text: '#0D0D0D',
     background: '#D5D8DE',
     textHighEmphasis: '#0D0D0D',
     textMediumEmphasis: '#2E2E2E',
-    textDisabled: '#4F4F4F',
-    tint: '#135E28',
+    /** Lightest neutral that still achieves ≥7:1 vs `#D5D8DE` (AAA); slightly darker than `#4F4F4F`. */
+    textDisabled: '#424242',
+    tint: '#0C3819',
     icon: '#2E2E2E',
     tabIconDefault: '#383838',
-    tabIconSelected: '#135E28',
-    primary: '#135E28',
-    primaryLight: '#166E2D',
-    primaryDark: '#0D4A1C',
+    tabIconSelected: '#0C3819',
+    /** Darkest green: fills / selected chrome; ≥7:1 vs background when used as text. */
+    primary: '#0C3819',
+    /** Slightly lighter than `primary` for gradients & pressed accents; still ≥7:1 vs background. */
+    primaryLight: '#0F4720',
+    primaryDark: '#082211',
     primaryText: '#FFFFFF',
     error: '#B71C1C',
     surface: '#D5D8DE',
@@ -37,38 +40,48 @@ export const Colors = {
     surfaceElevated8: '#F0F1F3',
   },
   dark: {
-    // Base colors
-    text: '#FFFFFF', // Pure white base for text (opacity applied in components)
-    background: '#1A2332', // Dark blue-grey background (softer than pure dark grey)
-    
-    // Text colors with proper opacity levels
-    textHighEmphasis: 'rgba(255, 255, 255, 0.87)', // 87% opacity for high-emphasis text
-    textMediumEmphasis: 'rgba(255, 255, 255, 0.60)', // 60% opacity for medium-emphasis text
-    textDisabled: 'rgba(255, 255, 255, 0.38)', // 38% opacity for disabled text
-    
-    // Desaturated accent colors (less vibrant for dark theme)
-    tint: '#64B5F6', // Desaturated blue (was #38bdf8)
-    primary: '#64B5F6', // Desaturated blue primary (use dark text on this, not white)
-    primaryLight: '#90CAF9', // Lighter desaturated blue
-    primaryDark: '#42A5F5', // Darker desaturated blue
-    primaryText: '#1A2332', // Dark text for use ON primary buttons (replaces white - ratio 7.13:1)
-    
-    // Icon colors (desaturated)
-    icon: 'rgba(255, 255, 255, 0.60)', // Medium emphasis for icons
-    tabIconDefault: 'rgba(255, 255, 255, 0.60)', // Medium emphasis
-    tabIconSelected: '#64B5F6', // Desaturated blue for selected
-    
-    // Error color (slightly desaturated)
-    error: '#EF5350', // Desaturated red (was #ff4444)
-    
-    // Surface colors for elevation (get lighter with higher elevation)
-    surface: '#1A2332', // Base surface (elevation 0) - dark blue-grey
-    surfaceElevated1: '#243041', // Elevation 1 - slightly lighter blue-grey
-    surfaceElevated2: '#2D3A4F', // Elevation 2 - medium blue-grey
-    surfaceElevated4: '#3A4A5F', // Elevation 4 - lighter blue-grey
-    surfaceElevated8: '#4A5A6F', // Elevation 8 - lightest blue-grey
+    text: '#FFFFFF',
+    background: '#1A2332',
+
+    /** Opaque highs — translucent white loses AAA on brightest elevated cards (#424E62). */
+    textHighEmphasis: '#FFFFFF',
+    textMediumEmphasis: '#E8EDF6',
+    textDisabled: '#E4EDF8',
+
+    tint: '#64B5F6',
+    primary: '#64B5F6',
+    primaryLight: '#90CAF9',
+    primaryDark: '#42A5F5',
+    /** Third stop for 3-point glossy gradients (event cards, loaders). */
+    primaryDeep: '#1E88E5',
+    primaryText: '#1A2332',
+
+    icon: '#E8EDF6',
+    tabIconDefault: '#E8EDF6',
+    tabIconSelected: '#64B5F6',
+
+    error: '#EF5350',
+
+    surface: '#1A2332',
+    surfaceElevated1: '#243041',
+    surfaceElevated2: '#2D3A4F',
+    surfaceElevated4: '#364557',
+    surfaceElevated8: '#424E62',
   },
 };
+
+/** Dark accent blue gradient (primary → darker → deepest) — reuse instead of `#64B5F6` literals. */
+export const darkPrimaryGradient3: readonly [string, string, string] = [
+  Colors.dark.primary,
+  Colors.dark.primaryDark,
+  Colors.dark.primaryDeep,
+];
+
+/** Two-stop gradient share / pill chrome (dark accent family). */
+export const darkPrimaryShareGradient: readonly [string, string] = [
+  Colors.dark.primaryDark,
+  Colors.dark.primary,
+];
 
 /** Floating + / FAB fill in both themes (`Colors.light.primary` is brand green). */
 export const fabAccentBackground = Colors.dark.primary;

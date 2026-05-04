@@ -2476,7 +2476,7 @@ export default function SpheresScreen() {
                   name="logout"
                   size={22 * fontScale}
                   color={
-                    colorScheme === "dark" ? "#64B5F6" : colors.text
+                    colorScheme === "dark" ? Colors.dark.primary : colors.text
                   }
                 />
               </Pressable>

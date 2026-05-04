@@ -522,7 +522,7 @@ function AnimatedCloud({
             },
           ]}
           placeholder={placeholder}
-          placeholderTextColor="rgba(255,255,255,0.4)"
+          placeholderTextColor={Colors.dark.textDisabled}
           multiline
           editable={!viewOnly}
           autoFocus={shouldAutoFocus}
@@ -828,7 +828,7 @@ function AnimatedSun({
             margin: 0,
           }]}
           placeholder={placeholder}
-          placeholderTextColor="rgba(0,0,0,0.5)"
+          placeholderTextColor={Colors.light.textDisabled}
           multiline
           editable={!viewOnly}
           autoFocus={shouldAutoFocus}
@@ -3124,7 +3124,7 @@ export default function AddIdealizedMemoryScreen() {
                   isTitleFocused && styles.memoryLabelInputFocused,
                 ]}
                 placeholder={t('memory.title.placeholder')}
-                placeholderTextColor={colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'}
+                placeholderTextColor={colorScheme === 'dark' ? Colors.dark.textDisabled : Colors.light.textDisabled}
                 textAlign="center"
                 editable={!viewOnly}
                 autoFocus={!viewOnly && !isEditMode}
@@ -3231,7 +3231,7 @@ export default function AddIdealizedMemoryScreen() {
                   <MaterialIcons
                     name="cloud"
                     size={isLargeDevice ? 32 : 28}
-                    color={colorScheme === 'dark' ? '#FFFFFF' : '#555'}
+                    color={colorScheme === 'dark' ? '#FFFFFF' : colors.textMediumEmphasis}
                   />
                 </LinearGradient>
               </View>

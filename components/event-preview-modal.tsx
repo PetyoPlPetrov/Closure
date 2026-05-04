@@ -5,7 +5,7 @@
  */
 
 import { ThemedText } from "@/components/themed-text";
-import { Colors } from "@/constants/theme";
+import { Colors, darkPrimaryGradient3 } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { getEventImageUrls, type SferaEvent } from "@/utils/sfera-events";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -186,7 +186,7 @@ export function EventPreviewModal({
           {/* CTA */}
           <Pressable onPress={handleOpenInEvents} style={styles.ctaWrap}>
             <LinearGradient
-              colors={["#64B5F6", "#42A5F5", "#1E88E5"]}
+              colors={[...darkPrimaryGradient3]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.cta}

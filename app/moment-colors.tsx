@@ -278,7 +278,7 @@ function getBgSuggestedForType(
     "#5CE1E6",
     "#FFD700",
     "#FFA000",
-    "#64B5F6",
+    Colors.dark.primary,
     "#81C784",
     "#CE93D8",
     "#4DB6AC",

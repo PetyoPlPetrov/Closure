@@ -14,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Colors } from '@/constants/theme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { logMenuOpen } from '@/utils/analytics';
@@ -30,8 +31,8 @@ const DARK_MENU_BG_CHILD = 'rgba(26, 47, 74, 0.92)';
 const DARK_MENU_BG_TRIGGER = 'rgba(26, 47, 74, 0.85)';
 const DARK_MENU_BORDER = 'rgba(100, 181, 246, 0.5)';
 const DARK_MENU_BORDER_TRIGGER = 'rgba(100, 181, 246, 0.4)';
-const DARK_MENU_ICON = '#64B5F6';
-const DARK_MENU_SHADOW = '#64B5F6';
+const DARK_MENU_ICON = Colors.dark.primary;
+const DARK_MENU_SHADOW = Colors.dark.primary;
 
 const SPRING_CONFIG = { damping: 15, stiffness: 120 };
 const STEP = 52; // vertical spacing between buttons

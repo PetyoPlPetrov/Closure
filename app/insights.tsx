@@ -208,7 +208,7 @@ function WheelOfLifeVisualization({
         case "relationships":
           return "#E57373";
         case "career":
-          return "#64B5F6";
+          return Colors.dark.primary;
         case "family":
           return "#81C784";
         case "friends":
@@ -216,7 +216,7 @@ function WheelOfLifeVisualization({
         case "hobbies":
           return "#FFB74D";
         default:
-          return "#64B5F6";
+          return Colors.dark.primary;
       }
     }
   };
@@ -1327,7 +1327,7 @@ export default function InsightsScreen() {
                       case "relationships":
                         return "#E57373";
                       case "career":
-                        return "#64B5F6";
+                        return Colors.dark.primary;
                       case "family":
                         return "#81C784";
                       case "friends":
@@ -1335,7 +1335,7 @@ export default function InsightsScreen() {
                       case "hobbies":
                         return "#FFB74D";
                       default:
-                        return "#64B5F6";
+                        return Colors.dark.primary;
                     }
                   }
                 };

@@ -1,5 +1,6 @@
 import { ConstellationBackground } from '@/components/constellation-background';
 import { ThemedText } from '@/components/themed-text';
+import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { DARK_GRADIENT_COLORS, LIGHT_GRADIENT_COLORS } from '@/library/components/tab-screen-container';
@@ -7,12 +8,6 @@ import { createVideoFromFrames } from '@/modules/video-composer';
 import type { IdealizedMemory } from '@/utils/JourneyProvider';
 import { useMomentColorsRaw } from '@/utils/MomentColorsProvider';
 import { useVisualSettings } from '@/utils/VisualSettingsProvider';
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace('#', '');
-  const num = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
-  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
-}
 import { MaterialIcons } from '@expo/vector-icons';
 import { File } from 'expo-file-system';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
@@ -34,6 +29,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Path, RadialGradient, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  const num = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -238,11 +239,14 @@ function SpeedSlider({
   onValueChange: (value: number) => void;
   colorScheme: 'light' | 'dark';
 }) {
+  const tc = Colors[colorScheme];
   const sliderWidth = 200;
   const thumbSize = 16;
   const trackHeight = 3;
   const [isDragging, setIsDragging] = useState(false);
   const sliderRef = useRef<View>(null);
+  const thumbRgb = hexToRgb(Colors[colorScheme].primary);
+  const thumbBg = `rgba(${thumbRgb.r}, ${thumbRgb.g}, ${thumbRgb.b}, ${colorScheme === 'dark' ? 0.8 : 0.9})`;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -281,7 +285,7 @@ function SpeedSlider({
         <ThemedText
           style={{
             fontSize: 11,
-            color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
+            color: tc.textMediumEmphasis,
           }}
         >
           {label}
@@ -289,7 +293,7 @@ function SpeedSlider({
         <ThemedText
           style={{
             fontSize: 10,
-            color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)',
+            color: tc.textDisabled,
           }}
         >
           {value}/10
@@ -320,7 +324,7 @@ function SpeedSlider({
             width: thumbSize,
             height: thumbSize,
             borderRadius: thumbSize / 2,
-            backgroundColor: colorScheme === 'dark' ? 'rgba(100, 181, 246, 0.8)' : 'rgba(100, 181, 246, 0.9)',
+            backgroundColor: thumbBg,
             borderWidth: 1.5,
             borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.8)',
             shadowColor: '#000',
@@ -354,7 +358,10 @@ function useOrbitSphereStyle(
 // Loading overlay with splash animation during video export
 function LoadingOverlay({ progress, colorScheme }: { progress: number; colorScheme: 'light' | 'dark' }) {
   const { momentColors } = useMomentColorsRaw();
+  const theme = Colors[colorScheme];
+  const accentPrimary = theme.primary;
   const sunnyRgb = hexToRgb(momentColors.sunny.background);
+  const orbitCenterRgb = hexToRgb(accentPrimary);
   const orbitRadius = 60;
   const sphereSize = 40;
   const avatarSize = 50;
@@ -404,7 +411,7 @@ function LoadingOverlay({ progress, colorScheme }: { progress: number; colorSche
             width: avatarSize,
             height: avatarSize,
             borderRadius: avatarSize / 2,
-            backgroundColor: 'rgba(100, 181, 246, 0.3)',
+            backgroundColor: `rgba(${orbitCenterRgb.r}, ${orbitCenterRgb.g}, ${orbitCenterRgb.b}, 0.3)`,
             justifyContent: 'center',
             alignItems: 'center',
           }}
@@ -454,19 +461,19 @@ function LoadingOverlay({ progress, colorScheme }: { progress: number; colorSche
 
       {/* Progress info */}
       <View style={{ alignItems: 'center' }}>
-        <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
+        <ThemedText style={{ color: theme.textHighEmphasis, fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
           Creating Video...
         </ThemedText>
-        <ThemedText style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 13, marginBottom: 16 }}>
+        <ThemedText style={{ color: theme.textMediumEmphasis, fontSize: 13, marginBottom: 16 }}>
           {progress < 70 ? 'Recording frames' : progress < 90 ? 'Processing video' : 'Finalizing'}
         </ThemedText>
 
         {/* Progress bar */}
         <View style={{ width: 200, height: 4, backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: 2, overflow: 'hidden', marginBottom: 8 }}>
-          <View style={{ width: `${progress}%`, height: '100%', backgroundColor: '#64B5F6', borderRadius: 2 }} />
+          <View style={{ width: `${progress}%`, height: '100%', backgroundColor: accentPrimary, borderRadius: 2 }} />
         </View>
 
-        <ThemedText style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: 12, fontWeight: '500' }}>
+        <ThemedText style={{ color: theme.textMediumEmphasis, fontSize: 12, fontWeight: '500' }}>
           {Math.round(progress)}%
         </ThemedText>
       </View>
@@ -497,7 +504,6 @@ function PopUpMoment({
   disappearSpeed?: number; // 0-10 scale
   timeScaleFactor?: number; // Animation slowdown factor during capture
 }) {
-  const colorScheme = useColorScheme();
   const fontScale = useFontScale();
   const { momentColors } = useMomentColorsRaw();
 
@@ -963,6 +969,10 @@ function PopUpMoment({
 
 export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationPreviewProps) {
   const colorScheme = useColorScheme();
+  const scheme = (colorScheme ?? 'dark') as 'light' | 'dark';
+  const palette = Colors[scheme];
+  const accentPrimary = palette.primary;
+  const accentOnPrimary = palette.primaryText;
   const { cosmicBackgroundOpacity, constellationAmount, constellationOpacity } = useVisualSettings();
   const viewShotRef = useRef<View>(null);
   const [isCapturing, setIsCapturing] = React.useState(false);
@@ -1476,7 +1486,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
         style={styles.container}
       >
         {/* Same cosmic background image as other screens (dark mode), respects user opacity setting */}
-        {colorScheme === 'dark' && (
+        {scheme === 'dark' && (
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <RNImage
               source={cosmicBackground}
@@ -1487,7 +1497,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
         )}
 
         {/* Constellation layer driven by cosmic look settings (amount & visibility) */}
-        {colorScheme === 'dark' && (
+        {scheme === 'dark' && (
           <ConstellationBackground
             width={SCREEN_WIDTH}
             height={SCREEN_HEIGHT}
@@ -1499,7 +1509,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
         )}
 
         {/* Extra sparkled dots – opacity scaled by constellation visibility setting */}
-        {colorScheme === 'dark' && constellationOpacity > 0 && (
+        {scheme === 'dark' && constellationOpacity > 0 && (
           <Svg
             width={SCREEN_WIDTH}
             height={SCREEN_HEIGHT}
@@ -1527,7 +1537,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
 
         {/* Gradient overlay (matches tab screens) */}
         <LinearGradient
-          colors={colorScheme === 'dark' ? DARK_GRADIENT_COLORS : LIGHT_GRADIENT_COLORS}
+          colors={scheme === 'dark' ? DARK_GRADIENT_COLORS : LIGHT_GRADIENT_COLORS}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -1615,7 +1625,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
 
       {/* Semi-transparent overlay during capture to hide slow animations */}
       {isCapturing && (
-        <LoadingOverlay progress={captureProgress} colorScheme={colorScheme} />
+        <LoadingOverlay progress={captureProgress} colorScheme={scheme} />
       )}
 
       {/* Bottom buttons - OUTSIDE capture view so they won't appear in video */}
@@ -1654,12 +1664,12 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
             <Pressable
               onPress={onClose}
               style={{
-                backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.3)',
+                backgroundColor: scheme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.3)',
                 paddingHorizontal: 24,
                 paddingVertical: 12,
                 borderRadius: 24,
                 borderWidth: 1,
-                borderColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.5)',
+                borderColor: scheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.5)',
               }}
             >
               <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
@@ -1670,7 +1680,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
             <Pressable
               onPress={handleShare}
               style={{
-                backgroundColor: '#64B5F6',
+                backgroundColor: accentPrimary,
                 paddingHorizontal: 24,
                 paddingVertical: 12,
                 borderRadius: 24,
@@ -1682,7 +1692,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
                 minWidth: 140,
               }}
             >
-              <ThemedText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+              <ThemedText style={{ color: accentOnPrimary, fontSize: 16, fontWeight: '600' }}>
                 Share Video
               </ThemedText>
             </Pressable>
@@ -1714,7 +1724,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
               position: 'absolute',
               bottom: 140,
               left: (SCREEN_WIDTH - 240) / 2,
-              backgroundColor: colorScheme === 'dark' ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.6)',
+              backgroundColor: scheme === 'dark' ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.6)',
               borderRadius: 12,
               padding: isSettingsExpanded ? 12 : 8,
               zIndex: 1000,
@@ -1736,7 +1746,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
               style={{
                 fontSize: 12,
                 fontWeight: '500',
-                color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
+                color: palette.textMediumEmphasis,
               }}
             >
               Settings
@@ -1744,7 +1754,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
             <MaterialIcons
               name={isSettingsExpanded ? 'keyboard-arrow-down' : 'keyboard-arrow-up'}
               size={20}
-              color={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)'}
+              color={palette.textMediumEmphasis}
             />
           </Pressable>
 
@@ -1755,7 +1765,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
                 style={{
                   fontSize: 11,
                   fontWeight: '600',
-                  color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)',
+                  color: palette.textMediumEmphasis,
                   marginBottom: 8,
                   textTransform: 'uppercase',
                   letterSpacing: 0.5,
@@ -1779,22 +1789,22 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
                     height: 18,
                     borderRadius: 4,
                     borderWidth: 2,
-                    borderColor: '#64B5F6',
-                    backgroundColor: showSunnyMoments ? '#64B5F6' : 'transparent',
+                    borderColor: accentPrimary,
+                    backgroundColor: showSunnyMoments ? accentPrimary : 'transparent',
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginRight: 8,
                   }}
                 >
                   {showSunnyMoments && (
-                    <MaterialIcons name="check" size={12} color="#fff" />
+                    <MaterialIcons name="check" size={12} color={accentOnPrimary} />
                   )}
                 </View>
                 <ThemedText
                   style={{
                     fontSize: 12,
                     fontWeight: '500',
-                    color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.85)',
+                    color: palette.text,
                   }}
                 >
                   ☀️ Sunny Moments
@@ -1816,22 +1826,22 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
                     height: 18,
                     borderRadius: 4,
                     borderWidth: 2,
-                    borderColor: '#64B5F6',
-                    backgroundColor: showHardTruths ? '#64B5F6' : 'transparent',
+                    borderColor: accentPrimary,
+                    backgroundColor: showHardTruths ? accentPrimary : 'transparent',
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginRight: 8,
                   }}
                 >
                   {showHardTruths && (
-                    <MaterialIcons name="check" size={12} color="#fff" />
+                    <MaterialIcons name="check" size={12} color={accentOnPrimary} />
                   )}
                 </View>
                 <ThemedText
                   style={{
                     fontSize: 12,
                     fontWeight: '500',
-                    color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.85)',
+                    color: palette.text,
                   }}
                 >
                   ☁️ Hard Truths
@@ -1853,22 +1863,22 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
                     height: 18,
                     borderRadius: 4,
                     borderWidth: 2,
-                    borderColor: '#64B5F6',
-                    backgroundColor: showLessons ? '#64B5F6' : 'transparent',
+                    borderColor: accentPrimary,
+                    backgroundColor: showLessons ? accentPrimary : 'transparent',
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginRight: 8,
                   }}
                 >
                   {showLessons && (
-                    <MaterialIcons name="check" size={12} color="#fff" />
+                    <MaterialIcons name="check" size={12} color={accentOnPrimary} />
                   )}
                 </View>
                 <ThemedText
                   style={{
                     fontSize: 12,
                     fontWeight: '500',
-                    color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.85)',
+                    color: palette.text,
                   }}
                 >
                   🎓 Lessons Learned
@@ -1894,7 +1904,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
                 style={{
                   paddingVertical: 6,
                   paddingHorizontal: 10,
-                  backgroundColor: colorScheme === 'dark' ? 'rgba(100, 181, 246, 0.15)' : 'rgba(100, 181, 246, 0.1)',
+                  backgroundColor: scheme === 'dark' ? `${accentPrimary}26` : `${accentPrimary}1A`,
                   borderRadius: 6,
                   alignItems: 'center',
                   marginTop: 4,
@@ -1905,7 +1915,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
                   style={{
                     fontSize: 11,
                     fontWeight: '600',
-                    color: '#64B5F6',
+                    color: accentPrimary,
                   }}
                 >
                   {showSunnyMoments && showHardTruths && showLessons ? 'Deselect All' : 'Select All'}
@@ -1916,7 +1926,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
               <View
                 style={{
                   height: 1,
-                  backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)',
+                  backgroundColor: scheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)',
                   marginVertical: 12,
                 }}
               />
@@ -1926,7 +1936,7 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
                 style={{
                   fontSize: 11,
                   fontWeight: '600',
-                  color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)',
+                  color: palette.textMediumEmphasis,
                   marginBottom: 8,
                   textTransform: 'uppercase',
                   letterSpacing: 0.5,
@@ -1939,19 +1949,19 @@ export function GifAnimationPreview({ entity, memories, onClose }: GifAnimationP
                 label="Floating Memories"
                 value={memoryRotationSpeed}
                 onValueChange={setMemoryRotationSpeed}
-                colorScheme={colorScheme}
+                colorScheme={scheme}
               />
               <SpeedSlider
                 label="Popup Duration"
                 value={popupDisappearSpeed}
                 onValueChange={setPopupDisappearSpeed}
-                colorScheme={colorScheme}
+                colorScheme={scheme}
               />
               <SpeedSlider
                 label="Background Blur"
                 value={backgroundBlur}
                 onValueChange={setBackgroundBlur}
-                colorScheme={colorScheme}
+                colorScheme={scheme}
               />
             </View>
           )}

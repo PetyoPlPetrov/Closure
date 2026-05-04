@@ -456,7 +456,7 @@ export function AITabButton({
             backgroundColor: '#1A2F4A',
             justifyContent: 'center',
             alignItems: 'center',
-            shadowColor: '#64B5F6',
+            shadowColor: Colors.dark.primary,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: spotlight ? 0.9 : 0.6,
             shadowRadius: spotlight ? 14 : 10,

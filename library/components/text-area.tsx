@@ -72,8 +72,7 @@ export function TextArea({
   const currentLength = value ? value.toString().length : 0;
   const showCounter = showCharCount && maxLength !== undefined;
 
-  const defaultPlaceholderColor =
-    colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.4)';
+  const defaultPlaceholderColor = colors.textDisabled;
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -96,12 +95,9 @@ export function TextArea({
           size="xs" 
           style={[
             styles.charCount, 
-            { 
-              color: currentLength >= maxLength! 
-                ? '#ef4444' 
-                : colorScheme === 'dark' 
-                  ? 'rgba(255, 255, 255, 0.5)' 
-                  : 'rgba(0, 0, 0, 0.5)' 
+            {
+              color:
+                currentLength >= maxLength! ? "#ef4444" : colors.textMediumEmphasis,
             }
           ]}
         >

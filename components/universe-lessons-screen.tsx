@@ -928,8 +928,8 @@ const LessonSfera = React.memo(function LessonSfera({
                   card.isFavorite
                     ? accentColor
                     : isLight
-                      ? "rgba(13, 13, 13, 0.45)"
-                      : "rgba(255,255,255,0.55)"
+                      ? Colors.light.textMediumEmphasis
+                      : Colors.dark.textMediumEmphasis
                 }
               />
             </Pressable>
@@ -1102,7 +1102,7 @@ const LessonSfera = React.memo(function LessonSfera({
                 <MaterialIcons
                   name="close"
                   size={22}
-                  color={isLight ? Colors.light.text : "rgba(255,255,255,0.85)"}
+                  color={isLight ? Colors.light.text : Colors.dark.textHighEmphasis}
                 />
               </Pressable>
             </View>
@@ -1779,7 +1779,7 @@ export function UniverseLessonsScreen({
               zIndex: 30,
             }]}
           >
-            <MaterialIcons name="expand-less" size={28} color={isLight ? `${colors.text}99` : "rgba(255,255,255,0.55)"} />
+            <MaterialIcons name="expand-less" size={28} color={colors.textMediumEmphasis} />
             <View style={{ marginVertical: 2 }}>
               <MaterialIcons
                 name="touch-app"
@@ -1790,10 +1790,10 @@ export function UniverseLessonsScreen({
               <MaterialIcons
                 name="touch-app"
                 size={52}
-                color={isLight ? colors.text : "rgba(255,255,255,0.92)"}
+                color={isLight ? colors.text : colors.textHighEmphasis}
               />
             </View>
-            <MaterialIcons name="expand-more" size={28} color={isLight ? `${colors.text}99` : "rgba(255,255,255,0.55)"} />
+            <MaterialIcons name="expand-more" size={28} color={colors.textMediumEmphasis} />
           </Animated.View>
         )}
 
@@ -1804,7 +1804,7 @@ export function UniverseLessonsScreen({
             <ThemedText
               style={[
                 styles.emptyLessonsText,
-                { color: isLight ? colors.text : "rgba(255,255,255,0.72)" },
+                { color: isLight ? colors.text : colors.textMediumEmphasis },
               ]}
             >
               {t("universe.lessons.noneAvailable")}
@@ -1815,7 +1815,7 @@ export function UniverseLessonsScreen({
             <ThemedText
               style={[
                 styles.emptyLessonsText,
-                { color: isLight ? colors.text : "rgba(255,255,255,0.72)" },
+                { color: isLight ? colors.text : colors.textMediumEmphasis },
               ]}
             >
               {t("universe.lessons.emptyFiltered")}
@@ -1835,7 +1835,7 @@ export function UniverseLessonsScreen({
               <ThemedText
                 style={[
                   styles.clearFiltersBtnText,
-                  { color: isLight ? colors.primaryDark : "rgba(255,255,255,0.92)" },
+                  { color: isLight ? colors.primaryDark : colors.textHighEmphasis },
                 ]}
               >
                 {t("universe.lessons.clearFilters")}
@@ -1896,7 +1896,7 @@ export function UniverseLessonsScreen({
               <MaterialIcons
                 name="arrow-back"
                 size={20}
-                color={isLight ? colors.text : "rgba(255,255,255,0.90)"}
+                color={isLight ? colors.text : colors.textHighEmphasis}
               />
             </View>
           </Pressable>
@@ -1906,7 +1906,7 @@ export function UniverseLessonsScreen({
             style={[
               styles.headerTitleCenter,
               {
-                color: isLight ? colors.text : "rgba(255,255,255,0.95)",
+                color: isLight ? colors.text : colors.textHighEmphasis,
                 textShadowColor: isLight ? "rgba(0, 0, 0, 0.06)" : accentColor + "55",
                 textShadowRadius: isLight ? 4 : 10,
               },
@@ -1943,7 +1943,7 @@ export function UniverseLessonsScreen({
                       ? colors.primary
                       : isLight
                         ? colors.textDisabled
-                        : "rgba(255,255,255,0.35)"
+                        : colors.textDisabled
                   }
                 />
               </View>
@@ -1968,7 +1968,7 @@ export function UniverseLessonsScreen({
                   },
                 ]}
               >
-                <MaterialIcons name="tune" size={20} color={isLight ? colors.text : "rgba(255,255,255,0.90)"} />
+                <MaterialIcons name="tune" size={20} color={isLight ? colors.text : colors.textHighEmphasis} />
                 {filtersActive ? <View style={styles.filterActiveDot} /> : null}
               </View>
             </Pressable>
@@ -1995,7 +1995,7 @@ export function UniverseLessonsScreen({
               style={{
                 fontSize: 12,
                 lineHeight: 16,
-                color: isLight ? colors.textMediumEmphasis : "rgba(255,255,255,0.58)",
+                color: colors.textMediumEmphasis,
                 textAlign: "center",
               }}
             >
@@ -2313,7 +2313,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     textAlign: "center",
-    color: "rgba(255,255,255,0.72)",
+    color: Colors.dark.textMediumEmphasis,
     fontWeight: "500",
   },
   header: {
@@ -2336,7 +2336,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 28,
     fontWeight: "700",
-    color: "rgba(255,255,255,0.95)",
+    color: Colors.dark.textHighEmphasis,
     letterSpacing: 0.4,
     textAlign: "center",
     marginHorizontal: 4,
@@ -2445,7 +2445,7 @@ const styles = StyleSheet.create({
   clearFiltersBtnText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "rgba(255,255,255,0.92)",
+    color: Colors.dark.textHighEmphasis,
   },
   cardContainer: {
     width: SW,
@@ -2503,7 +2503,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.35,
     maxWidth: ATMO_R * 1.6,
     textAlign: "center",
-    color: "rgba(255,255,255,0.97)",
+    color: Colors.dark.textHighEmphasis,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 10,
   },
@@ -2537,7 +2537,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.35,
     textDecorationLine: "underline",
-    textDecorationColor: "rgba(255,255,255,0.35)",
+    textDecorationColor: Colors.dark.textDisabled,
   },
   lessonFullModalBackdrop: {
     flex: 1,
@@ -2592,7 +2592,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 26,
     letterSpacing: 0.1,
-    color: "rgba(255,255,255,0.92)",
+    color: Colors.dark.textHighEmphasis,
     textShadowColor: "rgba(8,14,28,0.80)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,

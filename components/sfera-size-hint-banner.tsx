@@ -184,7 +184,7 @@ export function SferaSizeHintBanner({
           <MaterialIcons
             name="close"
             size={18}
-            color={colorScheme === "dark" ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.45)"}
+            color={colors.textMediumEmphasis}
           />
         </Pressable>
         <View style={styles.messageRow}>

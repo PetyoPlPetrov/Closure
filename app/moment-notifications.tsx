@@ -253,7 +253,7 @@ export default function MomentNotificationsScreen() {
       fabBackground: fabAccentBackground,
       border: colorScheme === "dark" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)",
       card: colorScheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-      muted: colorScheme === "dark" ? "rgba(255,255,255,0.6)" : "#4a4a4a",
+      muted: colors.textMediumEmphasis,
       // Elevated surface for unselected chips/buttons (WCAG 3:1 contrast)
       surfaceElevated: colorScheme === "dark" ? "#2D3A4F" : "rgba(0,0,0,0.08)",
       surfaceDisabled: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.04)",

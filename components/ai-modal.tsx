@@ -3549,7 +3549,7 @@ export function AIModal({
                                   size={20 * fontScale}
                                   color={
                                     item.type === "hardTruth"
-                                      ? "#64B5F6"
+                                      ? Colors.dark.primary
                                       : item.type === "goodFact"
                                         ? momentColors.sunny.background
                                         : momentColors.lesson.background

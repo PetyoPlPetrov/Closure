@@ -79,7 +79,7 @@ export const StreakRulesModal = React.memo(function StreakRulesModal({ visible, 
             <ThemedText size="lg" weight="bold" style={styles.sectionTitle}>
               {t('streakRules.badges.title')}
             </ThemedText>
-            <ThemedText size="sm" style={[styles.subtitle, { color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }]}>
+            <ThemedText size="sm" style={[styles.subtitle, { color: colors.textMediumEmphasis }]}>
               {t('streakRules.badges.subtitle')}
             </ThemedText>
 
@@ -111,7 +111,7 @@ export const StreakRulesModal = React.memo(function StreakRulesModal({ visible, 
                       <MaterialIcons
                         name={isEarned ? "check-circle" : "lock-outline"}
                         size={15}
-                        color={isEarned ? colors.primary : colors.textSecondary}
+                        color={isEarned ? colors.primary : colors.textMediumEmphasis}
                       />
                     </View>
                   </View>
@@ -121,10 +121,10 @@ export const StreakRulesModal = React.memo(function StreakRulesModal({ visible, 
                         {t(getBadgeNameKey(badge.id))}
                       </ThemedText>
                     </View>
-                    <ThemedText size="sm" style={{ color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary, marginTop: 2 }}>
+                    <ThemedText size="sm" style={{ color: colors.textMediumEmphasis, marginTop: 2 }}>
                       {t(getBadgeDescriptionKey(badge.id))}
                     </ThemedText>
-                    <ThemedText size="xs" style={{ color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.82)' : colors.text, marginTop: 4 }}>
+                    <ThemedText size="xs" style={{ color: colors.textHighEmphasis, marginTop: 4 }}>
                       {t(getBadgeRewardKey(badge.id))}
                     </ThemedText>
                     <ThemedText size="xs" weight="semibold" style={{ marginTop: 4, color: colors.primary }}>
@@ -149,7 +149,7 @@ export const StreakRulesModal = React.memo(function StreakRulesModal({ visible, 
               <MaterialIcons
                 name={badgeReminderEnabled ? "check-box" : "check-box-outline-blank"}
                 size={22}
-                color={badgeReminderEnabled ? colors.primary : colors.textSecondary}
+                color={badgeReminderEnabled ? colors.primary : colors.textMediumEmphasis}
               />
               <View style={styles.reminderToggleTextWrap}>
                 <ThemedText size="sm" weight="semibold">
@@ -158,10 +158,7 @@ export const StreakRulesModal = React.memo(function StreakRulesModal({ visible, 
                 <ThemedText
                   size="xs"
                   style={{
-                    color:
-                      colorScheme === "dark"
-                        ? "rgba(255, 255, 255, 0.72)"
-                        : colors.textSecondary,
+                    color: colors.textMediumEmphasis,
                     marginTop: 2,
                   }}
                 >

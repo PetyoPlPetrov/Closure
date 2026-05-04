@@ -1068,7 +1068,7 @@ export function OnboardingWizard({
                 <MaterialIcons
                   name="arrow-back"
                   size={24 * fontScale}
-                  color={colorScheme === "dark" ? "#E8D5B7" : "#8B6914"}
+                  color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"}
                 />
               </TouchableOpacity>
               <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
@@ -1081,7 +1081,7 @@ export function OnboardingWizard({
           <ThemedText
             size="xl"
             weight="bold"
-            style={{ color: colorScheme === "dark" ? "#E8D5B7" : "#8B6914" }}
+            style={{ color: colorScheme === "dark" ? "#FFF5E6" : "#533A08" }}
           >
             {t("onboarding.language.title")}
           </ThemedText>
@@ -1211,7 +1211,7 @@ export function OnboardingWizard({
               }}
               activeOpacity={0.7}
             >
-              <MaterialIcons name="arrow-back" size={24 * fontScale} color={colorScheme === "dark" ? "#E8D5B7" : "#8B6914"} />
+              <MaterialIcons name="arrow-back" size={24 * fontScale} color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
               <View style={{ marginBottom: 8 * fontScale }}>
@@ -1239,7 +1239,7 @@ export function OnboardingWizard({
 
           {/* Title + Body — elevated zIndex so orbiting sferas pass behind */}
           <View style={{ zIndex: 10, alignItems: "center", width: "100%", flex: slideIndex === 0 ? 1 : undefined }}>
-            <ThemedText size="xl" weight="bold" style={{ textAlign: "center", color: colorScheme === "dark" ? "#E8D5B7" : "#8B6914", marginBottom: 12 * fontScale }}>
+            <ThemedText size="xl" weight="bold" style={{ textAlign: "center", color: colorScheme === "dark" ? "#FFF5E6" : "#533A08", marginBottom: 12 * fontScale }}>
               {slide.title}
             </ThemedText>
 
@@ -1393,7 +1393,7 @@ export function OnboardingWizard({
               <MaterialIcons
                 name="arrow-back"
                 size={24 * fontScale}
-                color={colorScheme === "dark" ? "#E8D5B7" : "#8B6914"}
+                color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"}
               />
             </TouchableOpacity>
             <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
@@ -1403,7 +1403,7 @@ export function OnboardingWizard({
           <ThemedText
             size="xl"
             weight="bold"
-            style={{ color: colorScheme === "dark" ? "#E8D5B7" : "#8B6914" }}
+            style={{ color: colorScheme === "dark" ? "#FFF5E6" : "#533A08" }}
           >
             {t("onboarding.title")}
           </ThemedText>
@@ -1635,7 +1635,7 @@ export function OnboardingWizard({
             >
               <LinearGradient
                 colors={
-                  canSubmit ? ["#4A90E2", "#357ABD", "#2E6DA4"] : ["#666", "#555"]
+                  canSubmit ? ["#4A90E2", "#357ABD", "#2E6DA4"] : ["#474747", "#3A3A3A"]
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -1683,7 +1683,7 @@ export function OnboardingWizard({
               <MaterialIcons
                 name="arrow-back"
                 size={24 * fontScale}
-                color={colorScheme === "dark" ? "#E8D5B7" : "#8B6914"}
+                color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"}
               />
             </TouchableOpacity>
             <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>

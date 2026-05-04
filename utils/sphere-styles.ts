@@ -4,6 +4,8 @@
  * Single source of truth for sphere look-and-feel.
  */
 
+import { Colors } from "@/constants/theme";
+
 import type { LifeSphere } from "./JourneyProvider";
 
 /** Soft chromatic surfaces (not flat grey). Paired with dark icon glyphs for AAA on light. */
@@ -39,18 +41,18 @@ export function getSphereIconColor(
   sunnyPercentage?: number,
 ): string {
   if (colorScheme === "light") {
-    /** ≥7:1 vs light sphere highlights — WCAG AAA for UI text / icons. */
+    /** ≥7:1 vs light sphere highlights (incl. 3D boost that clips to white) — WCAG AAA. */
     switch (sphereType) {
       case "relationships":
         return "#6D1414";
       case "career":
         return "#0D47A1";
       case "family":
-        return "#1B5E20";
+        return "#174D1B";
       case "friends":
         return "#4A148C";
       case "hobbies":
-        return "#BF360C";
+        return "#8C2E0F";
       default:
         return "#0D47A1";
     }
@@ -87,7 +89,7 @@ export function getSphereIconColor(
       }
       return "#E65100"; // Deep orange on light-orange sunny gradient
     default:
-      return "#64B5F6";
+      return Colors.dark.primary;
   }
 }
 
@@ -160,7 +162,7 @@ export function getSphereSferaColor(
       case "friends":
         return "#6A1B9A";
       case "hobbies":
-        return "#E65100";
+        return "#8C2E0F";
       default:
         return "#1565C0";
     }
@@ -348,7 +350,7 @@ export function getSphereAccentColor(
     case "relationships":
       return "#E57373";
     case "career":
-      return "#64B5F6";
+      return Colors.dark.primary;
     case "family":
       return "#81C784";
     case "friends":
@@ -356,6 +358,6 @@ export function getSphereAccentColor(
     case "hobbies":
       return "#FFB74D";
     default:
-      return "#64B5F6";
+      return Colors.dark.primary;
   }
 }
