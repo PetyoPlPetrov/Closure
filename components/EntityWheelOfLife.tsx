@@ -415,6 +415,21 @@ export function EntityWheelOfLife({
     [momentColors],
   );
 
+  /** Matches floating moment glyph colors (lesson = cosmic blend, not caption text). */
+  const momentGlyphColor = useCallback(
+    (type: 'lesson' | 'sunny' | 'cloudy') => {
+      switch (type) {
+        case 'lesson':
+          return blendHex(momentColors.lesson.background, COSMIC_GLOW, 0.28);
+        case 'sunny':
+          return momentColors.sunny.background;
+        case 'cloudy':
+          return momentColors.cloudy.background;
+      }
+    },
+    [momentColors],
+  );
+
   // Collect all moments by type
   const momentsByType = useMemo(() => {
     const lessons: { id: string; text: string; memoryId: string; memoryImageUri?: string }[] = [];
@@ -1010,7 +1025,9 @@ export function EntityWheelOfLife({
                     ? 'transparent'
                     : isSelected
                       ? tint.fg
-                      : `${tint.bg}55`,
+                      : colorScheme === 'dark'
+                        ? 'rgba(255, 255, 255, 0.14)'
+                        : 'rgba(0, 0, 0, 0.1)',
                   opacity: isDisabled ? 0.3 : 1,
                 },
               ]}
@@ -1027,9 +1044,7 @@ export function EntityWheelOfLife({
                 color={
                   isDisabled
                     ? colors.textTertiary
-                    : isSelected
-                      ? tint.fg
-                      : tint.bg
+                    : momentGlyphColor(momentType.type)
                 }
               />
               <ThemedText
@@ -1039,9 +1054,7 @@ export function EntityWheelOfLife({
                   color:
                     isDisabled
                       ? colors.textTertiary
-                      : isSelected
-                        ? tint.fg
-                        : tint.bg
+                      : momentGlyphColor(momentType.type)
                 }}
               >
                 {count}

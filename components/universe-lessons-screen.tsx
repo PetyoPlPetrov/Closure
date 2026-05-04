@@ -14,10 +14,7 @@ import { useTranslate } from "@/utils/languages/use-translate";
 import { showPaywallForAIAccess } from "@/utils/premium-access";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { hasPendingUniverseExam } from "@/utils/universe-exam-pending";
-import {
-  canUseExam,
-  getRemainingUniverseExams,
-} from "@/utils/universe-exam-rate-limiter";
+import { canUseExam } from "@/utils/universe-exam-rate-limiter";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -1187,15 +1184,10 @@ export function UniverseLessonsScreen({
     : {};
   const filterChipSelectedLight = isLight ? { backgroundColor: `${colors.primary}22` } : {};
   const insets = useSafeAreaInsets();
-  const { ensureSubscriptionResolved, refreshCustomerInfo, hasAIEntitlement } =
-    useSubscription();
+  const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
   const { appUsabilityHints } = useVisualSettings();
   const { idealizedMemories, setLessonFavorite, getEntitiesBySphere } = useJourney();
   const [universeExamVisible, setUniverseExamVisible] = useState(false);
-  /** Shared pool with wheel lesson exams; refreshed when tab is focused / exam closes / app active. */
-  const [lessonExamTriesRemaining, setLessonExamTriesRemaining] = useState<
-    number | null
-  >(null);
 
   const listPageHeight = useMemo(() => {
     if (!embeddedInTab || tabBarOverlapHeight <= 0) return SH;
@@ -1312,30 +1304,6 @@ export function UniverseLessonsScreen({
 
   const hasUserLessons = cards.length > 0;
 
-  useEffect(() => {
-    if (!visible || !hasUserLessons || isAppActive !== "active") {
-      if (!visible || !hasUserLessons) setLessonExamTriesRemaining(null);
-      return;
-    }
-    if (hasAIEntitlement) {
-      setLessonExamTriesRemaining(null);
-      return;
-    }
-    let cancelled = false;
-    void getRemainingUniverseExams(false).then((n) => {
-      if (!cancelled) setLessonExamTriesRemaining(n);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    visible,
-    hasUserLessons,
-    hasAIEntitlement,
-    universeExamVisible,
-    isAppActive,
-  ]);
-
   const triggerLightHaptic = useCallback(() => {
     if (Platform.OS === "ios" && Device.isDevice) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -1349,12 +1317,6 @@ export function UniverseLessonsScreen({
       return;
     }
     const { hasAIEntitlement: entitled } = await ensureSubscriptionResolved();
-    if (!entitled) {
-      const n = await getRemainingUniverseExams(false);
-      setLessonExamTriesRemaining(n);
-    } else {
-      setLessonExamTriesRemaining(null);
-    }
     const hasPending = await hasPendingUniverseExam();
     const canTakeExam =
       entitled || hasPending || (await canUseExam(entitled));
@@ -1974,39 +1936,6 @@ export function UniverseLessonsScreen({
             </Pressable>
           </View>
         </View>
-
-        {hasUserLessons &&
-          !universeExamVisible &&
-          !hasAIEntitlement &&
-          lessonExamTriesRemaining !== null &&
-          Number.isFinite(lessonExamTriesRemaining) ? (
-          <View
-            pointerEvents="none"
-            style={{
-              position: "absolute",
-              top: insets.top + 52,
-              left: 20,
-              right: 20,
-              zIndex: 999,
-              alignItems: "center",
-            }}
-          >
-            <ThemedText
-              style={{
-                fontSize: 12,
-                lineHeight: 16,
-                color: colors.textMediumEmphasis,
-                textAlign: "center",
-              }}
-            >
-              {(t("universe.exam.triesRemainingFree") ||
-                "{count} free tries left today").replace(
-                "{count}",
-                String(lessonExamTriesRemaining),
-              )}
-            </ThemedText>
-          </View>
-        ) : null}
 
         {/* Centered card like Events; filters apply live — dismiss by tapping outside */}
         {filterSheetVisible ? (

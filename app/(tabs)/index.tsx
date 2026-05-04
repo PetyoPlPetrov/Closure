@@ -180,23 +180,38 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
 }
 
-/** Frosted glass tint under entity-wheel bottom selectors — follows Moments Colors backgrounds. */
+/** Shared neutral glass for unselected entity-wheel selectors (selection drives the tint). */
+function momentWheelNeutralGlass(
+  colorScheme: "light" | "dark",
+): [string, string, string] {
+  return colorScheme === "dark"
+    ? [
+        "rgba(42, 54, 82, 0.72)",
+        "rgba(26, 36, 64, 0.55)",
+        "rgba(22, 30, 52, 0.62)",
+      ]
+    : [
+        "rgba(255, 255, 255, 0.72)",
+        "rgba(245, 247, 252, 0.55)",
+        "rgba(235, 238, 246, 0.65)",
+      ];
+}
+
+/** Frosted glass under entity-wheel bottom selectors — moment hue only when selected. */
 function momentWheelGlassGradient(
   bgHex: string,
   selected: boolean,
+  colorScheme: "light" | "dark",
 ): [string, string, string] {
+  if (!selected) {
+    return momentWheelNeutralGlass(colorScheme);
+  }
   const { r, g, b } = hexToRgb(bgHex);
-  return selected
-    ? [
-        `rgba(${r}, ${g}, ${b}, 0.22)`,
-        `rgba(${r}, ${g}, ${b}, 0.1)`,
-        `rgba(${r}, ${g}, ${b}, 0.055)`,
-      ]
-    : [
-        `rgba(${r}, ${g}, ${b}, 0.065)`,
-        `rgba(${r}, ${g}, ${b}, 0.025)`,
-        `rgba(${r}, ${g}, ${b}, 0.038)`,
-      ];
+  return [
+    `rgba(${r}, ${g}, ${b}, 0.22)`,
+    `rgba(${r}, ${g}, ${b}, 0.1)`,
+    `rgba(${r}, ${g}, ${b}, 0.055)`,
+  ];
 }
 
 /** Ring overlay on selectors — hue from Moments Colors background. */
@@ -4873,6 +4888,7 @@ const FloatingAvatar = React.memo(
                                     ? momentColors.sunny.background
                                     : momentColors.cloudy.background,
                                 selectedMomentType === item.type,
+                                colorScheme ?? "dark",
                               )}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
@@ -4982,17 +4998,15 @@ const FloatingAvatar = React.memo(
                               color={
                                 isDisabled
                                   ? colors.textTertiary
-                                  : selectedMomentType === item.type
-                                    ? item.type === "lesson"
-                                      ? momentColors.lesson.text
-                                      : item.type === "sunny"
-                                        ? momentColors.sunny.text
-                                        : momentColors.cloudy.text
-                                    : item.type === "lesson"
-                                      ? momentColors.lesson.background
-                                      : item.type === "sunny"
-                                        ? momentColors.sunny.background
-                                        : momentColors.cloudy.background
+                                  : item.type === "lesson"
+                                    ? blendHex(
+                                        momentColors.lesson.background,
+                                        COSMIC_RING_START,
+                                        0.28,
+                                      )
+                                    : item.type === "sunny"
+                                      ? momentColors.sunny.background
+                                      : momentColors.cloudy.background
                               }
                             />
                           </Pressable>
@@ -15330,6 +15344,7 @@ export default function HomeScreen() {
     }
   }, [
     sunnyVsCloudyHintNeverShow,
+    focusedHomeMemoryBalance, // orbit ↔ MB toggles size-hint timer (ref is non-reactive); re-run sunny vs sfera priority
     isHomeTabFocused,
     homeViewMode,
     selectedSphere,

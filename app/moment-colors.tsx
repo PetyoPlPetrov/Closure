@@ -2,9 +2,9 @@ import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
-import { useLargeDevice } from "@/hooks/use-large-device";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import {
+  useMomentColors,
   useMomentColorsRaw,
   getDefaultMomentColors,
   type MomentColors,
@@ -336,6 +336,21 @@ function mergeSwatches(suggested: string[], recent: string[]): string[] {
   return merged;
 }
 
+function normalizeMomentColorSet(s: MomentColorSet): MomentColorSet {
+  return {
+    background: s.background.toUpperCase(),
+    text: s.text.toUpperCase(),
+  };
+}
+
+function normalizeMomentColors(m: MomentColors): MomentColors {
+  return {
+    sunny: normalizeMomentColorSet(m.sunny),
+    cloudy: normalizeMomentColorSet(m.cloudy),
+    lesson: normalizeMomentColorSet(m.lesson),
+  };
+}
+
 const CAROUSEL_ITEM_WIDTH = SCREEN_WIDTH * 0.42;
 const CAROUSEL_PADDING = (SCREEN_WIDTH - CAROUSEL_ITEM_WIDTH) / 2;
 
@@ -496,168 +511,6 @@ function MomentCarouselCard({
   );
 }
 
-function MomentPreviewPopup({
-  visible,
-  onClose,
-  type,
-  bg,
-  text,
-  sampleText,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  type: keyof MomentColors;
-  bg: string;
-  text: string;
-  sampleText: string;
-}) {
-  const { isTablet } = useLargeDevice();
-  const fontScale = useFontScale();
-  const size = isTablet ? 220 : 170;
-
-  if (!visible) return null;
-
-  return (
-    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
-      <Pressable
-        style={{
-          flex: 1,
-          backgroundColor: "rgba(0,0,0,0.6)",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-        onPress={onClose}
-      >
-        <Pressable onPress={(e) => e.stopPropagation()}>
-          {type === "sunny" && (
-            <View
-              style={{
-                width: size,
-                height: size,
-                shadowColor: bg,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.8,
-                shadowRadius: 14,
-                elevation: 12,
-              }}
-            >
-              <Svg width={size} height={size} viewBox="0 0 160 160" preserveAspectRatio="xMidYMid meet">
-                <Defs>
-                  <RadialGradient id="previewSunGrad" cx="80" cy="80" rx="48" ry="48" fx="80" fy="80" gradientUnits="userSpaceOnUse">
-                    <Stop offset="0%" stopColor={bg} stopOpacity="0.9" />
-                    <Stop offset="30%" stopColor={bg} stopOpacity="0.95" />
-                    <Stop offset="60%" stopColor={bg} stopOpacity="1" />
-                    <Stop offset="100%" stopColor={bg} stopOpacity="1" />
-                  </RadialGradient>
-                </Defs>
-                {Array.from({ length: 12 }).map((_, i) => {
-                  const angle = (i * 360) / 12;
-                  const rad = (angle * Math.PI) / 180;
-                  const cx = 80, cy = 80, ir = 48, or = 72, rw = 3;
-                  const ix = cx + Math.cos(rad) * ir, iy = cy + Math.sin(rad) * ir;
-                  const ox = cx + Math.cos(rad) * or, oy = cy + Math.sin(rad) * or;
-                  const pa = rad + Math.PI / 2, hw = rw / 2;
-                  return (
-                    <Path
-                      key={i}
-                      d={`M ${ix} ${iy} L ${ox + Math.cos(pa) * hw} ${oy + Math.sin(pa) * hw} L ${ox + Math.cos(pa + Math.PI) * hw} ${oy + Math.sin(pa + Math.PI) * hw} Z`}
-                      fill={bg}
-                    />
-                  );
-                })}
-                <Circle cx="80" cy="80" r="48" fill="url(#previewSunGrad)" />
-              </Svg>
-              <View style={{ position: "absolute", top: 0, left: 0, width: size, height: size, justifyContent: "center", alignItems: "center", paddingHorizontal: (size / 160) * 48 * 0.85, paddingVertical: (size / 160) * 48 * 0.55 }}>
-                <ThemedText style={{ color: text, fontSize: 13 * fontScale, textAlign: "center", fontWeight: "700", maxWidth: (size / 160) * 90 }} numberOfLines={3}>
-                  {sampleText}
-                </ThemedText>
-              </View>
-            </View>
-          )}
-
-          {type === "cloudy" && (
-            <View
-              style={{
-                width: size * 2,
-                height: size * 0.625,
-                shadowColor: bg,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.7,
-                shadowRadius: 10,
-                elevation: 8,
-              }}
-            >
-              <Svg width={size * 2} height={size * 0.625} viewBox="0 0 320 100" preserveAspectRatio="xMidYMid meet">
-                <Defs>
-                  <SvgLinearGradient id="previewCloudGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <Stop offset="0%" stopColor={bg} stopOpacity="0.95" />
-                    <Stop offset="50%" stopColor={bg} stopOpacity="0.98" />
-                    <Stop offset="100%" stopColor={bg} stopOpacity="1" />
-                  </SvgLinearGradient>
-                </Defs>
-                <Path
-                  d="M50,50
-                     Q40,35 50,25
-                     Q60,15 75,20
-                     Q85,10 100,20
-                     Q115,10 130,20
-                     Q145,10 160,20
-                     Q175,10 190,20
-                     Q205,10 220,20
-                     Q235,10 250,20
-                     Q265,15 270,25
-                     Q280,35 270,50
-                     Q280,65 270,75
-                     Q260,85 245,80
-                     Q230,90 220,85
-                     Q205,95 190,85
-                     Q175,95 160,85
-                     Q145,95 130,85
-                     Q115,95 100,85
-                     Q85,90 75,80
-                     Q60,85 50,75
-                     Q40,65 50,50 Z"
-                  fill="url(#previewCloudGrad)"
-                  stroke="rgba(0,0,0,0.7)"
-                  strokeWidth={1.5}
-                />
-              </Svg>
-              <View style={{ position: "absolute", top: 0, left: 0, width: size * 2, height: size * 0.625, justifyContent: "center", alignItems: "center", paddingHorizontal: Math.max(28, size * 2 * 0.18), paddingVertical: size * 0.625 * 0.16 }}>
-                <ThemedText style={{ color: text, fontSize: 13 * fontScale, textAlign: "center", fontWeight: "500", maxWidth: size * 2 * 0.8 }} numberOfLines={3}>
-                  {sampleText}
-                </ThemedText>
-              </View>
-            </View>
-          )}
-
-          {type === "lesson" && (
-            <View
-              style={{
-                width: size,
-                height: size * 1.1,
-                shadowColor: bg,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.7,
-                shadowRadius: 14,
-                elevation: 10,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <MaterialIcons name="lightbulb" size={size * 0.4} color={bg} />
-              <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingBottom: 10 }}>
-                <Text style={{ color: text, fontSize: 13 * fontScale, textAlign: "center", fontWeight: "600" }} numberOfLines={3}>
-                  {sampleText}
-                </Text>
-              </View>
-            </View>
-          )}
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
 export default function MomentColorsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
@@ -669,36 +522,30 @@ export default function MomentColorsScreen() {
   );
   const fontScale = useFontScale();
   const t = useTranslate();
-  const { momentColors, setMomentColor, isLoaded } = useMomentColorsRaw();
+  /** What sun/cloud/lesson moments look like in the app (subscription- or badge-gated). */
+  const { momentColors: effectiveMomentColors } = useMomentColors();
+  const { setMomentColor, isLoaded } = useMomentColorsRaw();
   const { recent, addRecent, removeRecent } = useRecentColors();
   const { isSubscribed } = useSubscription(); // true for Sfera Plus OR Sfera AI — both can save colors
 
-  // Draft state per section — initially matches saved colors
-  const [draftColors, setDraftColors] = useState<MomentColors>(() => ({
-    sunny: { ...momentColors.sunny },
-    cloudy: { ...momentColors.cloudy },
-    lesson: { ...momentColors.lesson },
-  }));
+  // Draft state per section — mirrors the effective on-screen palette until the user edits
+  const [draftColors, setDraftColors] = useState<MomentColors>(() =>
+    normalizeMomentColors(effectiveMomentColors),
+  );
 
-  // Sync draftColors when momentColors loads from storage (avoids stale initial state)
-  const hasSyncedFromLoadRef = useRef(false);
+  // After storage loads, or when access/theme changes what is actually shown in the app
   useEffect(() => {
-    if (isLoaded && !hasSyncedFromLoadRef.current) {
-      hasSyncedFromLoadRef.current = true;
-      setDraftColors({
-        sunny: { ...momentColors.sunny },
-        cloudy: { ...momentColors.cloudy },
-        lesson: { ...momentColors.lesson },
-      });
-    }
-  }, [isLoaded, momentColors]);
+    if (!isLoaded) return;
+    setDraftColors(normalizeMomentColors(effectiveMomentColors));
+  }, [isLoaded, effectiveMomentColors]);
 
   // Track which sections have unsaved changes
   const isDirty = useCallback(
     (key: keyof MomentColors) =>
-      draftColors[key].background !== momentColors[key].background ||
-      draftColors[key].text !== momentColors[key].text,
-    [draftColors, momentColors],
+      draftColors[key].background !==
+        effectiveMomentColors[key].background.toUpperCase() ||
+      draftColors[key].text !== effectiveMomentColors[key].text.toUpperCase(),
+    [draftColors, effectiveMomentColors],
   );
 
   // Track saved flash per section
@@ -913,14 +760,40 @@ export default function MomentColorsScreen() {
           height: 38 * fontScale,
           borderRadius: 19 * fontScale,
           backgroundColor: color,
-          borderWidth: isSelected ? 3 : 1,
+          borderWidth: isSelected ? 2 : 1,
           borderColor: isSelected
-            ? colors.primary
+            ? colorScheme === "dark"
+              ? "rgba(255,255,255,0.92)"
+              : "rgba(13,13,13,0.88)"
             : colorScheme === "dark"
               ? "rgba(255,255,255,0.2)"
               : "rgba(0,0,0,0.15)",
+          justifyContent: "center",
+          alignItems: "center",
         }}
-      />
+      >
+        {isSelected ? (
+          <View
+            pointerEvents="none"
+            style={{
+              width: Math.round(20 * fontScale),
+              height: Math.round(20 * fontScale),
+              borderRadius: Math.round(10 * fontScale),
+              backgroundColor: colors.primary,
+              borderWidth: 2,
+              borderColor: colors.background,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <MaterialIcons
+              name="check"
+              size={12 * fontScale}
+              color={colors.primaryText}
+            />
+          </View>
+        ) : null}
+      </TouchableOpacity>
       {onRemove != null && (
         <TouchableOpacity
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
@@ -983,7 +856,7 @@ export default function MomentColorsScreen() {
             <FlatList
               ref={carouselRef}
               data={momentSections}
-              extraData={selectedIndex}
+              extraData={{ selectedIndex, draftColors }}
               keyExtractor={(item) => item.key}
               getItemLayout={getCarouselItemLayout}
               contentContainerStyle={{ paddingHorizontal: CAROUSEL_PADDING }}

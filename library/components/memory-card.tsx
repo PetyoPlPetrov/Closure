@@ -10,6 +10,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import {
+  roundedRectBorderClosedD,
+  roundedRectBorderPerimeter,
+  roundedRectBorderSubpathD,
+} from '@/library/components/memory-card-segmented-border';
 
 export type IdealizedMemory = {
   id: string;
@@ -61,9 +66,6 @@ export function MemoryCard({
   const lessonCount = memory.lessonsLearned?.length || 0;
   const hasLessons = lessonCount > 0;
   
-  // Determine if memory is "sunny" (more good facts than hard truths) or "cloudy" (more hard truths than good facts)
-  const isSunny = goodFactCount > hardTruthCount;
-  const isCloudy = hardTruthCount > goodFactCount;
   const totalMoments = hardTruthCount + goodFactCount;
   const hasMoments = totalMoments > 0;
   
@@ -95,20 +97,6 @@ export function MemoryCard({
             : 'rgba(0, 0, 0, 0.1)',
           position: 'relative',
           overflow: 'hidden', // Required for gradient to respect borderRadius
-          ...(isSunny && hasMoments && {
-            shadowColor: momentColors.sunny.background,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.6,
-            shadowRadius: 10,
-            elevation: 5,
-          }),
-          ...(isCloudy && hasMoments && {
-            shadowColor: momentColors.cloudy.background,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.4,
-            shadowRadius: 8,
-            elevation: 4,
-          }),
         },
         containerGradient: {
           position: 'absolute',
@@ -207,7 +195,7 @@ export function MemoryCard({
           gap: 4 * fontScale,
         },
       }),
-    [fontScale, colorScheme, colors, momentColors, isSunny, isCloudy, hasMoments]
+    [fontScale, colorScheme, colors, momentColors, hasMoments]
   );
 
   return (
@@ -238,52 +226,67 @@ export function MemoryCard({
             const w = containerDimensions.width;
             const h = containerDimensions.height;
             const r = borderRadius;
-            
-            // Calculate perimeter of rounded rectangle
-            const straightSides = 2 * (w + h) - 8 * r;
-            const cornerArcs = 2 * Math.PI * r;
-            const perimeter = straightSides + cornerArcs;
-            
-            // Black border for cloudy portion
-            const blackLength = (cloudyPercentage / 100) * perimeter;
-            const blackDashArray = `${blackLength} ${perimeter}`;
-            const blackDashOffset = perimeter - blackLength;
-            
-            // Yellow border for sunny portion
-            const yellowLength = (sunnyPercentage / 100) * perimeter;
-            const yellowDashArray = `${yellowLength} ${perimeter}`;
-            const yellowDashOffset = perimeter - yellowLength;
-            const yellowStartOffset = blackLength; // Yellow starts where black ends
-            
-            // Create rounded rectangle path
-            const path = `M ${r} 0 L ${w - r} 0 Q ${w} 0 ${w} ${r} L ${w} ${h - r} Q ${w} ${h} ${w - r} ${h} L ${r} ${h} Q 0 ${h} 0 ${h - r} L 0 ${r} Q 0 0 ${r} 0 Z`;
-            
+
+            const perimeter = roundedRectBorderPerimeter(w, h, r);
+            const splitDist = (cloudyPercentage / 100) * perimeter;
+
+            const onlyCloudy = hardTruthCount > 0 && goodFactCount === 0;
+            const onlySunny = goodFactCount > 0 && hardTruthCount === 0;
+
+            if (onlyCloudy) {
+              return (
+                <Path
+                  d={roundedRectBorderClosedD(w, h, r)}
+                  stroke={momentColors.cloudy.background}
+                  strokeWidth={borderWidth}
+                  fill="none"
+                  strokeLinecap="butt"
+                  strokeLinejoin="miter"
+                />
+              );
+            }
+            if (onlySunny) {
+              return (
+                <Path
+                  d={roundedRectBorderClosedD(w, h, r)}
+                  stroke={momentColors.sunny.background}
+                  strokeWidth={borderWidth}
+                  fill="none"
+                  strokeLinecap="butt"
+                  strokeLinejoin="miter"
+                />
+              );
+            }
+
+            const cloudyD = roundedRectBorderSubpathD(w, h, r, 0, splitDist);
+            const sunnyD = roundedRectBorderSubpathD(
+              w,
+              h,
+              r,
+              splitDist,
+              perimeter,
+            );
+
             return (
               <>
-                {/* Black border for cloudy moments */}
-                {cloudyPercentage > 0 && (
+                {cloudyD.length > 0 && (
                   <Path
-                    d={path}
+                    d={cloudyD}
                     stroke={momentColors.cloudy.background}
                     strokeWidth={borderWidth}
                     fill="none"
-                    strokeDasharray={blackDashArray}
-                    strokeDashoffset={blackDashOffset}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                    strokeLinecap="butt"
+                    strokeLinejoin="miter"
                   />
                 )}
-                {/* Yellow border for sunny moments */}
-                {sunnyPercentage > 0 && (
+                {sunnyD.length > 0 && (
                   <Path
-                    d={path}
+                    d={sunnyD}
                     stroke={momentColors.sunny.background}
                     strokeWidth={borderWidth}
                     fill="none"
-                    strokeDasharray={yellowDashArray}
-                    strokeDashoffset={yellowDashOffset - yellowStartOffset}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                    strokeLinecap="butt"
+                    strokeLinejoin="miter"
                   />
                 )}
               </>
