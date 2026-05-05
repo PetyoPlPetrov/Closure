@@ -129,6 +129,31 @@ export function OnboardingMemoryEntityPick({ rows, onConfirm }: Props) {
               ? "rgba(255,255,255,0.1)"
               : "rgba(0,0,0,0.08)",
         },
+        infoHintBanner: {
+          flexDirection: "row",
+          alignItems: "flex-start",
+          gap: 10 * fontScale,
+          marginTop: 14 * fontScale,
+          paddingVertical: 12 * fontScale,
+          paddingHorizontal: 14 * fontScale,
+          borderRadius: 14 * fontScale,
+          borderWidth:
+            fontScheme === "dark" ? StyleSheet.hairlineWidth : 1,
+          borderColor:
+            fontScheme === "dark"
+              ? "rgba(100, 181, 246, 0.38)"
+              : "rgba(74, 144, 226, 0.42)",
+          backgroundColor:
+            fontScheme === "dark"
+              ? "rgba(100, 181, 246, 0.1)"
+              : "rgba(74, 144, 226, 0.11)",
+        },
+        infoHintText: {
+          flex: 1,
+          minWidth: 0,
+          lineHeight: 19 * fontScale,
+          opacity: fontScheme === "dark" ? 0.92 : 0.88,
+        },
       }),
     [colors.background, fontScheme, fontScale],
   );
@@ -154,16 +179,28 @@ export function OnboardingMemoryEntityPick({ rows, onConfirm }: Props) {
         <ThemedText size="sm" style={{ opacity: 0.82, lineHeight: 22 * fontScale }}>
           {t("onboarding.postEntity.memoryPick.body")}
         </ThemedText>
-        <ThemedText
-          size="xs"
-          style={{
-            marginTop: 10 * fontScale,
-            opacity: 0.68,
-            lineHeight: 19 * fontScale,
-          }}
+        <View
+          style={styles.infoHintBanner}
+          accessibilityRole="text"
+          accessibilityLabel={t(
+            "onboarding.postEntity.memoryPick.bodyHint",
+          )}
         >
-          {t("onboarding.postEntity.memoryPick.bodyHint")}
-        </ThemedText>
+          <MaterialIcons
+            name="info-outline"
+            size={20 * fontScale}
+            color={colors.primary}
+            style={{ opacity: fontScheme === "dark" ? 0.92 : 0.94, marginTop: 1 }}
+            importantForAccessibility="no"
+          />
+          <ThemedText
+            size="xs"
+            emphasis="medium"
+            style={styles.infoHintText}
+          >
+            {t("onboarding.postEntity.memoryPick.bodyHint")}
+          </ThemedText>
+        </View>
         <ThemedText
           size="sm"
           weight="semibold"

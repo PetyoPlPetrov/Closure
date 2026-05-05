@@ -6,7 +6,7 @@ import {
 } from '@/utils/VisualSettingsProvider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { memo } from 'react';
-import { Image, StyleSheet, View, type ViewProps, type ViewStyle } from 'react-native';
+import { Image, StyleSheet, useWindowDimensions, View, type ViewProps, type ViewStyle } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,6 +20,12 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 
 export const TAB_BACKGROUND_COLOR_DARK = '#1A2332'; // Dark blue-grey background
 export const TAB_BACKGROUND_COLOR_LIGHT = '#D5D8DE';
+/** Light theme + Cosmic background slider at 0: flat white (no grey gradient / vignette). */
+export const TAB_BACKGROUND_COLOR_LIGHT_COSMIC_OFF = '#FFFFFF';
+/**
+ * Same mode: bottom tab bar only — subtle surface lift vs `#FFFFFF` canvas (Material 3 / platform nav patterns).
+ */
+export const TAB_BAR_BACKGROUND_LIGHT_COSMIC_OFF = '#F5F5F7';
 
 // Gradient colors for dark mode background — semi-transparent so cosmic image shows through
 export const DARK_GRADIENT_COLORS = [
@@ -46,17 +52,16 @@ export const LIGHT_GRADIENT_COLORS = [
 ] as const;
 
 /**
- * Single radial vignette — smooth falloff from center (no four-edge “cross” / boxy seam).
- * Static SVG only; still lighter than blur.
+ * Gradient ids must differ so light vs dark defs never collide on remount/offscreen caches.
  */
-const VIGNETTE_GRAD_ID = 'tabScreenViewportVignette';
+const VIGNETTE_GRAD_LIGHT = 'tabScreenViewportVignetteLight';
+const VIGNETTE_GRAD_DARK = 'tabScreenViewportVignetteDark';
 
-/** Light theme: full strength when Cosmic background slider = 10 (strong edge preset). */
+/** Light theme: edge vignette strength at slider = 10; center stays `#FFFFFF`-like. */
 const VIGNETTE_LIGHT_MAX = {
   rgb: '88,98,114',
+  /** Max tint at bezel / corners — slider scales this linearly */
   edgeOpacity: 0.52,
-  rx: '90%',
-  ry: '94%',
 } as const;
 
 /** Dark theme: fixed vignette (cosmic slider only affects the starfield image). */
@@ -70,71 +75,83 @@ const ViewportEdgeVignette = memo(function ViewportEdgeVignette({
   /** 0–1 from Cosmic background slider in light mode; ignored in dark mode. */
   lightStrength?: number;
 }) {
+  const { width: winW, height: winH } = useWindowDimensions();
+  const w = Math.max(1, winW);
+  const h = Math.max(1, winH);
+  /** Radius so screen corners lie in outer tint bands (not under center clear zone). */
+  const rOuter = (Math.hypot(w, h) / 2) * 1.02;
+
   if (!isDark) {
     const s = Math.max(0, Math.min(1, lightStrength));
     if (s <= 0) return null;
     const edgeOpacity = VIGNETTE_LIGHT_MAX.edgeOpacity * s;
     const c = `rgb(${VIGNETTE_LIGHT_MAX.rgb})`;
     const o = (t: number) => Math.round(edgeOpacity * t * 1000) / 1000;
+    const cx = w / 2;
+    const cy = h / 2;
     return (
       <Svg
         pointerEvents="none"
         style={StyleSheet.absoluteFill}
-        width="100%"
-        height="100%"
+        width={w}
+        height={h}
       >
         <Defs>
           <RadialGradient
-            id={VIGNETTE_GRAD_ID}
-            cx="50%"
-            cy="50%"
-            rx={VIGNETTE_LIGHT_MAX.rx}
-            ry={VIGNETTE_LIGHT_MAX.ry}
-            fx="50%"
-            fy="50%"
+            id={VIGNETTE_GRAD_LIGHT}
+            gradientUnits="userSpaceOnUse"
+            cx={cx}
+            cy={cy}
+            fx={cx}
+            fy={cy}
+            rx={rOuter}
+            ry={rOuter}
           >
             <Stop offset="0%" stopColor={c} stopOpacity={0} />
-            <Stop offset="24%" stopColor={c} stopOpacity={0} />
-            <Stop offset="44%" stopColor={c} stopOpacity={o(0.2)} />
-            <Stop offset="62%" stopColor={c} stopOpacity={o(0.48)} />
-            <Stop offset="80%" stopColor={c} stopOpacity={o(0.78)} />
+            <Stop offset="48%" stopColor={c} stopOpacity={0} />
+            <Stop offset="65%" stopColor={c} stopOpacity={o(0.22)} />
+            <Stop offset="78%" stopColor={c} stopOpacity={o(0.5)} />
+            <Stop offset="90%" stopColor={c} stopOpacity={o(0.82)} />
             <Stop offset="100%" stopColor={c} stopOpacity={edgeOpacity} />
           </RadialGradient>
         </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${VIGNETTE_GRAD_ID})`} />
+        <Rect x={0} y={0} width={w} height={h} fill={`url(#${VIGNETTE_GRAD_LIGHT})`} />
       </Svg>
     );
   }
 
   const { rgb, edgeOpacity } = VIGNETTE_DARK;
-  const c = `rgb(${rgb})`;
-  const o = (t: number) => Math.round(edgeOpacity * t * 1000) / 1000;
+  const cDark = `rgb(${rgb})`;
+  const od = (t: number) => Math.round(edgeOpacity * t * 1000) / 1000;
+  const cxD = w / 2;
+  const cyD = h / 2;
   return (
     <Svg
       pointerEvents="none"
       style={StyleSheet.absoluteFill}
-      width="100%"
-      height="100%"
+      width={w}
+      height={h}
     >
       <Defs>
         <RadialGradient
-          id={VIGNETTE_GRAD_ID}
-          cx="50%"
-          cy="50%"
-          rx="78%"
-          ry="84%"
-          fx="50%"
-          fy="50%"
+          id={VIGNETTE_GRAD_DARK}
+          gradientUnits="userSpaceOnUse"
+          cx={cxD}
+          cy={cyD}
+          fx={cxD}
+          fy={cyD}
+          rx={rOuter}
+          ry={rOuter}
         >
-          <Stop offset="0%" stopColor={c} stopOpacity={0} />
-          <Stop offset="32%" stopColor={c} stopOpacity={0} />
-          <Stop offset="50%" stopColor={c} stopOpacity={o(0.18)} />
-          <Stop offset="68%" stopColor={c} stopOpacity={o(0.45)} />
-          <Stop offset="84%" stopColor={c} stopOpacity={o(0.72)} />
-          <Stop offset="100%" stopColor={c} stopOpacity={edgeOpacity} />
+          <Stop offset="0%" stopColor={cDark} stopOpacity={0} />
+          <Stop offset="30%" stopColor={cDark} stopOpacity={0} />
+          <Stop offset="48%" stopColor={cDark} stopOpacity={od(0.18)} />
+          <Stop offset="64%" stopColor={cDark} stopOpacity={od(0.45)} />
+          <Stop offset="80%" stopColor={cDark} stopOpacity={od(0.72)} />
+          <Stop offset="100%" stopColor={cDark} stopOpacity={edgeOpacity} />
         </RadialGradient>
       </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${VIGNETTE_GRAD_ID})`} />
+      <Rect x={0} y={0} width={w} height={h} fill={`url(#${VIGNETTE_GRAD_DARK})`} />
     </Svg>
   );
 });
@@ -250,11 +267,11 @@ export function TabScreenContainer({
           </LinearGradient>
         </View>
       ) : (
-        <LinearGradient
-          colors={LIGHT_GRADIENT_COLORS}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={StyleSheet.absoluteFill}
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: TAB_BACKGROUND_COLOR_LIGHT_COSMIC_OFF },
+          ]}
         >
           <ViewportEdgeVignette
             isDark={false}
@@ -322,7 +339,7 @@ export function TabScreenContainer({
           >
             {children}
           </View>
-        </LinearGradient>
+        </View>
       )}
     </SafeAreaView>
   );

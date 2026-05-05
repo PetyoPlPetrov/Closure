@@ -7,6 +7,7 @@
 import { ThemedText } from "@/components/themed-text";
 import { UniverseExamScreen } from "@/components/universe-exam-screen";
 import { Colors } from "@/constants/theme";
+import { TAB_BACKGROUND_COLOR_LIGHT_COSMIC_OFF } from "@/library/components/tab-screen-container";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useJourney } from "@/utils/JourneyProvider";
 import type { LifeSphere } from "@/utils/JourneyProvider";
@@ -1185,7 +1186,13 @@ export function UniverseLessonsScreen({
   const filterChipSelectedLight = isLight ? { backgroundColor: `${colors.primary}22` } : {};
   const insets = useSafeAreaInsets();
   const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
-  const { appUsabilityHints } = useVisualSettings();
+  const { appUsabilityHints, cosmicBackgroundOpacity } = useVisualSettings();
+  const lightCosmicOff = isLight && cosmicBackgroundOpacity === 0;
+  const lessonsScreenBg = isLight
+    ? lightCosmicOff
+      ? TAB_BACKGROUND_COLOR_LIGHT_COSMIC_OFF
+      : colors.background
+    : BG_DARK;
   const { idealizedMemories, setLessonFavorite, getEntitiesBySphere } = useJourney();
   const [universeExamVisible, setUniverseExamVisible] = useState(false);
 
@@ -1707,8 +1714,8 @@ export function UniverseLessonsScreen({
   const keyExtractor = useCallback((item: LessonCard) => item.id, []);
 
   const screenBody = (
-      <Animated.View style={[styles.root, { backgroundColor: isLight ? colors.background : BG_DARK }, screenStyle]}>
-        {showDecorLayers ? (
+      <Animated.View style={[styles.root, { backgroundColor: lessonsScreenBg }, screenStyle]}>
+        {showDecorLayers && !lightCosmicOff ? (
           <>
             <StarField
               isLight={isLight}

@@ -10,15 +10,19 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 
 type Props = {
   orderedEntityIds: string[];
   entityBlurbs: Record<string, string>;
   initialStepIndex: number;
+  /** Persisted onboarding AI-save successes (ordering independent). */
+  memoryWizardCommittedIds: string[];
   onPersistStepIndex: (index: number) => Promise<void>;
+  onAppendCommittedMemoryEntityId: (id: string) => Promise<void>;
   onAllComplete: () => Promise<void>;
 };
 
@@ -68,11 +72,15 @@ function resolveEntity(
   return null;
 }
 
+const ONBOARDING_PRIMARY_GRADIENT = ["#4A90E2", "#357ABD", "#2E6DA4"] as const;
+
 export function OnboardingMemoryWizardStep({
   orderedEntityIds,
   entityBlurbs,
   initialStepIndex,
+  memoryWizardCommittedIds,
   onPersistStepIndex,
+  onAppendCommittedMemoryEntityId,
   onAllComplete,
 }: Props) {
   const colorScheme = useColorScheme();
@@ -88,6 +96,7 @@ export function OnboardingMemoryWizardStep({
       : Math.min(Math.max(0, initialStepIndex), orderedEntityIds.length - 1);
   const [stepIndex, setStepIndex] = useState(clampedStart);
   const [aimodalVisible, setAimodalVisible] = useState(false);
+  const [continueBusy, setContinueBusy] = useState(false);
 
   useEffect(() => {
     const s =
@@ -113,24 +122,89 @@ export function OnboardingMemoryWizardStep({
     );
   }, [currentId, resolved, idealizedMemories]);
 
-  const handleCommitted = useCallback(async () => {
-    await reloadAll();
-    setAimodalVisible(false);
+  const committedSet = useMemo(
+    () => new Set(memoryWizardCommittedIds),
+    [memoryWizardCommittedIds],
+  );
+
+  const everyWizardSlotCommitted =
+    orderedEntityIds.length > 0 &&
+    orderedEntityIds.every((id) => committedSet.has(id));
+
+  const isLastWizardStep =
+    orderedEntityIds.length > 0 &&
+    stepIndex >= orderedEntityIds.length - 1;
+
+  const showFinishContinue =
+    isLastWizardStep && everyWizardSlotCommitted;
+
+  const advanceAfterCurrentEntityComplete = useCallback(async () => {
     if (orderedEntityIds.length === 0) return;
     const isLast = stepIndex >= orderedEntityIds.length - 1;
     if (isLast) {
-      await onAllComplete();
+      /* Last entity: stay on this step until user taps Continue (all AI memories exist). */
       return;
     }
     const next = stepIndex + 1;
     await onPersistStepIndex(next);
     setStepIndex(next);
   }, [
-    reloadAll,
     orderedEntityIds.length,
     stepIndex,
     onPersistStepIndex,
-    onAllComplete,
+  ]);
+
+  const handleCommitted = useCallback(async () => {
+    if (!currentId) return;
+    await reloadAll();
+    setAimodalVisible(false);
+    await onAppendCommittedMemoryEntityId(currentId);
+    await advanceAfterCurrentEntityComplete();
+  }, [
+    currentId,
+    reloadAll,
+    onAppendCommittedMemoryEntityId,
+    advanceAfterCurrentEntityComplete,
+  ]);
+
+  const onPressContinue = useCallback(async () => {
+    if (continueBusy || !showFinishContinue) return;
+    setContinueBusy(true);
+    try {
+      await onAllComplete();
+    } finally {
+      setContinueBusy(false);
+    }
+  }, [continueBusy, showFinishContinue, onAllComplete]);
+
+  /** Resume middle steps only after onboarding wizard recorded AI save for this entity. */
+  useEffect(() => {
+    if (orderedEntityIds.length === 0) return;
+    if (stepIndex >= orderedEntityIds.length - 1) return;
+    if (!hasAiMemoryForCurrent || !currentId) return;
+    if (!memoryWizardCommittedIds.includes(currentId)) return;
+
+    let cancelled = false;
+    void (async () => {
+      const next = stepIndex + 1;
+      try {
+        await onPersistStepIndex(next);
+        if (!cancelled) setStepIndex(next);
+      } catch {
+        /* stay on step if persist fails */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    orderedEntityIds.length,
+    stepIndex,
+    hasAiMemoryForCurrent,
+    currentId,
+    memoryWizardCommittedIds,
+    onPersistStepIndex,
   ]);
 
   const modalBundle =
@@ -189,6 +263,7 @@ export function OnboardingMemoryWizardStep({
           borderTopWidth: 1,
           borderTopColor:
             colorScheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+          gap: 12 * fontScale,
         },
         hero: {
           padding: 20 * fontScale,
@@ -239,16 +314,14 @@ export function OnboardingMemoryWizardStep({
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <ThemedText size="xs" weight="medium" style={{ opacity: 0.7, marginBottom: 14 }}>
-          {t("onboarding.postEntity.memoryWizard.progress")
-            .replace("{current}", String(stepIndex + 1))
-            .replace("{total}", String(orderedEntityIds.length))}
-        </ThemedText>
-
         <View style={styles.hero}>
           {!resolved.imageUri ? (
             <View style={{ flexDirection: "row", justifyContent: "center", gap: 10 }}>
-              <MaterialIcons name="psychology-alt" size={36 * fontScale} color={colors.primary} />
+              <MaterialIcons
+                name={showFinishContinue ? "celebration" : "psychology-alt"}
+                size={36 * fontScale}
+                color={colors.primary}
+              />
             </View>
           ) : null}
           <ThemedText
@@ -257,15 +330,18 @@ export function OnboardingMemoryWizardStep({
               marginTop: resolved.imageUri ? 0 : 14 * fontScale,
               textAlign: "center",
               opacity: 0.88,
+              lineHeight: 22 * fontScale,
             }}
           >
-            {t("onboarding.postEntity.memoryWizard.subtitle")}
+            {showFinishContinue
+              ? t("onboarding.postEntity.memoryWizard.onboardingCompleteMessage")
+              : t("onboarding.postEntity.memoryWizard.subtitle")}
           </ThemedText>
 
-          {hasAiMemoryForCurrent ? (
+          {showFinishContinue ? null : hasAiMemoryForCurrent ? (
             <View style={{ marginTop: 20 * fontScale }}>
               <ThemedText size="sm" weight="medium" style={{ opacity: 0.85 }}>
-                ✓ AI memory saved · {t("onboarding.done") ?? "Continuing…"}
+                ✓ {t("onboarding.postEntity.memoryWizard.aiMemorySavedShort")}
               </ThemedText>
             </View>
           ) : (
@@ -310,10 +386,37 @@ export function OnboardingMemoryWizardStep({
         onClose={() => setAimodalVisible(false)}
         onSend={() => Promise.resolve()}
         onboardingSferaAI={modalBundle}
-        onOnboardingAIMemoryCommitted={() => void handleCommitted()}
+        onOnboardingAIMemoryCommitted={() => handleCommitted()}
       />
 
       <View style={styles.footer}>
+        {showFinishContinue ? (
+          <TouchableOpacity
+            disabled={continueBusy}
+            activeOpacity={0.88}
+            onPress={() => void onPressContinue()}
+            accessibilityRole="button"
+            accessibilityLabel={
+              t("onboarding.postEntity.continue") as string
+            }
+            style={{ opacity: continueBusy ? 0.6 : 1 }}
+          >
+            <LinearGradient
+              colors={[...ONBOARDING_PRIMARY_GRADIENT]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{
+                paddingVertical: 14 * fontScale,
+                borderRadius: 14 * fontScale,
+                alignItems: "center",
+              }}
+            >
+              <ThemedText size="m" weight="bold" style={{ color: "#FFF" }}>
+                {t("onboarding.postEntity.continue")}
+              </ThemedText>
+            </LinearGradient>
+          </TouchableOpacity>
+        ) : null}
         <ThemedText size="xs" style={{ opacity: 0.6, textAlign: "center" }}>
           Step {stepIndex + 1} / {orderedEntityIds.length}
         </ThemedText>

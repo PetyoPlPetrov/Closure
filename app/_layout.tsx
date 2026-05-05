@@ -60,6 +60,7 @@ import {
   clearOnboardingPostEntityFlow,
   getOnboardingCompleted,
   getOnboardingPostEntityPending,
+  getOnboardingPostEntityState,
   setOnboardingCompleted,
 } from "@/utils/onboarding-storage";
 import {
@@ -258,6 +259,8 @@ function AppContent() {
       const completed = await getOnboardingCompleted();
       if (cancelled) return;
       const pendingPostEntity = await getOnboardingPostEntityPending();
+      const postEntityState = await getOnboardingPostEntityState();
+      const hasPostEntityDraft = postEntityState != null;
       const totalEntities =
         profiles.length +
         jobs.length +
@@ -268,7 +271,11 @@ function AppContent() {
       const hasNoData = totalEntities === 0 && totalMemories === 0;
       const isDevReRun = __DEV__ && onboardingRequestTrigger > 0;
       const shouldShow =
-        !completed && (hasNoData || isDevReRun || pendingPostEntity);
+        !completed &&
+        (hasNoData ||
+          isDevReRun ||
+          pendingPostEntity ||
+          hasPostEntityDraft);
       setShowOnboarding(shouldShow);
     };
     check();
@@ -277,6 +284,7 @@ function AppContent() {
     };
   }, [
     onboardingRequestTrigger,
+    pathname,
     profiles.length,
     jobs.length,
     familyMembers.length,
@@ -774,13 +782,13 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     <AppThemeProvider>
+      <VisualSettingsProvider>
       <SplashAnimationProvider>
         <LanguageProvider>
           <SubscriptionProvider>
             <JourneyProvider>
               <MomentNotificationProvider>
                 <MomentColorsProvider>
-                  <VisualSettingsProvider>
                     <NotificationsProvider>
                       <AIInsightsConsentProvider>
                         <EventInAppNotificationPreferenceProvider>
@@ -799,13 +807,13 @@ export default function RootLayout() {
                         </EventInAppNotificationPreferenceProvider>
                       </AIInsightsConsentProvider>
                     </NotificationsProvider>
-                  </VisualSettingsProvider>
                 </MomentColorsProvider>
               </MomentNotificationProvider>
             </JourneyProvider>
           </SubscriptionProvider>
         </LanguageProvider>
       </SplashAnimationProvider>
+      </VisualSettingsProvider>
     </AppThemeProvider>
     </GestureHandlerRootView>
   );

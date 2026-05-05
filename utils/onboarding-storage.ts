@@ -18,9 +18,14 @@ export type OnboardingPostEntityState = {
   selectedEntityIds: string[];
   /** Step within the memory phase (per-entity AI memories). */
   wizardStepIndex: number;
+  /** IDs for which onboarding memory wizard AI save succeeded (survives resume). */
+  wizardAiMemoryCommittedIds?: string[];
   /** `entities` = grow-Sferas list; `memoryPick` = choose ≤5 targets when user has many; `memory` = OnboardingMemoryWizardStep. */
   postEntityWizardPhase?: PostEntityWizardPhase;
 };
+
+/** Post-onboarding AI tab spotlight: dismissed once user reaches this many memories. */
+export const POST_ONBOARDING_AI_SPOTLIGHT_MAX_MEMORIES = 6;
 
 const ONBOARDING_COMPLETED_KEY = "@sferas:onboarding_completed";
 const SHOW_WALKTHROUGH_AFTER_ONBOARDING_KEY = "@sferas:show_walkthrough_after_onboarding";
@@ -177,6 +182,14 @@ export async function getOnboardingPostEntityState(): Promise<OnboardingPostEnti
         parsed.entityBlurbs && typeof parsed.entityBlurbs === "object" ? parsed.entityBlurbs : {},
       selectedEntityIds: Array.isArray(parsed.selectedEntityIds) ? parsed.selectedEntityIds : [],
       wizardStepIndex: wiz,
+      wizardAiMemoryCommittedIds:
+        parsed.wizardAiMemoryCommittedIds === undefined
+          ? undefined
+          : Array.isArray(parsed.wizardAiMemoryCommittedIds)
+            ? parsed.wizardAiMemoryCommittedIds.filter(
+                (x): x is string => typeof x === "string",
+              )
+            : undefined,
       postEntityWizardPhase:
         parsed.postEntityWizardPhase === "memory"
           ? "memory"

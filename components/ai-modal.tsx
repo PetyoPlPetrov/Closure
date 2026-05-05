@@ -1448,7 +1448,7 @@ export function AIModal({
       onClose();
 
       if (onOnboardingAIMemoryCommitted) {
-        onOnboardingAIMemoryCommitted();
+        await Promise.resolve(onOnboardingAIMemoryCommitted());
       } else {
         // Show success alert with option to open memory
         Alert.alert(
@@ -2312,7 +2312,7 @@ export function AIModal({
                         onChangeText={setInputTextWithLimit}
                         maxLength={MAX_INPUT_LENGTH}
                         placeholder={
-                          t("ai.placeholder.input") || "Tell us your story here…"
+                          t("ai.placeholder.input") || "Share your memory or tell a story here…"
                         }
                         placeholderTextColor={
                           colors.textMediumEmphasis || colors.text + "80"

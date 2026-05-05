@@ -11,8 +11,9 @@ import React, {
 } from "react";
 import { SplashHubOrb, SplashOrbitOrb } from "@/components/splash-sfera-orbs";
 import { Colors } from "@/constants/theme";
+import { TAB_BACKGROUND_COLOR_LIGHT_COSMIC_OFF } from "@/library/components/tab-screen-container";
 import { useTheme } from "@/utils/ThemeContext";
-import { SPLASH_ANIMATION_KEY } from "@/utils/VisualSettingsProvider";
+import { SPLASH_ANIMATION_KEY, useVisualSettings } from "@/utils/VisualSettingsProvider";
 import {
   Dimensions,
   Platform,
@@ -298,6 +299,12 @@ export function SplashAnimationProvider({
   children,
 }: SplashAnimationProviderProps) {
   const { colorScheme } = useTheme();
+  const { cosmicBackgroundOpacity } = useVisualSettings();
+  const lightCosmicOff =
+    colorScheme === "light" && cosmicBackgroundOpacity === 0;
+  const splashBackgroundColor = lightCosmicOff
+    ? TAB_BACKGROUND_COLOR_LIGHT_COSMIC_OFF
+    : Colors[colorScheme].background;
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
   const [isReplayPriming, setIsReplayPriming] = useState(false);
@@ -931,17 +938,18 @@ export function SplashAnimationProvider({
             <View
               style={[
                 StyleSheet.absoluteFill,
-                { backgroundColor: Colors[colorScheme].background },
+                { backgroundColor: splashBackgroundColor },
               ]}
             />
 
             {/* Constellation background */}
-            {!isReplayPriming && (
+            {!isReplayPriming && !lightCosmicOff && (
               <ConstellationBackground colorScheme={colorScheme} />
             )}
 
             {/* Sparkled Dots */}
             {!isReplayPriming &&
+              !lightCosmicOff &&
               sparkledDots.map((dot) => (
                 <SparkledDot
                   key={dot.id}

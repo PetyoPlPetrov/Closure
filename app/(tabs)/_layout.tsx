@@ -10,19 +10,57 @@ import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
+import { TAB_BAR_BACKGROUND_LIGHT_COSMIC_OFF } from "@/library/components/tab-screen-container";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import {
   emitGuideRecheckAfterWelcomeDismiss,
   getShowPostOnboardingAIWelcome,
   getOnboardingCompleted,
+  POST_ONBOARDING_AI_SPOTLIGHT_MAX_MEMORIES,
   setPostOnboardingAIWelcomeDismissedThisSession as setPostOnboardingAIWelcomeDismissedThisSessionStorage,
   setShowPostOnboardingAIWelcome,
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
+import { useVisualSettings, MAX_COSMIC_BACKGROUND_OPACITY } from "@/utils/VisualSettingsProvider";
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const n = parseInt(full, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function lerpHex(a: string, b: string, t: number): string {
+  const u = Math.max(0, Math.min(1, t));
+  const p = hexToRgb(a);
+  const q = hexToRgb(b);
+  const r = Math.round(p.r + (q.r - p.r) * u);
+  const g = Math.round(p.g + (q.g - p.g) * u);
+  const bl = Math.round(p.b + (q.b - p.b) * u);
+  const h = (x: number) => x.toString(16).padStart(2, "0");
+  return `#${h(r)}${h(g)}${h(bl)}`;
+}
+
+/** Light tab bar: cosmos off → full chrome (matches `TabBarBackground` lerps). */
+function lightTabBarBorderRgba(cosmicBackgroundOpacity: number): string {
+  const t =
+    MAX_COSMIC_BACKGROUND_OPACITY <= 0
+      ? 0
+      : cosmicBackgroundOpacity / MAX_COSMIC_BACKGROUND_OPACITY;
+  const g = Math.round(150 * t);
+  const a = 0.08 + (0.6 - 0.08) * t;
+  return `rgba(${g}, ${g}, ${g}, ${a})`;
+}
 
 function TabBarBackground() {
   const colorScheme = useColorScheme();
+  const { cosmicBackgroundOpacity } = useVisualSettings();
+  const chromeT =
+    MAX_COSMIC_BACKGROUND_OPACITY <= 0
+      ? 0
+      : cosmicBackgroundOpacity / MAX_COSMIC_BACKGROUND_OPACITY;
+
   if (colorScheme === "dark") {
     return (
       <LinearGradient
@@ -33,9 +71,26 @@ function TabBarBackground() {
       />
     );
   }
+
+  // Light (or unset): blend tab bar chrome with cosmic slider
+  if (cosmicBackgroundOpacity <= 0) {
+    return (
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: TAB_BAR_BACKGROUND_LIGHT_COSMIC_OFF },
+        ]}
+      />
+    );
+  }
+
+  const t = chromeT;
+  const c1 = lerpHex(TAB_BAR_BACKGROUND_LIGHT_COSMIC_OFF, "#D0D4DA", t);
+  const c2 = lerpHex(TAB_BAR_BACKGROUND_LIGHT_COSMIC_OFF, "#C9CDD4", t);
+  const c3 = lerpHex(TAB_BAR_BACKGROUND_LIGHT_COSMIC_OFF, "#C2C7CE", t);
   return (
     <LinearGradient
-      colors={["#D0D4DA", "#C9CDD4", "#C2C7CE"]}
+      colors={[c1, c2, c3]}
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
       style={StyleSheet.absoluteFill}
@@ -46,11 +101,13 @@ function TabBarBackground() {
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const { cosmicBackgroundOpacity } = useVisualSettings();
   const fontScale = useFontScale();
   const t = useTranslate();
   const insets = useSafeAreaInsets();
   const { idealizedMemories } = useJourney();
-  const hasAnyMemories = idealizedMemories.length > 0;
+  const memoriesBelowAISpotlightCap =
+    idealizedMemories.length < POST_ONBOARDING_AI_SPOTLIGHT_MAX_MEMORIES;
 
   const iconSize = Math.round(28 * fontScale);
   const tabBarHeight =
@@ -70,7 +127,7 @@ export default function TabLayout() {
   const borderTopColor =
     colorScheme === "dark"
       ? "rgba(255, 255, 255, 0.1)"
-      : "rgba(150, 150, 150, 0.6)";
+      : lightTabBarBorderRgba(cosmicBackgroundOpacity);
 
   const screenOptions = useMemo(
     () => ({
@@ -105,6 +162,7 @@ export default function TabLayout() {
       activeTintColor,
       inactiveColor,
       borderTopColor,
+      cosmicBackgroundOpacity,
       fontScale,
       insets.bottom,
       tabBarHeight,
@@ -169,7 +227,7 @@ export default function TabLayout() {
         getOnboardingCompleted(),
       ]);
       const shouldShow =
-        storedShouldShow || (onboardingCompleted && !hasAnyMemories);
+        (storedShouldShow || onboardingCompleted) && memoriesBelowAISpotlightCap;
       if (!cancelled) {
         setPostOnboardingAIWelcomeEligible(shouldShow);
         setPostOnboardingAIWelcomeDismissedThisSession(false);
@@ -182,10 +240,10 @@ export default function TabLayout() {
     return () => {
       cancelled = true;
     };
-  }, [hasAnyMemories]);
+  }, [memoriesBelowAISpotlightCap, idealizedMemories.length]);
 
   useEffect(() => {
-    if (hasAnyMemories && postOnboardingAIWelcomeEligible) {
+    if (!memoriesBelowAISpotlightCap && postOnboardingAIWelcomeEligible) {
       setShowPostOnboardingAIWelcomeState(false);
       setPostOnboardingAIWelcomeEligible(false);
       void setShowPostOnboardingAIWelcome(false);
@@ -194,13 +252,14 @@ export default function TabLayout() {
 
     if (
       postOnboardingAIWelcomeEligible &&
-      !hasAnyMemories &&
+      memoriesBelowAISpotlightCap &&
       !postOnboardingAIWelcomeDismissedThisSession
     ) {
       setShowPostOnboardingAIWelcomeState(true);
     }
   }, [
-    hasAnyMemories,
+    memoriesBelowAISpotlightCap,
+    idealizedMemories.length,
     postOnboardingAIWelcomeEligible,
     postOnboardingAIWelcomeDismissedThisSession,
   ]);
@@ -374,7 +433,7 @@ export default function TabLayout() {
                 textShadowRadius: 4,
               }}
             >
-              🎉 Welcome! You started your journey. 🎉
+              {t("tab.postOnboardingAiWelcome.title")}
             </ThemedText>
             <ThemedText
               size="m"
@@ -384,7 +443,7 @@ export default function TabLayout() {
                 textAlign: "center",
               }}
             >
-              ✨ Create your first memory ✨
+              {t("tab.postOnboardingAiWelcome.cta")}
             </ThemedText>
             <MaterialIcons
               name="south"

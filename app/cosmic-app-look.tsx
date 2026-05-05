@@ -97,7 +97,7 @@ export default function CosmicAppLookScreen() {
         </View>
 
         <ScrollView
-          style={{ flex: 1 }}
+          style={{ flex: 1, backgroundColor: "transparent" }}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >

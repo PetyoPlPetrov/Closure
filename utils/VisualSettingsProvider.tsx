@@ -1,7 +1,7 @@
 /**
  * Visual settings: orbit rotation speed, constellation amount, and cosmic background opacity.
  * Persisted to AsyncStorage. In dark mode, cosmic opacity scales the starfield image (and TabScreenContainer).
- * In light mode, the same slider scales the tab-screen edge vignette (0 = off, max = full preset).
+ * In light mode, the same slider scales only the viewport-edge vignette on a `#FFFFFF` base (no full-screen tint).
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -37,7 +37,7 @@ const DEFAULT_CONSTELLATION_OPACITY = 5;
 const MIN_CONSTELLATION_OPACITY = 0;
 const MAX_CONSTELLATION_OPACITY = 10;
 
-const DEFAULT_COSMIC_BACKGROUND_OPACITY = 2;
+const DEFAULT_COSMIC_BACKGROUND_OPACITY = 1;
 const MIN_COSMIC_BACKGROUND_OPACITY = 0;
 const MAX_COSMIC_BACKGROUND_OPACITY = 10;
 
@@ -311,7 +311,13 @@ export function useVisualSettings(): VisualSettingsContextValue {
 }
 
 export {
-  MAX_CONSTELLATION_AMOUNT, MAX_CONSTELLATION_OPACITY, MAX_COSMIC_BACKGROUND_OPACITY, MAX_ORBIT_DURATION_MS,
-  MIN_CONSTELLATION_AMOUNT, MIN_CONSTELLATION_OPACITY, MIN_COSMIC_BACKGROUND_OPACITY, MIN_ORBIT_DURATION_MS
+  MAX_CONSTELLATION_AMOUNT,
+  MAX_CONSTELLATION_OPACITY,
+  MAX_COSMIC_BACKGROUND_OPACITY,
+  MAX_ORBIT_DURATION_MS,
+  MIN_CONSTELLATION_AMOUNT,
+  MIN_CONSTELLATION_OPACITY,
+  MIN_COSMIC_BACKGROUND_OPACITY,
+  MIN_ORBIT_DURATION_MS
 };
 

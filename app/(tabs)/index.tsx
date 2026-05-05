@@ -38,12 +38,13 @@ import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { momentPillGlyphColor } from "@/utils/moment-pill-glyph";
 import {
-  subscribeGuideRecheckAfterWelcomeDismiss,
   getPostOnboardingAIWelcomeDismissedThisSession,
   getOnboardingCompleted,
   getShowPostOnboardingAIWelcome,
   getShowWalkthroughAfterOnboarding,
+  POST_ONBOARDING_AI_SPOTLIGHT_MAX_MEMORIES,
   setShowWalkthroughAfterOnboarding,
+  subscribeGuideRecheckAfterWelcomeDismiss,
 } from "@/utils/onboarding-storage";
 import { showPaywallForAIAccess } from "@/utils/premium-access";
 import { subscribeBadgeRewardsChanged } from "@/utils/badge-rewards-events";
@@ -14541,7 +14542,7 @@ export default function HomeScreen() {
         getPostOnboardingAIWelcomeDismissedThisSession();
       const shouldForcePostOnboardingAIWelcome =
         onboardingCompleted &&
-        idealizedMemories.length === 0 &&
+        idealizedMemories.length < POST_ONBOARDING_AI_SPOTLIGHT_MAX_MEMORIES &&
         !postOnboardingAIWelcomeDismissedThisSession;
       if (cancelled) return;
       if (
@@ -14617,6 +14618,7 @@ export default function HomeScreen() {
     focusedIntroComplete,
     homeViewMode,
     guideRecheckTick,
+    idealizedMemories.length,
     profiles.length,
     jobs.length,
     familyMembers.length,

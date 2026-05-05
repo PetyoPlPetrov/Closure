@@ -2969,7 +2969,10 @@ export function FocusedSferaView({
   ]);
 
   const insets = useSafeAreaInsets();
-  const { appUsabilityHints, sphere3DEffect } = useVisualSettings();
+  const { appUsabilityHints, sphere3DEffect, cosmicBackgroundOpacity } =
+    useVisualSettings();
+  const lightCosmicOff =
+    colorScheme === "light" && cosmicBackgroundOpacity === 0;
   const focusedSpherePulseRef = useRef<(() => void) | null>(null);
   const focusedSphereTapTimeRef = useRef<number>(0);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3895,7 +3898,7 @@ export function FocusedSferaView({
         constellationOpacity={constellationOpacity}
       />
 
-      <BackgroundDecorations />
+      {!lightCosmicOff && <BackgroundDecorations />}
 
       {selectedSphere === null &&
         sunLoadComplete &&
@@ -3974,7 +3977,8 @@ export function FocusedSferaView({
           enabled={
             orbitViewAnimationsEnabled &&
             pulsingAnimations &&
-            !isMemoryBalanceMode
+            !isMemoryBalanceMode &&
+            !lightCosmicOff
           }
           visible={!isSphereTransitioning}
         />

@@ -853,6 +853,7 @@ Rules:
 - career: Include isCurrent, startDate, endDate (if past)
 - family: Include relationship (mother, father, sister, brother, etc.)
 - friends, hobbies: Just name and description
+- Write descriptions in natural human language. Never use technical/meta labels like "user", "client", "subject", "person", or "entity" to refer to the storyteller; instead phrase directly (e.g. "Lives with me", "Works at X", "Close childhood friend").
 
 Respond in ${languageName} (${languageCode}). JSON only.`;
 

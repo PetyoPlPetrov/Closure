@@ -13,6 +13,9 @@ export interface Translations {
   "tab.settings": string;
   "tab.events": string;
   "tab.lessons": string;
+  /** Post-onboarding overlay above central AI tab button */
+  "tab.postOnboardingAiWelcome.title": string;
+  "tab.postOnboardingAiWelcome.cta": string;
   "home.emptyState": string;
   "home.sferaSizeHint": string;
   /** Focused home: sunny vs cloudy balance banner — high sunny share ({percentage} interpolated). */
@@ -415,6 +418,10 @@ export interface Translations {
   "onboarding.subtitle": string;
   "onboarding.placeholder": string;
   "onboarding.analyze": string;
+  /** Checkbox: consent to Gemini processing for AI Sferas setup + AI Insights. */
+  "onboarding.geminiConsent": string;
+  /** Skip AI onboarding; open app without extended post-entity flow. */
+  "onboarding.continueManualMode": string;
   "onboarding.analyzing": string;
   "onboarding.sferaAnalyzing": string;
   "onboarding.review": string;
@@ -448,9 +455,11 @@ export interface Translations {
   "onboarding.postEntity.blurbRequired": string;
   "onboarding.postEntity.memoryWizard.subtitle": string;
   "onboarding.postEntity.memoryWizard.createAi": string;
-  "onboarding.postEntity.memoryWizard.progress": string;
   /** Shown above the AI circle · {name} entity display name */
   "onboarding.postEntity.memoryWizard.tapAiCircleForName": string;
+  "onboarding.postEntity.memoryWizard.aiMemorySavedShort": string;
+  /** Shown in the hero when all starter memories exist and user can leave onboarding */
+  "onboarding.postEntity.memoryWizard.onboardingCompleteMessage": string;
   /** When > max entities: pick who gets a starter memory · {max} */
   "onboarding.postEntity.memoryPick.title": string;
   "onboarding.postEntity.memoryPick.body": string;
@@ -4001,6 +4010,8 @@ const translations: Record<Language, Translations> = {
     "tab.settings": "Settings",
     "tab.events": "Events",
     "tab.lessons": "Lessons",
+    "tab.postOnboardingAiWelcome.title": "🎉 Welcome! You started your journey. 🎉",
+    "tab.postOnboardingAiWelcome.cta": "✨ Start from here ✨",
     "home.emptyState":
       "No profiles yet. Add your first ex-profile to get started.",
     "home.sferaSizeHint":
@@ -4479,6 +4490,8 @@ const translations: Record<Language, Translations> = {
     "onboarding.placeholder":
       "My family has ... people. My brother is called .... He is ... years old, and he is very kind and supportive.\nMy best friend is ... and has always been there for me...\nI've been working at ... for 2 years. Before that I worked at ... for 3 years.\nI like hiking and the gym. In my free time I also do cooking classes and podcasts.\nI've been dating ... for 2 months. Before that I was single for 1 year after a ...-year relationship with my ex.",
     "onboarding.analyze": "Set up all my Sferas",
+    "onboarding.geminiConsent": "I agree Sferas AI to process it using AI.",
+    "onboarding.continueManualMode": "Continue to Sferas on manual mode",
     "onboarding.analyzing": "Setting up your Sferas...",
     "onboarding.sferaAnalyzing": "Sfera AI is analyzing...",
     "onboarding.review": "Review & edit your entities",
@@ -4522,11 +4535,12 @@ const translations: Record<Language, Translations> = {
     "onboarding.postEntity.memoryWizard.subtitle":
       "Included Sfera AI — one starter memory here; add more anytime in the app.",
     "onboarding.postEntity.memoryWizard.createAi": "Create with Sfera AI",
-    "onboarding.postEntity.memoryWizard.progress":
-      "{current} / {total} onboarding memories",
     "onboarding.postEntity.memoryWizard.tapAiCircleForName":
-      "Tap the sparkle button below to create a starter memory for {name}.",
-    "onboarding.postEntity.memoryPick.title": "Choose starter memories",
+      "Tap the Sparkle button to create the first memory with {name} to proceed.",
+    "onboarding.postEntity.memoryWizard.aiMemorySavedShort": "AI memory saved",
+    "onboarding.postEntity.memoryWizard.onboardingCompleteMessage":
+      "Congratulations — you've finished onboarding. Your starter memories are in place, and you can keep growing your sferas anytime in the app. Tap Continue when you're ready to begin.",
+    "onboarding.postEntity.memoryPick.title": "Grow your sferas",
     "onboarding.postEntity.memoryPick.body":
       "Pick up to 5 sfera objects. We will create a memory for each using Sfera AI for free.",
     "onboarding.postEntity.memoryPick.bodyHint":
@@ -5550,7 +5564,7 @@ const translations: Record<Language, Translations> = {
     "ai.title": "Create a memory with Sferas AI",
     "ai.subtitle":
       "Use this for someone or something in your life—a person, a hobby, family, or work. A few honest lines are enough; Sfera AI will structure it into moments and lessons.",
-    "ai.placeholder.input": "Tell us your story here…",
+    "ai.placeholder.input": "Share your memory or tell a story here…",
     "ai.placeholder.recording":
       "[Voice recording - speech-to-text integration needed]",
     "ai.listening": "Listening...",
@@ -5572,7 +5586,7 @@ const translations: Record<Language, Translations> = {
     "ai.error.image": "Failed to pick image",
     "ai.response.title": "AI Response",
     "ai.loading.title": "AI is thinking...",
-    "ai.loading.thinking": "AI is thinking...",
+    "ai.loading.thinking": "Sferas AI is thinking...",
     "ai.loading.analyzing": "Analyzing your thoughts...",
     "ai.loading.processing": "Processing memories...",
     "ai.loading.generating": "Generating insights...",
@@ -9048,6 +9062,8 @@ const translations: Record<Language, Translations> = {
     "tab.settings": "Настройки",
     "tab.events": "Събития",
     "tab.lessons": "Уроци",
+    "tab.postOnboardingAiWelcome.title": "🎉 Добре дошъл/дошла! Започна своето пътешествие. 🎉",
+    "tab.postOnboardingAiWelcome.cta": "✨ Започни оттук ✨",
     "home.emptyState":
       "Няма профили все още. Добавете първи партньор, за да започнете.",
     "home.sferaSizeHint":
@@ -9525,6 +9541,8 @@ const translations: Record<Language, Translations> = {
     "onboarding.placeholder":
       "Обхванете всяка Sfera. Добавете всеки Обект с кратка бележка.\n\nСемейство:\n- Мама: подкрепяща, живее наблизо\n- Татко: практичен, обича планини\n\nКариера:\n- Продуктов дизайнер: 3 години, дистанционно\n\nПриятели:\n- Алекс: приятел от училище, чуваме се всяка седмица\n\nХобита:\n- Бягане: 3 пъти седмично\n\nВръзки:\n- Крис: партньор, много грижовен",
     "onboarding.analyze": "Настрой всички мои Sferas",
+    "onboarding.geminiConsent": "Съгласявам се Sferas AI да го обработи с AI.",
+    "onboarding.continueManualMode": "Продължи към Sferas в ръчен режим",
     "onboarding.analyzing": "Настройваме вашите Sferas...",
     "onboarding.sferaAnalyzing": "Sfera AI анализира...",
     "onboarding.review": "Преглед и редакция на записите",
@@ -9568,11 +9586,12 @@ const translations: Record<Language, Translations> = {
     "onboarding.postEntity.memoryWizard.subtitle":
       "Включено Sfera AI — един начален спомен тук; след това можете да добавяте колкото желаете.",
     "onboarding.postEntity.memoryWizard.createAi": "Създай с Sfera AI",
-    "onboarding.postEntity.memoryWizard.progress":
-      "{current} / {total} спомени от онбординга",
     "onboarding.postEntity.memoryWizard.tapAiCircleForName":
-      "Докоснете бутона с искриците отдолу, за да създадете начален спомен за {name}.",
-    "onboarding.postEntity.memoryPick.title": "Изберете начални спомени",
+      "Докоснете бутона Sparkle, за да създадете първия спомен с {name}, за да продължите.",
+    "onboarding.postEntity.memoryWizard.aiMemorySavedShort": "AI споменът е записан",
+    "onboarding.postEntity.memoryWizard.onboardingCompleteMessage":
+      "Браво — приключихте с онбординга. Началните ви спомени са на място и можете по всяко време да продължите да развивате сферите си в приложението. Докоснете „Напред“, когато сте готови да започнете.",
+    "onboarding.postEntity.memoryPick.title": "Развийте вашите сфери",
     "onboarding.postEntity.memoryPick.body":
       "Изберете до 5 обекта от сферите. За всеки ще създадем спомен с Sfera AI безплатно.",
     "onboarding.postEntity.memoryPick.bodyHint":
@@ -10608,7 +10627,7 @@ const translations: Record<Language, Translations> = {
     "ai.title": "Създай спомен с AI",
     "ai.subtitle":
       "Ползвайте го за някой или нещо от живота ви — човек, хоби, семейство или работа. Достатъчни са няколко честни реда; Sfera AI ще го подреди в моменти и уроци.",
-    "ai.placeholder.input": "Разкажете вашата история тук…",
+    "ai.placeholder.input": "Споделете спомен или разкажете история тук…",
     "ai.placeholder.recording":
       "[Гласов запис - необходима интеграция за реч към текст]",
     "ai.listening": "Слушам...",
@@ -10630,7 +10649,7 @@ const translations: Record<Language, Translations> = {
     "ai.error.image": "Неуспешно избиране на изображение",
     "ai.response.title": "AI Отговор",
     "ai.loading.title": "AI мисли...",
-    "ai.loading.thinking": "AI мисли...",
+    "ai.loading.thinking": "Sferas AI мисли...",
     "ai.loading.analyzing": "Анализиране на мислите ви...",
     "ai.loading.processing": "Обработване на спомени...",
     "ai.loading.generating": "Генериране на прозрения...",

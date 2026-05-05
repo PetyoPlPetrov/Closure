@@ -15,6 +15,7 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import type { AIOnboardingResponse } from "@/utils/ai-service";
 import { processOnboardingPrompt } from "@/utils/ai-service";
+import { useAIInsightsConsent } from "@/utils/AIInsightsConsentProvider";
 import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { logError } from "@/utils/error-logger";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
@@ -679,7 +680,10 @@ export function OnboardingWizard({
     hobbies,
     profiles,
     jobs,
+    idealizedMemories,
   } = useJourney();
+
+  const aiConsent = useAIInsightsConsent();
 
   const [step, setStep] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6>(0);
   const [inputText, setInputText] = useState("");
@@ -690,6 +694,9 @@ export function OnboardingWizard({
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resumeChecked, setResumeChecked] = useState(false);
+  /** AI Sferas setup (step 5): Gemini + AI Insights consent; off → manual onboarding exit. */
+  const [agreeGeminiForSetup, setAgreeGeminiForSetup] = useState(true);
+  const [manualExitBusy, setManualExitBusy] = useState(false);
   const [postUi, setPostUi] = useState<"none" | "combined">("none");
   const [postStored, setPostStored] =
     useState<OnboardingPostEntityState | null>(null);
@@ -793,12 +800,16 @@ export function OnboardingWizard({
     if (!canSubmit) {
       return;
     }
+    if (!agreeGeminiForSetup) {
+      return;
+    }
     setErrorMessage(null);
     Keyboard.dismiss();
     setIsProcessing(true);
-    await new Promise((r) => setTimeout(r, 100));
-    const startTime = Date.now();
     try {
+      await aiConsent.setChoice("enabled");
+      await new Promise((r) => setTimeout(r, 100));
+      const startTime = Date.now();
       const response = await processOnboardingPrompt(
         inputText.trim(),
         language ?? "en",
@@ -820,7 +831,7 @@ export function OnboardingWizard({
     } finally {
       setIsProcessing(false);
     }
-  }, [canSubmit, inputText, language, t]);
+  }, [canSubmit, agreeGeminiForSetup, inputText, language, t, aiConsent]);
 
   const persistEntities = useCallback(
     async (entitiesBySphere: AIOnboardingResponse["entitiesBySphere"]) => {
@@ -934,10 +945,55 @@ export function OnboardingWizard({
     }
   }, [t]);
 
+  const finishOnboardingManualWithoutAI = useCallback(async () => {
+    setManualExitBusy(true);
+    try {
+      await setOnboardingCompleted(true);
+      router.replace("/(tabs)");
+      // Persist non-critical onboarding/manual-mode preferences in background
+      // so navigation is never blocked by storage latency/failures.
+      void (async () => {
+        try {
+          await aiConsent.setChoice("maybe_later");
+          await clearCachedOnboardingResponse();
+          await clearOnboardingPostEntityFlow();
+          await setShowWalkthroughAfterOnboarding(false);
+          await setShowPostOnboardingAIWelcome(true);
+          await setFocusedDisplayMode("memoryBalanceRings");
+        } catch (err) {
+          void logError("OnboardingSave:manualSkipBackground", err, {
+            stage: "postNavigate",
+          });
+        }
+      })();
+    } catch (err) {
+      void logError("OnboardingSave:manualSkip", err, { stage: "complete" });
+      Alert.alert(
+        t("common.error") ?? "Error",
+        err instanceof Error ? err.message : "Failed to complete onboarding",
+      );
+    } finally {
+      setManualExitBusy(false);
+    }
+  }, [aiConsent, t]);
+
   const persistWizardIndex = useCallback(async (idx: number) => {
     const prev = await getOnboardingPostEntityState();
     if (!prev) return;
     const next = { ...prev, wizardStepIndex: idx };
+    await setOnboardingPostEntityState(next);
+    setPostStored(next);
+  }, []);
+
+  const appendCommittedMemoryEntityId = useCallback(async (id: string) => {
+    const prev = await getOnboardingPostEntityState();
+    if (!prev) return;
+    const existing = [...(prev.wizardAiMemoryCommittedIds ?? [])];
+    if (existing.includes(id)) return;
+    const next = {
+      ...prev,
+      wizardAiMemoryCommittedIds: [...existing, id],
+    };
     await setOnboardingPostEntityState(next);
     setPostStored(next);
   }, []);
@@ -966,6 +1022,64 @@ export function OnboardingWizard({
     return canonical.slice(0, ONBOARDING_MEMORY_WIZARD_MAX);
   }, [canonicalOrderedEntityIds, postStored?.selectedEntityIds]);
 
+  /** One-time: legacy installations had no wizardAiMemoryCommittedIds field. */
+  useEffect(() => {
+    if (postStored?.postEntityWizardPhase !== "memory") return;
+    if (postStored.wizardAiMemoryCommittedIds !== undefined) return;
+    if (memoryWizardOrderedIds.length === 0) return;
+
+    let cancelled = false;
+    void (async () => {
+      const committed: string[] = [];
+      for (const id of memoryWizardOrderedIds) {
+        const sphere: LifeSphere | null = friends.some((f) => f.id === id)
+          ? "friends"
+          : familyMembers.some((m) => m.id === id)
+            ? "family"
+            : hobbies.some((h) => h.id === id)
+              ? "hobbies"
+              : profiles.some((p) => p.id === id)
+                ? "relationships"
+                : jobs.some((j) => j.id === id)
+                  ? "career"
+                  : null;
+        if (!sphere) continue;
+        const ok = idealizedMemories.some(
+          (m) =>
+            m.entityId === id &&
+            m.sphere === sphere &&
+            m.source === "ai",
+        );
+        if (ok) committed.push(id);
+      }
+      const prev = await getOnboardingPostEntityState();
+      if (
+        cancelled ||
+        !prev ||
+        prev.postEntityWizardPhase !== "memory" ||
+        prev.wizardAiMemoryCommittedIds !== undefined
+      ) {
+        return;
+      }
+      const next = { ...prev, wizardAiMemoryCommittedIds: committed };
+      await setOnboardingPostEntityState(next);
+      if (!cancelled) setPostStored(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    postStored?.postEntityWizardPhase,
+    postStored?.wizardAiMemoryCommittedIds,
+    memoryWizardOrderedIds,
+    idealizedMemories,
+    friends,
+    familyMembers,
+    hobbies,
+    profiles,
+    jobs,
+  ]);
+
   const proceedAfterEntitiesPhase = useCallback(async () => {
     await reloadAll();
     const rows = await loadOrderedMemoryWizardPickRows();
@@ -988,6 +1102,7 @@ export function OnboardingWizard({
         selectedEntityIds: idList,
         postEntityWizardPhase: "memory",
         wizardStepIndex: 0,
+        wizardAiMemoryCommittedIds: [],
       };
       await setOnboardingPostEntityState(next);
       setPostStored(next);
@@ -1000,6 +1115,7 @@ export function OnboardingWizard({
       selectedEntityIds: [],
       postEntityWizardPhase: "memoryPick",
       wizardStepIndex: 0,
+      wizardAiMemoryCommittedIds: [],
     };
     await setOnboardingPostEntityState(nextPick);
     setPostStored(nextPick);
@@ -1014,6 +1130,7 @@ export function OnboardingWizard({
       selectedEntityIds: capped,
       postEntityWizardPhase: "memory",
       wizardStepIndex: 0,
+      wizardAiMemoryCommittedIds: [],
     };
     await setOnboardingPostEntityState(next);
     setPostStored(next);
@@ -1046,6 +1163,7 @@ export function OnboardingWizard({
           entityBlurbs: {},
           selectedEntityIds: [],
           wizardStepIndex: 0,
+          wizardAiMemoryCommittedIds: [],
           postEntityWizardPhase: "entities",
         };
         await setOnboardingPostEntityState(draft);
@@ -1255,7 +1373,9 @@ export function OnboardingWizard({
           orderedEntityIds={memoryWizardOrderedIds}
           entityBlurbs={postStored.entityBlurbs}
           initialStepIndex={postStored.wizardStepIndex}
+          memoryWizardCommittedIds={postStored.wizardAiMemoryCommittedIds ?? []}
           onPersistStepIndex={persistWizardIndex}
+          onAppendCommittedMemoryEntityId={appendCommittedMemoryEntityId}
           onAllComplete={finishOnboardingAndLeave}
         />
       );
@@ -1572,7 +1692,7 @@ export function OnboardingWizard({
     const loadingMessages = [
       t("onboarding.sferaAnalyzing"),
       t("onboarding.analyzing"),
-      t("ai.loading.thinking") ?? "AI is thinking...",
+      t("ai.loading.thinking") ?? "Sferas AI is thinking...",
       t("ai.loading.processing") ?? "Processing memories...",
     ];
     return (
@@ -1736,77 +1856,81 @@ export function OnboardingWizard({
           )}
         </Pressable>
 
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 16 }}
-          keyboardShouldPersistTaps="never"
-          showsVerticalScrollIndicator={false}
-        >
-          <View
-            style={[
-              styles.inputWrapper,
-              {
-                position: "relative" as const,
-                backgroundColor:
-                  colorScheme === "dark"
-                    ? "rgba(255,255,255,0.06)"
-                    : "rgba(0,0,0,0.04)",
-                borderRadius: 16 * fontScale,
-                padding: 16 * fontScale,
-              },
-            ]}
+        {agreeGeminiForSetup ? (
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: 16 }}
+            keyboardShouldPersistTaps="never"
+            showsVerticalScrollIndicator={false}
           >
-            <TextInput
-              style={styles.textInput}
-              value={inputText}
-              onChangeText={setInputTextWithLimit}
-              placeholder={
-                t("onboarding.placeholder")
-              }
-              placeholderTextColor={
-                colorScheme === "dark"
-                  ? "rgba(255, 255, 255, 0.45)"
-                  : "rgba(0, 0, 0, 0.45)"
-              }
-              multiline
-              scrollEnabled
-              maxLength={MAX_INPUT_LENGTH}
-              editable={!isProcessing}
-            />
-            {/* Mic button - top right of input, lowered */}
             <View
-              style={{
-                position: "absolute",
-                right: 28 * fontScale,
-                top: 48 * fontScale,
-                alignItems: "center",
-              }}
+              style={[
+                styles.inputWrapper,
+                {
+                  position: "relative" as const,
+                  backgroundColor:
+                    colorScheme === "dark"
+                      ? "rgba(255,255,255,0.06)"
+                      : "rgba(0,0,0,0.04)",
+                  borderRadius: 16 * fontScale,
+                  padding: 16 * fontScale,
+                },
+              ]}
             >
-              <TouchableOpacity
-                style={[
-                  styles.micButton,
-                  speechToText.isRecording && styles.micButtonRecording,
-                ]}
-                onPress={
-                  speechToText.isRecording
-                    ? () => void speechToText.stop()
-                    : () => void speechToText.start()
+              <TextInput
+                style={styles.textInput}
+                value={inputText}
+                onChangeText={setInputTextWithLimit}
+                placeholder={
+                  t("onboarding.placeholder")
                 }
-                disabled={isProcessing}
+                placeholderTextColor={
+                  colorScheme === "dark"
+                    ? "rgba(255, 255, 255, 0.45)"
+                    : "rgba(0, 0, 0, 0.45)"
+                }
+                multiline
+                scrollEnabled
+                maxLength={MAX_INPUT_LENGTH}
+                editable={!isProcessing}
+              />
+              {/* Mic button - top right of input, lowered */}
+              <View
+                style={{
+                  position: "absolute",
+                  right: 28 * fontScale,
+                  top: 48 * fontScale,
+                  alignItems: "center",
+                }}
               >
-                <MaterialIcons
-                  name={speechToText.isRecording ? "stop" : "mic"}
-                  size={24 * fontScale}
-                  color="#FFFFFF"
-                />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.micButton,
+                    speechToText.isRecording && styles.micButtonRecording,
+                  ]}
+                  onPress={
+                    speechToText.isRecording
+                      ? () => void speechToText.stop()
+                      : () => void speechToText.start()
+                  }
+                  disabled={isProcessing}
+                >
+                  <MaterialIcons
+                    name={speechToText.isRecording ? "stop" : "mic"}
+                    size={24 * fontScale}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
 
-          <ThemedText size="sm" style={{ opacity: 0.6, marginBottom: 16 }}>
-            {MIN_WORDS}+ words • {inputText.length}/{MAX_INPUT_LENGTH} chars
-          </ThemedText>
-        </ScrollView>
+            <ThemedText size="sm" style={{ opacity: 0.6, marginBottom: 16 }}>
+              {MIN_WORDS}+ words • {inputText.length}/{MAX_INPUT_LENGTH} chars
+            </ThemedText>
+          </ScrollView>
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
 
         {/* Fixed footer: person + sferas + submit - always visible at bottom */}
         <View
@@ -1815,13 +1939,14 @@ export function OnboardingWizard({
             zIndex: 1,
             paddingHorizontal: 20 * fontScale,
             paddingTop: keyboardVisible ? 24 * fontScale : 0,
-            paddingBottom: 64 * fontScale,
+            paddingBottom: 28 * fontScale,
             minHeight: 120 * fontScale,
             justifyContent: "flex-end",
           }}
         >
           {/* Sferas - just above the person */}
           <View
+            pointerEvents="none"
             style={{
               position: "absolute",
               right: -10 * fontScale,
@@ -1839,6 +1964,7 @@ export function OnboardingWizard({
           </View>
           {/* Person - sitting almost on top of submit button */}
           <View
+            pointerEvents="none"
             style={{
               position: "absolute",
               right: -10 * fontScale,
@@ -1855,6 +1981,7 @@ export function OnboardingWizard({
             />
           </View>
 
+          {agreeGeminiForSetup ? (
           <TouchableOpacity
             style={[
               styles.submitButton,
@@ -1877,6 +2004,76 @@ export function OnboardingWizard({
                 {t("onboarding.analyze")}
               </ThemedText>
             </TouchableOpacity>
+          ) : (
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              styles.submitButtonEnabled,
+            ]}
+            onPress={() => void finishOnboardingManualWithoutAI()}
+            disabled={manualExitBusy}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={["#4A90E2", "#357ABD", "#2E6DA4"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[StyleSheet.absoluteFill, { borderRadius: 12 * fontScale }]}
+            />
+            {manualExitBusy ? (
+              <ActivityIndicator
+                color="#FFFFFF"
+              />
+            ) : (
+              <ThemedText
+                size="l"
+                weight="bold"
+                style={{
+                  color: "#FFFFFF",
+                  textAlign: "center",
+                }}
+              >
+                {t("onboarding.continueManualMode")}
+              </ThemedText>
+            )}
+          </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-start",
+              marginTop: 14 * fontScale,
+              gap: 12 * fontScale,
+            }}
+            onPress={() => setAgreeGeminiForSetup((v) => !v)}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons
+              name={agreeGeminiForSetup ? "check-box" : "check-box-outline-blank"}
+              size={22 * fontScale}
+              color={
+                colorScheme === "dark"
+                  ? "rgba(255, 245, 230, 0.9)"
+                  : "rgba(83, 58, 8, 0.85)"
+              }
+              style={{ marginTop: 2 * fontScale }}
+            />
+            <ThemedText
+              size="sm"
+              style={{
+                flex: 1,
+                opacity: 0.78,
+                lineHeight: 20 * fontScale,
+                color:
+                  colorScheme === "dark"
+                    ? "rgba(255, 255, 255, 0.85)"
+                    : "rgba(0, 0, 0, 0.72)",
+              }}
+            >
+              {t("onboarding.geminiConsent")}
+            </ThemedText>
+          </TouchableOpacity>
         </View>
           </View>
         </TouchableWithoutFeedback>

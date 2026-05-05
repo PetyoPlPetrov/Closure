@@ -39,7 +39,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "splash": {
-        "backgroundColor": "#D5D8DE",
+        "backgroundColor": "#FFFFFF",
         "resizeMode": "contain",
         "dark": {
           "backgroundColor": "#101A3D"
@@ -77,7 +77,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#D5D8DE",
+          "backgroundColor": "#FFFFFF",
           "dark": {
             "backgroundColor": "#101A3D"
           },
