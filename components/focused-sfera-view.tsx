@@ -52,6 +52,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   AppState,
   Dimensions,
+  GestureResponderEvent,
   InteractionManager,
   PanResponder,
   Platform,
@@ -93,6 +94,8 @@ const IPAD_INDIVIDUAL_SFERA_SCALE = IS_IPAD ? 1.3 : 1;
 const IPAD_INDIVIDUAL_CARD_SCALE = IS_IPAD ? 1.45 : 1;
 const IPAD_INDIVIDUAL_ENTITY_AVATAR_SCALE = IS_IPAD ? 1.18 : 1;
 const scaleFocused = (value: number) => value * IPAD_FOCUSED_SCALE;
+const TAP_MAX_DISTANCE_PX = 12;
+const TAP_MAX_DURATION_MS = 260;
 
 const SPHERE_LIST: { type: LifeSphere; icon: string }[] = [
   { type: "relationships", icon: "favorite" },
@@ -719,7 +722,6 @@ const EntityRing = React.memo(function EntityRing({
   entityNames,
   entityMemories,
   onEntitySelect,
-  onSingleTapSameAsFocusedSphere,
   onNeedMemoriesHint,
   needMemoriesHintEntityId,
   sphere,
@@ -745,8 +747,6 @@ const EntityRing = React.memo(function EntityRing({
   entityNames: string[];
   entityMemories: IdealizedMemory[][];
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
-  /** When set (focused sphere only), single tap on an orbiting entity matches focused-sphere tap: pulse + global double-tap hint. */
-  onSingleTapSameAsFocusedSphere?: () => void;
   onNeedMemoriesHint?: (entityId: string) => void;
   needMemoriesHintEntityId: string | null;
   sphere: LifeSphere;
@@ -791,21 +791,15 @@ const EntityRing = React.memo(function EntityRing({
   }, [rotateOrbit, orbitAngle, orbitDurationMs, animationsEnabled]);
 
   const handleOrbitingEntityTap = useCallback(
-    (entityId: string, isDoubleTap: boolean, memoryCount: number) => {
-      if (isDoubleTap) {
-        onEntitySelect(entityId, sphere);
-        return;
-      }
+    (entityId: string, memoryCount: number) => {
       if (!isFocused || !entityId) return;
-      // Keep orbit-entity single tap behavior aligned with focused sphere:
-      // first tap should always show the global "double tap to open" affordance.
-      onSingleTapSameAsFocusedSphere?.();
       if (memoryCount === 0) {
         onNeedMemoriesHint?.(entityId);
         return;
       }
+      onEntitySelect(entityId, sphere);
     },
-    [isFocused, onEntitySelect, onSingleTapSameAsFocusedSphere, onNeedMemoriesHint, sphere],
+    [isFocused, onEntitySelect, onNeedMemoriesHint, sphere],
   );
 
   if (entityIds.length === 0) return null;
@@ -906,7 +900,6 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   entityMemories: IdealizedMemory[];
   onOrbitingTap: (
     entityId: string,
-    isDoubleTap: boolean,
     memoryCount: number,
   ) => void;
   needMemoriesHintForEntity?: boolean;
@@ -920,7 +913,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
 }) {
   const t = useTranslate();
   const scale = useSharedValue(1);
-  const lastTap = useRef(0);
+  const pressStartRef = useRef<{ x: number; y: number; ts: number } | null>(null);
   const triggerEntityTapHaptic = useCallback(() => {
     if (Platform.OS === "ios" && Device.isDevice) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -993,12 +986,24 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
           borderRadius: 999,
         }}
         hitSlop={isFocused ? 18 : 10}
-        onPress={() => {
+        onPressIn={(event) => {
+          const { pageX, pageY } = event.nativeEvent;
+          pressStartRef.current = { x: pageX, y: pageY, ts: Date.now() };
+        }}
+        onPress={(event) => {
           if (entityId) {
+            const start = pressStartRef.current;
+            pressStartRef.current = null;
+            if (start) {
+              const dx = event.nativeEvent.pageX - start.x;
+              const dy = event.nativeEvent.pageY - start.y;
+              const distance = Math.hypot(dx, dy);
+              const duration = Date.now() - start.ts;
+              if (distance > TAP_MAX_DISTANCE_PX || duration > TAP_MAX_DURATION_MS) {
+                return;
+              }
+            }
             triggerEntityTapHaptic();
-            const now = Date.now();
-            const isDoubleTap = now - lastTap.current < 300;
-            lastTap.current = now;
 
             // Fast one-shot pulse for tap feedback (orbit keeps rotating)
             cancelAnimation(scale);
@@ -1013,7 +1018,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
               }),
             );
 
-            onOrbitingTap(entityId, isDoubleTap, entityMemories.length);
+            onOrbitingTap(entityId, entityMemories.length);
           }
         }}
       >
@@ -1344,7 +1349,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   entityMemories,
   onPress,
   onEntitySelect,
-  onSingleTapSameAsFocusedSphere,
   onNeedMemoriesHint,
   needMemoriesHintEntityId,
   onPulse,
@@ -1375,7 +1379,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   entityMemories: IdealizedMemory[][];
   onPress: () => void;
   onEntitySelect: (entityId: string, sphere: LifeSphere) => void;
-  onSingleTapSameAsFocusedSphere?: () => void;
   onNeedMemoriesHint?: (entityId: string) => void;
   needMemoriesHintEntityId: string | null;
   onPulse?: (trigger: () => void) => void;
@@ -1423,7 +1426,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     entityAvatarScale,
   );
   const spherePulseScale = useSharedValue(1);
-  const lastPressTimeRef = useRef<number>(0);
+  const spherePressStartRef = useRef<{ x: number; y: number; ts: number } | null>(null);
   const firstTapFeedbackScale = useSharedValue(1);
 
   /**
@@ -1551,39 +1554,35 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     }
   }, [isFocused, spherePulseScale, animationsEnabled]);
 
-  // Reset double-tap state when this sphere comes into focus (e.g. tapped from unfocused)
-  // so the focusing tap doesn't accidentally count as the first tap of a double-tap sequence.
+  // Reset tap intent tracking when focus changes.
   useEffect(() => {
     if (isFocused) {
-      lastPressTimeRef.current = 0;
+      spherePressStartRef.current = null;
     }
   }, [isFocused]);
 
-  const handleSpherePress = useCallback(() => {
-    if (!isFocused) { onPress(); return; }
-    if (singleTapWhenFocused) { onPress(); return; }
-    const now = Date.now();
-    const elapsed = now - lastPressTimeRef.current;
-    if (elapsed < 350 && elapsed > 0) {
-      lastPressTimeRef.current = 0;
+  const handleSpherePress = useCallback(
+    (event: GestureResponderEvent) => {
+      const start = spherePressStartRef.current;
+      spherePressStartRef.current = null;
+      if (start) {
+        const dx = event.nativeEvent.pageX - start.x;
+        const dy = event.nativeEvent.pageY - start.y;
+        const distance = Math.hypot(dx, dy);
+        const duration = Date.now() - start.ts;
+        if (distance > TAP_MAX_DISTANCE_PX || duration > TAP_MAX_DURATION_MS) {
+          return;
+        }
+      }
       onPress();
-    } else {
-      lastPressTimeRef.current = now;
-      cancelAnimation(firstTapFeedbackScale);
-      firstTapFeedbackScale.value = 1;
-      firstTapFeedbackScale.value = withSequence(
-        withSpring(1.06, { damping: 10, stiffness: 350 }),
-        withSpring(1.0, { damping: 12, stiffness: 200 }),
-      );
-      onSingleTapSameAsFocusedSphere?.();
-    }
-  }, [
-    isFocused,
-    singleTapWhenFocused,
-    onPress,
-    firstTapFeedbackScale,
-    onSingleTapSameAsFocusedSphere,
-  ]);
+    },
+    [onPress],
+  );
+
+  const handleSpherePressIn = useCallback((event: GestureResponderEvent) => {
+    const { pageX, pageY } = event.nativeEvent;
+    spherePressStartRef.current = { x: pageX, y: pageY, ts: Date.now() };
+  }, []);
 
   const handleEntitySelect = useCallback(
     (entityId: string, sphere: LifeSphere) => {
@@ -1764,6 +1763,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       {/* Tight tap target for unfocused spheres — sits over the visual only. */}
       {!isFocused && (
         <Pressable
+          onPressIn={handleSpherePressIn}
           onPress={handleSpherePress}
           style={{
             position: "absolute",
@@ -2032,7 +2032,6 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             entityNames={entityNames}
             entityMemories={entityMemories}
             onEntitySelect={handleEntitySelect}
-            onSingleTapSameAsFocusedSphere={onSingleTapSameAsFocusedSphere}
             onNeedMemoriesHint={onNeedMemoriesHint}
             needMemoriesHintEntityId={needMemoriesHintEntityId}
             sphere={sphere.type}
@@ -3011,8 +3010,7 @@ export function FocusedSferaView({
   const lightCosmicOff =
     colorScheme === "light" && cosmicBackgroundOpacity === 0;
   const focusedSpherePulseRef = useRef<(() => void) | null>(null);
-  const focusedSphereTapTimeRef = useRef<number>(0);
-  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusedSpherePressStartRef = useRef<{ x: number; y: number; ts: number } | null>(null);
   const memoriesHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const insightsHubPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -3265,7 +3263,7 @@ export function FocusedSferaView({
   const applyFocusedIndex = useCallback(
     (newIdx: number) => {
       setFocusedIdx(newIdx);
-      focusedSphereTapTimeRef.current = 0;
+      focusedSpherePressStartRef.current = null;
       onFocusedSphereChange?.(newIdx);
     },
     [onFocusedSphereChange],
@@ -3725,19 +3723,19 @@ export function FocusedSferaView({
   const leftChevronScale = useSharedValue(1);
   const rightChevronScale = useSharedValue(1);
   const memoryBalanceToggleScale = useSharedValue(1);
-  const hintOpacity = useSharedValue(0);
 
-  const showDoubleTapHint = useCallback(() => {
-    if (!appUsabilityHints) return;
-    cancelAnimation(hintOpacity);
-    hintOpacity.value = withSequence(
-      withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) }),
-      withDelay(1200, withTiming(0, { duration: 400, easing: Easing.in(Easing.ease) })),
-    );
-  }, [appUsabilityHints, hintOpacity]);
-
-  /** Same timing as the absolute focused-sphere overlay: pulse + global hint on first tap; second tap opens sphere. Orbiting entities call this on single tap. */
-  const handleFocusedSphereTapOverlay = useCallback(() => {
+  const handleFocusedSphereTapOverlay = useCallback((event: GestureResponderEvent) => {
+    const start = focusedSpherePressStartRef.current;
+    focusedSpherePressStartRef.current = null;
+    if (start) {
+      const dx = event.nativeEvent.pageX - start.x;
+      const dy = event.nativeEvent.pageY - start.y;
+      const distance = Math.hypot(dx, dy);
+      const duration = Date.now() - start.ts;
+      if (distance > TAP_MAX_DISTANCE_PX || duration > TAP_MAX_DURATION_MS) {
+        return;
+      }
+    }
     if (!sunLoadComplete) return;
     if (isSunExpanded) {
       handleCollapseSun();
@@ -3747,24 +3745,8 @@ export function FocusedSferaView({
       onAddMemoriesPress?.();
       return;
     }
-    const now = Date.now();
-    const elapsed = now - focusedSphereTapTimeRef.current;
-    if (elapsed < 350 && elapsed > 0) {
-      focusedSphereTapTimeRef.current = 0;
-      if (hintTimerRef.current) {
-        clearTimeout(hintTimerRef.current);
-        hintTimerRef.current = null;
-      }
-      onSphereSelect(SPHERE_LIST[focusedIdx].type);
-    } else {
-      focusedSphereTapTimeRef.current = now;
-      focusedSpherePulseRef.current?.();
-      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
-      hintTimerRef.current = setTimeout(() => {
-        hintTimerRef.current = null;
-        showDoubleTapHint();
-      }, 350);
-    }
+    focusedSpherePulseRef.current?.();
+    onSphereSelect(SPHERE_LIST[focusedIdx].type);
   }, [
     sunLoadComplete,
     isSunExpanded,
@@ -3773,17 +3755,20 @@ export function FocusedSferaView({
     onAddMemoriesPress,
     focusedIdx,
     onSphereSelect,
-    showDoubleTapHint,
   ]);
+
+  const handleFocusedSphereTapOverlayPressIn = useCallback(
+    (event: GestureResponderEvent) => {
+      const { pageX, pageY } = event.nativeEvent;
+      focusedSpherePressStartRef.current = { x: pageX, y: pageY, ts: Date.now() };
+    },
+    [],
+  );
 
   const resolveEntitySelectForSphere = useCallback(
     (sphereIndex: number) => {
       return (entityId: string, s: LifeSphere) => {
-        if (hintTimerRef.current) {
-          clearTimeout(hintTimerRef.current);
-          hintTimerRef.current = null;
-        }
-        focusedSphereTapTimeRef.current = 0;
+        focusedSpherePressStartRef.current = null;
 
         const ids = entityIdsBySphere[s] ?? [];
         const entityIdx = ids.indexOf(entityId);
@@ -3863,10 +3848,6 @@ export function FocusedSferaView({
     insightsHubScale,
     triggerLightHaptic,
   ]);
-
-  const doubleTapHintAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: hintOpacity.value,
-  }));
 
   const leftChevronStyle = useAnimatedStyle(() => ({
     transform: [{ scale: leftChevronScale.value }],
@@ -4096,9 +4077,6 @@ export function FocusedSferaView({
                 onSphereSelect(sphere.type);
               }}
               onEntitySelect={resolveEntitySelectForSphere(i)}
-              onSingleTapSameAsFocusedSphere={
-                i === focusedIdx ? handleFocusedSphereTapOverlay : undefined
-              }
               onNeedMemoriesHint={showOrbitNeedMemoriesHint}
               needMemoriesHintEntityId={orbitNeedMemoriesHintEntityId}
               colorScheme={colorScheme}
@@ -4163,6 +4141,7 @@ export function FocusedSferaView({
             borderRadius: focusedTapSize / 2,
             zIndex: 30,
           }}
+          onPressIn={handleFocusedSphereTapOverlayPressIn}
           onPress={handleFocusedSphereTapOverlay}
         />
       )}
@@ -4271,58 +4250,6 @@ export function FocusedSferaView({
                 ]}
               />
             ))}
-          </View>
-        </Animated.View>
-      )}
-
-      {/* ─── Double-tap UX hint: soft tooltip below sphere, triggered on single tap ─── */}
-      {appUsabilityHints && selectedSphere === null && !isMemoryBalanceMode && (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            {
-              position: "absolute",
-              left: ORBIT_CX - FOCUSED_SIZE / 2,
-              width: FOCUSED_SIZE,
-              top: ORBIT_CY + ORBIT_R + scaleFocused(20),
-              alignItems: "center",
-              zIndex: 20,
-            },
-            doubleTapHintAnimatedStyle,
-          ]}
-        >
-          <View
-            style={{
-              paddingHorizontal: scaleFocused(12),
-              paddingVertical: scaleFocused(7),
-              borderRadius: scaleFocused(14),
-              backgroundColor: isLightTheme
-                ? "rgba(255,255,255,0.9)"
-                : "rgba(15,20,34,0.58)",
-              borderWidth: 1,
-              borderColor: isLightTheme
-                ? `${focusedSphereAccent}55`
-                : "rgba(255,255,255,0.18)",
-              shadowColor: isLightTheme ? focusedSphereAccent : "#000000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: isLightTheme ? 0.14 : 0.2,
-              shadowRadius: isLightTheme ? 8 : 6,
-            }}
-          >
-            <ThemedText style={{
-              fontSize: scaleFocused(13),
-              color: doubleTapHintTextColor,
-              opacity: 1,
-              letterSpacing: 0.2,
-              textShadowColor:
-                colorScheme === "light"
-                  ? "rgba(255,255,255,0.35)"
-                  : "rgba(0,0,0,0.8)",
-              textShadowOffset: { width: 0, height: 1 },
-              textShadowRadius: colorScheme === "light" ? 1 : 4,
-            }}>
-              {t("spheres.doubleTapHint")}
-            </ThemedText>
           </View>
         </Animated.View>
       )}
@@ -4443,10 +4370,10 @@ const styles = StyleSheet.create({
     elevation: 40,
   },
   chevronLeft: {
-    left: scaleFocused(-6),
+    left: scaleFocused(2),
   },
   chevronRight: {
-    right: scaleFocused(-6),
+    right: scaleFocused(2),
   },
   chevronPressable: {
     // Keep chevrons tappable without covering orbiting entity avatars.
