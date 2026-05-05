@@ -1,10 +1,12 @@
 /**
  * OnboardingWizard - Stepper flow for new users with no data.
- * Major steps: language → intro slides → tell your story → review entities.
- * AI processing uses a loading view (same stepper position as story, not its own step).
- * On Save: persist entities, open home tab, show walkthrough modal
+ * Major steps: language → intro slides → tell your story → review entities →
+ * optional post-entity flow (FFH entity + Sfera AI memory wizard) → main app.
  */
 import { AILoadingView } from "@/components/ai-loading-view";
+import { OnboardingFfEntityMemoryWizard } from "@/components/onboarding-ff-entity-memory-wizard";
+import { OnboardingMemoryEntityPick } from "@/components/onboarding-memory-entity-pick";
+import { OnboardingMemoryWizardStep } from "@/components/onboarding-memory-wizard-step";
 import { OnboardingEntityResultsView } from "@/components/onboarding-entity-results-view";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
@@ -15,20 +17,30 @@ import type { AIOnboardingResponse } from "@/utils/ai-service";
 import { processOnboardingPrompt } from "@/utils/ai-service";
 import { ensureImageInAppDocuments } from "@/utils/entity-image-storage";
 import { logError } from "@/utils/error-logger";
-import { useJourney } from "@/utils/JourneyProvider";
+import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { setFocusedDisplayMode } from "@/utils/focused-display-mode-storage";
+import type { OnboardingPostEntityState } from "@/utils/onboarding-storage";
+import {
+  loadOrderedMemoryWizardPickRows,
+  ONBOARDING_MEMORY_WIZARD_MAX,
+  type MemoryWizardPickRow,
+} from "@/utils/onboarding-memory-wizard-ids";
 import {
   clearCachedOnboardingResponse,
+  clearOnboardingPostEntityFlow,
   getCachedOnboardingResponse,
+  getOnboardingPostEntityPending,
+  getOnboardingPostEntityState,
   setCachedOnboardingResponse,
   setOnboardingCompleted,
+  setOnboardingPostEntityPending,
+  setOnboardingPostEntityState,
   setShowPostOnboardingAIWelcome,
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
 import { getSphere3DGradientColors, getSphereIconColor, getSphereShadowColor, getSphereSferaColor } from "@/utils/sphere-styles";
-import type { LifeSphere } from "@/utils/JourneyProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -37,6 +49,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Animated, { cancelAnimation, Easing, SharedValue, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from "react-native-reanimated";
 import Svg, { ClipPath, Defs, Ellipse as SvgEllipse, Path, RadialGradient as SvgRadialGradient, Rect, Stop, Circle as SvgCircle, LinearGradient as SvgLinearGradient } from "react-native-svg";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   Keyboard,
@@ -654,13 +667,33 @@ export function OnboardingWizard({
   const colors = Colors[colorScheme ?? "dark"];
   const t = useTranslate();
   const { language, setLanguage } = useLanguage();
-  const { addProfile, addJob, addFamilyMember, addFriend, addHobby, reloadAll } =
-    useJourney();
+  const {
+    addProfile,
+    addJob,
+    addFamilyMember,
+    addFriend,
+    addHobby,
+    reloadAll,
+    friends,
+    familyMembers,
+    hobbies,
+    profiles,
+    jobs,
+  } = useJourney();
 
   const [step, setStep] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6>(0);
   const [inputText, setInputText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [aiResponse, setAiResponse] = useState<AIOnboardingResponse | null>(
+    null,
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [resumeChecked, setResumeChecked] = useState(false);
+  const [postUi, setPostUi] = useState<"none" | "combined">("none");
+  const [postStored, setPostStored] =
+    useState<OnboardingPostEntityState | null>(null);
+  const [memoryPickRows, setMemoryPickRows] = useState<MemoryWizardPickRow[]>([]);
 
   useEffect(() => {
     const show = Keyboard.addListener(
@@ -678,18 +711,58 @@ export function OnboardingWizard({
   }, []);
 
   useEffect(() => {
+    if (postStored?.postEntityWizardPhase !== "memoryPick") {
+      return;
+    }
     let cancelled = false;
-    getCachedOnboardingResponse().then((cached) => {
-      if (cancelled || !cached) return;
-      setAiResponse(cached);
-      setStep(6);
+    void loadOrderedMemoryWizardPickRows().then((rows) => {
+      if (!cancelled) setMemoryPickRows(rows);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
+  }, [postStored?.postEntityWizardPhase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const pend = await getOnboardingPostEntityPending();
+        if (pend) {
+          let st = await getOnboardingPostEntityState();
+          if (!st) {
+            st = {
+              mandatoryFillComplete: true,
+              selectionSubmitted: true,
+              entityBlurbs: {},
+              selectedEntityIds: [],
+              wizardStepIndex: 0,
+              postEntityWizardPhase: "entities",
+            };
+            await setOnboardingPostEntityState(st);
+          }
+          if (cancelled) return;
+          setPostStored(st);
+          setPostUi("combined");
+          setResumeChecked(true);
+          return;
+        }
+        const cached = await getCachedOnboardingResponse();
+        if (cancelled || !cached) {
+          setResumeChecked(true);
+          return;
+        }
+        setAiResponse(cached);
+        setStep(6);
+        setResumeChecked(true);
+      } catch {
+        if (!cancelled) setResumeChecked(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-  const [aiResponse, setAiResponse] = useState<AIOnboardingResponse | null>(
-    null,
-  );
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const wordCount = useMemo(
     () =>
@@ -844,6 +917,108 @@ export function OnboardingWizard({
     [addProfile, addJob, addFamilyMember, addFriend, addHobby],
   );
 
+  const finishOnboardingAndLeave = useCallback(async () => {
+    try {
+      await clearOnboardingPostEntityFlow();
+      await setOnboardingCompleted(true);
+      await setShowWalkthroughAfterOnboarding(false);
+      await setShowPostOnboardingAIWelcome(true);
+      await setFocusedDisplayMode("memoryBalanceRings");
+      router.replace("/(tabs)");
+    } catch (err) {
+      void logError("OnboardingSave:finishPostEntity", err, { stage: "complete" });
+      Alert.alert(
+        t("common.error") ?? "Error",
+        err instanceof Error ? err.message : "Failed to complete onboarding",
+      );
+    }
+  }, [t]);
+
+  const persistWizardIndex = useCallback(async (idx: number) => {
+    const prev = await getOnboardingPostEntityState();
+    if (!prev) return;
+    const next = { ...prev, wizardStepIndex: idx };
+    await setOnboardingPostEntityState(next);
+    setPostStored(next);
+  }, []);
+
+  const canonicalOrderedEntityIds = useMemo(() => {
+    const ids = [
+      ...friends.map((f) => f.id),
+      ...familyMembers.map((m) => m.id),
+      ...hobbies.map((h) => h.id),
+      ...profiles.map((p) => p.id),
+      ...jobs.map((j) => j.id),
+    ];
+    return ids;
+  }, [friends, familyMembers, hobbies, profiles, jobs]);
+
+  const memoryWizardOrderedIds = useMemo(() => {
+    const canonical = canonicalOrderedEntityIds;
+    const set = new Set(canonical);
+    const sel = postStored?.selectedEntityIds;
+
+    if (Array.isArray(sel) && sel.length > 0) {
+      const ordered = sel.filter((id) => set.has(id));
+      return ordered.slice(0, ONBOARDING_MEMORY_WIZARD_MAX);
+    }
+
+    return canonical.slice(0, ONBOARDING_MEMORY_WIZARD_MAX);
+  }, [canonicalOrderedEntityIds, postStored?.selectedEntityIds]);
+
+  const proceedAfterEntitiesPhase = useCallback(async () => {
+    await reloadAll();
+    const rows = await loadOrderedMemoryWizardPickRows();
+    if (rows.length === 0) {
+      Alert.alert(
+        t("common.error") ?? "Error",
+        t("ai.entity.noEntities") ?? "No profiles found.",
+      );
+      return;
+    }
+
+    const prev = await getOnboardingPostEntityState();
+    if (!prev) return;
+
+    const idList = rows.map((r) => r.id);
+
+    if (idList.length <= ONBOARDING_MEMORY_WIZARD_MAX) {
+      const next: OnboardingPostEntityState = {
+        ...prev,
+        selectedEntityIds: idList,
+        postEntityWizardPhase: "memory",
+        wizardStepIndex: 0,
+      };
+      await setOnboardingPostEntityState(next);
+      setPostStored(next);
+      return;
+    }
+
+    setMemoryPickRows(rows);
+    const nextPick: OnboardingPostEntityState = {
+      ...prev,
+      selectedEntityIds: [],
+      postEntityWizardPhase: "memoryPick",
+      wizardStepIndex: 0,
+    };
+    await setOnboardingPostEntityState(nextPick);
+    setPostStored(nextPick);
+  }, [reloadAll, t]);
+
+  const confirmMemoryEntityPick = useCallback(async (selectedIds: string[]) => {
+    const prev = await getOnboardingPostEntityState();
+    if (!prev) return;
+    const capped = selectedIds.slice(0, ONBOARDING_MEMORY_WIZARD_MAX);
+    const next: OnboardingPostEntityState = {
+      ...prev,
+      selectedEntityIds: capped,
+      postEntityWizardPhase: "memory",
+      wizardStepIndex: 0,
+    };
+    await setOnboardingPostEntityState(next);
+    setPostStored(next);
+  }, []);
+
   const handleCacheOnboardingResponse = useCallback(
     (entitiesBySphere: AIOnboardingResponse["entitiesBySphere"]) => {
       setCachedOnboardingResponse({ entitiesBySphere });
@@ -858,19 +1033,26 @@ export function OnboardingWizard({
     setStep(5);
   }, []);
 
-  const handleSave = useCallback(
+  const saveEntitiesPhase = useCallback(
     async (entitiesBySphere: AIOnboardingResponse["entitiesBySphere"]) => {
       try {
         await persistEntities(entitiesBySphere);
         await reloadAll();
         await clearCachedOnboardingResponse();
-        await setOnboardingCompleted(true);
-        await setShowWalkthroughAfterOnboarding(false);
-        await setShowPostOnboardingAIWelcome(true);
-        await setFocusedDisplayMode("memoryBalanceRings");
-        router.replace("/(tabs)");
+        await setOnboardingPostEntityPending(true);
+        const draft: OnboardingPostEntityState = {
+          mandatoryFillComplete: true,
+          selectionSubmitted: true,
+          entityBlurbs: {},
+          selectedEntityIds: [],
+          wizardStepIndex: 0,
+          postEntityWizardPhase: "entities",
+        };
+        await setOnboardingPostEntityState(draft);
+        setPostStored(draft);
+        setPostUi("combined");
       } catch (err) {
-        void logError("OnboardingSave:handleSave", err, {
+        void logError("OnboardingSave:saveEntitiesPhase", err, {
           stage: "persist_or_reload",
         });
         Alert.alert(
@@ -1035,6 +1217,56 @@ export function OnboardingWizard({
     },
     [setLanguage],
   );
+
+  if (!resumeChecked) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (postUi === "combined") {
+    if (!postStored) {
+      return (
+        <View style={[styles.container, styles.loadingContainer]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      );
+    }
+    if (postStored.postEntityWizardPhase === "memoryPick") {
+      if (memoryPickRows.length === 0) {
+        return (
+          <View style={[styles.container, styles.loadingContainer]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        );
+      }
+      return (
+        <OnboardingMemoryEntityPick
+          rows={memoryPickRows}
+          onConfirm={confirmMemoryEntityPick}
+        />
+      );
+    }
+    if (postStored.postEntityWizardPhase === "memory") {
+      return (
+        <OnboardingMemoryWizardStep
+          orderedEntityIds={memoryWizardOrderedIds}
+          entityBlurbs={postStored.entityBlurbs}
+          initialStepIndex={postStored.wizardStepIndex}
+          onPersistStepIndex={persistWizardIndex}
+          onAllComplete={finishOnboardingAndLeave}
+        />
+      );
+    }
+
+    return (
+      <OnboardingFfEntityMemoryWizard
+        onContinueToMemoryWizard={proceedAfterEntitiesPhase}
+      />
+    );
+  }
 
   // Step 0: Choose language (EN / BG)
   if (step === 0) {
@@ -1704,7 +1936,7 @@ export function OnboardingWizard({
         <View style={{ flex: 1 }}>
           <OnboardingEntityResultsView
             entitiesBySphere={aiResponse.entitiesBySphere}
-            onSave={handleSave}
+            onSave={saveEntitiesPhase}
             onStartOver={handleStartOver}
             onEntitiesBySphereChange={handleCacheOnboardingResponse}
           />

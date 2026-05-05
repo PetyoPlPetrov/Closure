@@ -103,6 +103,8 @@ export async function processMemoryPrompt(
   context: AIRequestContext,
   language: string = "en",
   imageUri?: string,
+  /** Extra narrative appended after Sferas context (e.g. onboarding per-entity blurb). */
+  entityNarrativeAppendix?: string,
 ): Promise<AIMemoryResponse> {
   const requestId = `memory_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const timestamp = Date.now();
@@ -210,7 +212,12 @@ REQUIRED: For EVERY sunnyMoments and lessonsLearned moment you MUST provide noti
     ? `\n\nUser's Sferas context:\n${JSON.stringify(context.sferas, null, 2)}`
     : "";
 
-  const userPrompt = `${prompt}${sferasContext}`;
+  const appendixTrimmed = entityNarrativeAppendix?.trim();
+  const appendix = appendixTrimmed
+    ? `\n\nAdditional narrative the user wrote about their chosen focus entity:\n${appendixTrimmed}`
+    : "";
+
+  const userPrompt = `${prompt}${sferasContext}${appendix}`;
 
   const app = getApp();
   const ai = getAI(app, {

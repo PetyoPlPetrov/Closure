@@ -4,6 +4,24 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { AIOnboardingResponse } from "./ai-service";
 
+const ONBOARDING_POST_ENTITY_PENDING_KEY = "@sferas:onboarding_post_entity_pending";
+const ONBOARDING_POST_ENTITY_STATE_KEY = "@sferas:onboarding_post_entity_state";
+
+/** After story entities: first collect min objects per sphere, then sequential memory wizard. */
+export type PostEntityWizardPhase = "entities" | "memoryPick" | "memory";
+
+export type OnboardingPostEntityState = {
+  /** Legacy post-entity steps; retained for persisted JSON compatibility. */
+  mandatoryFillComplete: boolean;
+  selectionSubmitted: boolean;
+  entityBlurbs: Record<string, string>;
+  selectedEntityIds: string[];
+  /** Step within the memory phase (per-entity AI memories). */
+  wizardStepIndex: number;
+  /** `entities` = grow-Sferas list; `memoryPick` = choose ≤5 targets when user has many; `memory` = OnboardingMemoryWizardStep. */
+  postEntityWizardPhase?: PostEntityWizardPhase;
+};
+
 const ONBOARDING_COMPLETED_KEY = "@sferas:onboarding_completed";
 const SHOW_WALKTHROUGH_AFTER_ONBOARDING_KEY = "@sferas:show_walkthrough_after_onboarding";
 const CACHED_ONBOARDING_RESPONSE_KEY = "@sferas:cached_onboarding_response";
@@ -120,5 +138,79 @@ export async function clearCachedOnboardingResponse(): Promise<void> {
     await AsyncStorage.removeItem(CACHED_ONBOARDING_RESPONSE_KEY);
   } catch {
     // ignore
+  }
+}
+
+export async function getOnboardingPostEntityPending(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(ONBOARDING_POST_ENTITY_PENDING_KEY)) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export async function setOnboardingPostEntityPending(value: boolean): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      ONBOARDING_POST_ENTITY_PENDING_KEY,
+      value ? "true" : "false",
+    );
+  } catch {
+    // ignore
+  }
+}
+
+export async function getOnboardingPostEntityState(): Promise<OnboardingPostEntityState | null> {
+  try {
+    const raw = await AsyncStorage.getItem(ONBOARDING_POST_ENTITY_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<OnboardingPostEntityState>;
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const wiz =
+      typeof parsed.wizardStepIndex === "number" && Number.isFinite(parsed.wizardStepIndex)
+        ? Math.max(0, Math.floor(parsed.wizardStepIndex))
+        : 0;
+    return {
+      mandatoryFillComplete: parsed.mandatoryFillComplete === true,
+      selectionSubmitted: parsed.selectionSubmitted === true,
+      entityBlurbs:
+        parsed.entityBlurbs && typeof parsed.entityBlurbs === "object" ? parsed.entityBlurbs : {},
+      selectedEntityIds: Array.isArray(parsed.selectedEntityIds) ? parsed.selectedEntityIds : [],
+      wizardStepIndex: wiz,
+      postEntityWizardPhase:
+        parsed.postEntityWizardPhase === "memory"
+          ? "memory"
+          : parsed.postEntityWizardPhase === "memoryPick"
+            ? "memoryPick"
+            : "entities",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function setOnboardingPostEntityState(
+  state: OnboardingPostEntityState,
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(ONBOARDING_POST_ENTITY_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore
+  }
+}
+
+export async function clearOnboardingPostEntityFlow(): Promise<void> {
+  try {
+    await AsyncStorage.multiRemove([
+      ONBOARDING_POST_ENTITY_PENDING_KEY,
+      ONBOARDING_POST_ENTITY_STATE_KEY,
+    ]);
+  } catch {
+    try {
+      await AsyncStorage.removeItem(ONBOARDING_POST_ENTITY_PENDING_KEY);
+      await AsyncStorage.removeItem(ONBOARDING_POST_ENTITY_STATE_KEY);
+    } catch {
+      // ignore
+    }
   }
 }

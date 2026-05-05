@@ -436,6 +436,82 @@ export interface Translations {
   "onboarding.hierarchy.memories.body": string;
   "onboarding.hierarchy.whysferas.title": string;
   "onboarding.hierarchy.whysferas.body": string;
+  "onboarding.postEntity.minSpheres": string;
+  "onboarding.postEntity.sferaAi.title": string;
+  "onboarding.postEntity.sferaAi.body": string;
+  "onboarding.postEntity.status.pickMore": string;
+  "onboarding.postEntity.status.slotsLeft": string;
+  "onboarding.postEntity.status.readyRange": string;
+  "onboarding.postEntity.status.maxSelected": string;
+  "onboarding.postEntity.entityContextPlaceholder": string;
+  "onboarding.postEntity.continue": string;
+  "onboarding.postEntity.blurbRequired": string;
+  "onboarding.postEntity.memoryWizard.subtitle": string;
+  "onboarding.postEntity.memoryWizard.createAi": string;
+  "onboarding.postEntity.memoryWizard.progress": string;
+  /** Shown above the AI circle · {name} entity display name */
+  "onboarding.postEntity.memoryWizard.tapAiCircleForName": string;
+  /** When > max entities: pick who gets a starter memory · {max} */
+  "onboarding.postEntity.memoryPick.title": string;
+  "onboarding.postEntity.memoryPick.body": string;
+  "onboarding.postEntity.memoryPick.bodyHint": string;
+  /** {current} selected / {max} cap */
+  "onboarding.postEntity.memoryPick.pickCountHint": string;
+  "onboarding.postEntity.memoryPick.confirm": string;
+  "onboarding.postEntity.mandatoryFill.title": string;
+  "onboarding.postEntity.mandatoryFill.body": string;
+  "onboarding.postEntity.mandatoryFill.countStatus": string;
+  "onboarding.postEntity.mandatoryFill.empty": string;
+  "onboarding.postEntity.mandatoryFill.add": string;
+  "onboarding.postEntity.mandatoryFill.nameFriends": string;
+  "onboarding.postEntity.mandatoryFill.nameFamily": string;
+  "onboarding.postEntity.mandatoryFill.relationshipFamily": string;
+  "onboarding.postEntity.mandatoryFill.nameHobby": string;
+  "onboarding.postEntity.mandatoryFill.familyNeedsRelationship": string;
+  "onboarding.postEntity.unifiedWizard.title": string;
+  "onboarding.postEntity.unifiedWizard.subtitle": string;
+  "onboarding.postEntity.unifiedWizard.body": string;
+  "onboarding.postEntity.unifiedWizard.progress": string;
+  "onboarding.postEntity.unifiedWizard.chooseSphere": string;
+  /** Screen reader hint when Friends/Family/Hobbies still need ≥1 entity */
+  "onboarding.postEntity.unifiedWizard.mandatoryFfIncompleteA11y": string;
+  "onboarding.postEntity.unifiedWizard.saveOpenAi": string;
+  /** Shown under Continue when disabled: FFH still need ≥1 entity each */
+  "onboarding.postEntity.unifiedWizard.continueHintMandatoryIncomplete": string;
+  /** Shown under Continue when disabled but FFH satisfied */
+  "onboarding.postEntity.unifiedWizard.continueHintNeedSelection": string;
+  /** Main Continue dimmed: need more starter AI memories across Sferas */
+  "onboarding.postEntity.unifiedWizard.continueHintAiMemoryQuota": string;
+  /** Main Continue dimmed: need green check on every sphere row shown */
+  "onboarding.postEntity.unifiedWizard.continueHintUntilAllGreenChecks": string;
+  /** List row: opens detail */
+  "onboarding.postEntity.unifiedWizard.openSphereDetailA11y": string;
+  /** A11y appended to row label when row is complete */
+  "onboarding.postEntity.unifiedWizard.sphereRowA11yComplete": string;
+  /** A11y appended to row label when row still needs work */
+  "onboarding.postEntity.unifiedWizard.sphereRowA11yIncomplete": string;
+  /** Min-met overlay: prominent completion headline */
+  "onboarding.postEntity.unifiedWizard.sphereDetailCompleted": string;
+  /** ≥1 entity in this sphere: footnote uses Back; main Continue is on previous screen */
+  "onboarding.postEntity.unifiedWizard.sphereDetailMinMetNoContinueNotice": string;
+  /** Above inputs when adding an object in sphere detail */
+  "onboarding.postEntity.unifiedWizard.addNewObjectFriends": string;
+  "onboarding.postEntity.unifiedWizard.addNewObjectFamily": string;
+  "onboarding.postEntity.unifiedWizard.addNewObjectHobbies": string;
+  "onboarding.postEntity.unifiedWizard.addNewObjectRelationships": string;
+  "onboarding.postEntity.unifiedWizard.addNewObjectCareer": string;
+  "onboarding.postEntity.unifiedWizard.footerHint": string;
+  /** Above entity pills: contextual heading; {sphere} localized name */
+  "onboarding.postEntity.unifiedWizard.pickerSectionSubtitle": string;
+  "onboarding.postEntity.unifiedWizard.optionalNewEntityHint": string;
+  "onboarding.postEntity.unifiedWizard.everyoneHasAiUseForm": string;
+  "onboarding.postEntity.unifiedWizard.sphereCoveredBadge": string;
+  "onboarding.postEntity.unifiedWizard.nameRelationships": string;
+  "onboarding.postEntity.unifiedWizard.nameCareer": string;
+  /** Empty hobby field in grow-Sferas sphere detail */
+  "onboarding.postEntity.unifiedWizard.placeholderHobby": string;
+  /** Min-met chip remove control (VoiceOver/TalkBack) · {name} */
+  "onboarding.postEntity.unifiedWizard.removeChipA11y": string;
 
   // Profile screens
   "profile.add": string;
@@ -4429,7 +4505,108 @@ const translations: Record<Language, Translations> = {
     "onboarding.hierarchy.whysferas.title": "Why Sferas?",
     "onboarding.hierarchy.whysferas.body":
       "Life moves fast — and it's easy to lose sight of the lessons you've earned, or to forget the sunny moments that matter just as much as the hard ones.\n\nSferas helps you reflect and recap what each chapter taught you. It also gently nudges you to stay in touch with the people you care about, so no friendship quietly drifts away.\n\nLets introduce you Sferas.",
+    "onboarding.postEntity.minSpheres":
+      "Friends, Family, and Hobbies each need at least 2 entities before the next step.",
+    "onboarding.postEntity.sferaAi.title": "Sfera AI — included during onboarding",
+    "onboarding.postEntity.sferaAi.body":
+      "Choose up to 5 entities (at least 3) to create one AI-guided memory each — this bundle is included while you finish onboarding. After onboarding, usual Sfera AI limits apply and you can add more entities and memories anytime.",
+    "onboarding.postEntity.status.pickMore": "Pick {count} more to continue",
+    "onboarding.postEntity.status.slotsLeft": "{count} more optional slots",
+    "onboarding.postEntity.status.readyRange": "You can pick up to {count} more — or continue",
+    "onboarding.postEntity.status.maxSelected": "Maximum selections for this onboarding step (5)",
+    "onboarding.postEntity.entityContextPlaceholder":
+      "A few sentences about them for Sfera AI…",
+    "onboarding.postEntity.continue": "Continue",
+    "onboarding.postEntity.blurbRequired":
+      "Add text for each selected entity before continuing.",
+    "onboarding.postEntity.memoryWizard.subtitle":
+      "Included Sfera AI — one starter memory here; add more anytime in the app.",
+    "onboarding.postEntity.memoryWizard.createAi": "Create with Sfera AI",
+    "onboarding.postEntity.memoryWizard.progress":
+      "{current} / {total} onboarding memories",
+    "onboarding.postEntity.memoryWizard.tapAiCircleForName":
+      "Tap the sparkle button below to create a starter memory for {name}.",
+    "onboarding.postEntity.memoryPick.title": "Choose starter memories",
+    "onboarding.postEntity.memoryPick.body":
+      "Pick up to 5 sfera objects. We will create a memory for each using Sfera AI for free.",
+    "onboarding.postEntity.memoryPick.bodyHint":
+      "You can add more later in the app using the free tier of Sfera AI or manually.",
+    "onboarding.postEntity.memoryPick.pickCountHint": "{current} of {max} selected",
+    "onboarding.postEntity.memoryPick.confirm": "Continue",
+    "onboarding.postEntity.mandatoryFill.title":
+      "Cover Friends, Family & Hobbies",
+    "onboarding.postEntity.mandatoryFill.body":
+      "Add at least {min} entities in each of these spheres — quick placeholders are fine; you can edit them anytime.",
+    "onboarding.postEntity.mandatoryFill.countStatus":
+      "{current} / {min} ({label})",
+    "onboarding.postEntity.mandatoryFill.empty":
+      "Nothing here yet.",
+    "onboarding.postEntity.mandatoryFill.add": "Add",
+    "onboarding.postEntity.mandatoryFill.nameFriends": "Name",
+    "onboarding.postEntity.mandatoryFill.nameFamily": "Name",
+    "onboarding.postEntity.mandatoryFill.relationshipFamily":
+      "Relationship (e.g. parent, sibling)",
+    "onboarding.postEntity.mandatoryFill.nameHobby": "Name",
+    "onboarding.postEntity.mandatoryFill.familyNeedsRelationship":
+      "Family needs both a name and a relationship.",
 
+    "onboarding.postEntity.unifiedWizard.title": "Grow your Sferas",
+    "onboarding.postEntity.unifiedWizard.subtitle":
+      "Friends, Family, and Hobbies each need at least one object here first. Relationships and Career appear here only if someone or a role showed up from your story.",
+    "onboarding.postEntity.unifiedWizard.body":
+      "Take a moment to grow each Sfera with the people and roles that really belong there—you'll add one object per area here first. Tap Continue when they're all set for the next step: starter memories with Sfera AI—free during this onboarding—for each entity. That small setup upfront means clearer, more personal support as you continue.",
+    "onboarding.postEntity.unifiedWizard.progress":
+      "{current} / {memoryGoal} objects with an AI memory · Round {step} of up to {memoryGoal}",
+    "onboarding.postEntity.unifiedWizard.chooseSphere": "Pick a Sfera",
+    "onboarding.postEntity.unifiedWizard.mandatoryFfIncompleteA11y":
+      "This area still needs at least one person or hobby—tap to add.",
+    "onboarding.postEntity.unifiedWizard.saveOpenAi":
+      "Continue",
+    "onboarding.postEntity.unifiedWizard.continueHintMandatoryIncomplete":
+      "Friends, Family, and Hobbies each need at least one object before you can Continue.",
+    "onboarding.postEntity.unifiedWizard.continueHintNeedSelection":
+      "Tap an object above or finish the fields, then try again.",
+    "onboarding.postEntity.unifiedWizard.continueHintAiMemoryQuota":
+      "Finish starter AI memories for whoever still doesn't show the green check in the rows above—Continue switches on once you hit the onboarding target.",
+    "onboarding.postEntity.unifiedWizard.continueHintUntilAllGreenChecks":
+      "Continue unlocks once every row above has the green check (not gray).",
+    "onboarding.postEntity.unifiedWizard.openSphereDetailA11y":
+      "Opens this Sfera to add at least one object.",
+    "onboarding.postEntity.unifiedWizard.sphereRowA11yComplete":
+      "finished for this step",
+    "onboarding.postEntity.unifiedWizard.sphereRowA11yIncomplete":
+      "still needs work",
+    "onboarding.postEntity.unifiedWizard.sphereDetailCompleted": "Completed",
+    "onboarding.postEntity.unifiedWizard.sphereDetailMinMetNoContinueNotice":
+      "The minimum for this Sfera is reached. Use Back—the next step adds starter memories. There is no Continue on this screen.",
+    "onboarding.postEntity.unifiedWizard.addNewObjectFriends":
+      "Add a new friend",
+    "onboarding.postEntity.unifiedWizard.addNewObjectFamily":
+      "Add a new family member",
+    "onboarding.postEntity.unifiedWizard.addNewObjectHobbies":
+      "Add a new hobby",
+    "onboarding.postEntity.unifiedWizard.addNewObjectRelationships":
+      "Add a new relationship profile",
+    "onboarding.postEntity.unifiedWizard.addNewObjectCareer":
+      "Add a new job or role",
+    "onboarding.postEntity.unifiedWizard.footerHint":
+      "After onboarding, normal Sfera AI limits apply. You can keep adding anytime.",
+    "onboarding.postEntity.unifiedWizard.pickerSectionSubtitle":
+      "In {sphere} · tap someone below",
+    "onboarding.postEntity.unifiedWizard.optionalNewEntityHint":
+      "Need another object here? Fill in below.",
+    "onboarding.postEntity.unifiedWizard.everyoneHasAiUseForm":
+      "Everything in this sphere already has an AI memory—add another object below to continue.",
+    "onboarding.postEntity.unifiedWizard.sphereCoveredBadge":
+      "From story",
+    "onboarding.postEntity.unifiedWizard.nameRelationships":
+      "Partner or relationship name",
+    "onboarding.postEntity.unifiedWizard.nameCareer":
+      "Job, role or workplace",
+    "onboarding.postEntity.unifiedWizard.placeholderHobby":
+      "Writing down thoughts from books / Gym / Hiking",
+    "onboarding.postEntity.unifiedWizard.removeChipA11y":
+      "Remove {name}",
     // Profile screens
     "profile.add": "Add Partner",
     "profile.edit": "Edit Profile",
@@ -5372,9 +5549,8 @@ const translations: Record<Language, Translations> = {
     // AI
     "ai.title": "Create a memory with Sferas AI",
     "ai.subtitle":
-      "Share what happened in your own words—we'll shape it into moments and lessons you can revisit.",
-    "ai.placeholder.input":
-      "Tell a story—a person, a hobby, or a moment from your life...",
+      "Use this for someone or something in your life—a person, a hobby, family, or work. A few honest lines are enough; Sfera AI will structure it into moments and lessons.",
+    "ai.placeholder.input": "Tell us your story here…",
     "ai.placeholder.recording":
       "[Voice recording - speech-to-text integration needed]",
     "ai.listening": "Listening...",
@@ -9375,7 +9551,108 @@ const translations: Record<Language, Translations> = {
     "onboarding.hierarchy.whysferas.title": "Защо Sferas?",
     "onboarding.hierarchy.whysferas.body":
       "Животът минава бързо — и лесно се губят уроците, които сте извлекли, или слънчевите моменти, важни колкото и трудните.\n\nSferas ви помага да си припомните какво е научил всеки жизнен етап. А също така ненатрапчиво ви напомня да поддържате връзка с хората, до които ви е грижа.\n\nНека Ви запознаем със Sferas.",
+    "onboarding.postEntity.minSpheres":
+      "Преди следващата стъпка са нужни поне по 2 обекта в Приятели, Семейство и Хобита.",
+    "onboarding.postEntity.sferaAi.title": "Sfera AI — включено при онбординг",
+    "onboarding.postEntity.sferaAi.body":
+      "Изберете до 5 обекта (минимум 3), за които да създадете по един AI-подсказан спомен — това е включено, докато довършите онбординга. След това важат обичайните лимити на Sfera AI и можете да добавяте колкото искате обекти и спомени.",
+    "onboarding.postEntity.status.pickMore": "Изберете още {count}, за да продължите",
+    "onboarding.postEntity.status.slotsLeft": "Още {count} места по избор",
+    "onboarding.postEntity.status.readyRange": "Можете да изберете до още {count} — или да продължите",
+    "onboarding.postEntity.status.maxSelected": "Максимум избори за тази стъпка (5)",
+    "onboarding.postEntity.entityContextPlaceholder":
+      "Няколко изречения за тях/него за Sfera AI…",
+    "onboarding.postEntity.continue": "Напред",
+    "onboarding.postEntity.blurbRequired":
+      "Добавете текст за всеки избран обект, преди да продължите.",
+    "onboarding.postEntity.memoryWizard.subtitle":
+      "Включено Sfera AI — един начален спомен тук; след това можете да добавяте колкото желаете.",
+    "onboarding.postEntity.memoryWizard.createAi": "Създай с Sfera AI",
+    "onboarding.postEntity.memoryWizard.progress":
+      "{current} / {total} спомени от онбординга",
+    "onboarding.postEntity.memoryWizard.tapAiCircleForName":
+      "Докоснете бутона с искриците отдолу, за да създадете начален спомен за {name}.",
+    "onboarding.postEntity.memoryPick.title": "Изберете начални спомени",
+    "onboarding.postEntity.memoryPick.body":
+      "Изберете до 5 обекта от сферите. За всеки ще създадем спомен с Sfera AI безплатно.",
+    "onboarding.postEntity.memoryPick.bodyHint":
+      "По-късно можете да добавяте още в приложението чрез безплатното ниво на Sfera AI или ръчно.",
+    "onboarding.postEntity.memoryPick.pickCountHint": "{current} от {max} избрани",
+    "onboarding.postEntity.memoryPick.confirm": "Напред",
+    "onboarding.postEntity.mandatoryFill.title":
+      "Покрийте Приятели, Семейство и Хобита",
+    "onboarding.postEntity.mandatoryFill.body":
+      "Добавете поне {min} обекта в всяка от тези сфери — можете да са временни имена и да ги редактирате по всяко време.",
+    "onboarding.postEntity.mandatoryFill.countStatus":
+      "{current} / {min} ({label})",
+    "onboarding.postEntity.mandatoryFill.empty":
+      "Още нищо няма тук.",
+    "onboarding.postEntity.mandatoryFill.add": "Добави",
+    "onboarding.postEntity.mandatoryFill.nameFriends": "Име",
+    "onboarding.postEntity.mandatoryFill.nameFamily": "Име",
+    "onboarding.postEntity.mandatoryFill.relationshipFamily":
+      "Връзка (напр. родител, брат/сестра)",
+    "onboarding.postEntity.mandatoryFill.nameHobby": "Име",
+    "onboarding.postEntity.mandatoryFill.familyNeedsRelationship":
+      "За семейство са нужни и име, и вид връзка.",
 
+    "onboarding.postEntity.unifiedWizard.title": "Подобрете сферите си",
+    "onboarding.postEntity.unifiedWizard.subtitle":
+      "Първо са нужни поне по един обект за Приятели, Семейство и Хобита. Отношения и Кариера се появяват тук само ако вече има някой или роля от разказа.",
+    "onboarding.postEntity.unifiedWizard.body":
+      "Отделете време за всяка сфера с хората и ролите, които й принадлежат — първо добавете поне по един обект тук за всяко място. След като всичко е попълнено, натиснете „Напред“ за следваща стъпка: начални спомени със Sfera AI — безплатно по време на този онбординг — за всеки обект. Малко подготовка сега дава по-ясна подкрепа напред.",
+    "onboarding.postEntity.unifiedWizard.progress":
+      "{current} / {memoryGoal} обекта с AI спомен · Кръг {step} от до {memoryGoal}",
+    "onboarding.postEntity.unifiedWizard.chooseSphere": "Изберете сфера",
+    "onboarding.postEntity.unifiedWizard.mandatoryFfIncompleteA11y":
+      "Тази сфера още има нужда поне от един човек или хоби — допълнете я.",
+    "onboarding.postEntity.unifiedWizard.saveOpenAi":
+      "Напред",
+    "onboarding.postEntity.unifiedWizard.continueHintMandatoryIncomplete":
+      "За Приятели, Семейство и Хобита са нужни поне по един обект, преди ще можете да натиснете „Напред“.",
+    "onboarding.postEntity.unifiedWizard.continueHintNeedSelection":
+      "Изберете обект по-горе или попълнете полетата и опитайте отново.",
+    "onboarding.postEntity.unifiedWizard.continueHintAiMemoryQuota":
+      "Довършете първите AI спомени за имената в редовете по-горе, където още няма зелена отметка — „Напред“ се активира, когато целият онбординг е изпълнен.",
+    "onboarding.postEntity.unifiedWizard.continueHintUntilAllGreenChecks":
+      "„Напред“ се отключва когато всеки ред по-горе показва зелена отметка (не сива).",
+    "onboarding.postEntity.unifiedWizard.openSphereDetailA11y":
+      "Отваря тази сфера, за да добавите поне един обект.",
+    "onboarding.postEntity.unifiedWizard.sphereRowA11yComplete":
+      "готова за тази стъпка",
+    "onboarding.postEntity.unifiedWizard.sphereRowA11yIncomplete":
+      "още има какво да довършите",
+    "onboarding.postEntity.unifiedWizard.sphereDetailCompleted": "Готово",
+    "onboarding.postEntity.unifiedWizard.sphereDetailMinMetNoContinueNotice":
+      "Имате минимума за тази сфера. Използвайте „Назад“ — следващата стъпка добавя начални спомени. Няма бутон „Напред“ на този екран.",
+    "onboarding.postEntity.unifiedWizard.addNewObjectFriends":
+      "Добавете нов приятел",
+    "onboarding.postEntity.unifiedWizard.addNewObjectFamily":
+      "Добавете нов член на семейството",
+    "onboarding.postEntity.unifiedWizard.addNewObjectHobbies":
+      "Добавете ново хоби",
+    "onboarding.postEntity.unifiedWizard.addNewObjectRelationships":
+      "Добавете нов профил за връзка",
+    "onboarding.postEntity.unifiedWizard.addNewObjectCareer":
+      "Добавете нова роля или работно място",
+    "onboarding.postEntity.unifiedWizard.footerHint":
+      "След онбординга важат обичайните лимити на Sfera AI. Още можете да добавяте по всяко време.",
+    "onboarding.postEntity.unifiedWizard.pickerSectionSubtitle":
+      "В {sphere} · изберете някой по-долу",
+    "onboarding.postEntity.unifiedWizard.optionalNewEntityHint":
+      "Искате друг обект тук? Попълнете по-долу.",
+    "onboarding.postEntity.unifiedWizard.everyoneHasAiUseForm":
+      "Всеки обект тук вече има AI спомен — добавете нов отдолу, за да продължите.",
+    "onboarding.postEntity.unifiedWizard.sphereCoveredBadge":
+      "От разказа",
+    "onboarding.postEntity.unifiedWizard.nameRelationships":
+      "Име на партньор или връзка",
+    "onboarding.postEntity.unifiedWizard.nameCareer":
+      "Длъжност, роля или работодател",
+    "onboarding.postEntity.unifiedWizard.placeholderHobby":
+      "Мисли от книги / Фитнес / Разходки",
+    "onboarding.postEntity.unifiedWizard.removeChipA11y":
+      "Премахване на {name}",
     // Profile screens
     "profile.add": "Добави Партньор",
     "profile.edit": "Редактирай Профил",
@@ -10330,9 +10607,8 @@ const translations: Record<Language, Translations> = {
     // AI
     "ai.title": "Създай спомен с AI",
     "ai.subtitle":
-      "Сподели какво се случи с твоите думи — ще го подредим в моменти и уроци, към които да се връщаш.",
-    "ai.placeholder.input":
-      "Разкажете история — за човек, хоби или момент от живота ви...",
+      "Ползвайте го за някой или нещо от живота ви — човек, хоби, семейство или работа. Достатъчни са няколко честни реда; Sfera AI ще го подреди в моменти и уроци.",
+    "ai.placeholder.input": "Разкажете вашата история тук…",
     "ai.placeholder.recording":
       "[Гласов запис - необходима интеграция за реч към текст]",
     "ai.listening": "Слушам...",

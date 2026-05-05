@@ -313,14 +313,13 @@ export function OnboardingEntityResultsView({
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-            borderRadius={12 * fontScale}
+            style={[StyleSheet.absoluteFill, { borderRadius: 12 * fontScale }]}
           />
           {isSavingAll ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
             <ThemedText size="l" weight="bold" style={{ color: "#FFFFFF" }}>
-              {t("onboarding.saveAll") || "Save & Continue"}
+              {t("common.save")}
             </ThemedText>
           )}
         </TouchableOpacity>
@@ -337,7 +336,7 @@ export function OnboardingEntityResultsView({
               style={{ marginRight: 8 }}
             />
             <ThemedText
-              size="s"
+              size="sm"
               style={{ color: colors.textMediumEmphasis }}
             >
               {t("onboarding.startOver") ?? "Start from scratch again"}

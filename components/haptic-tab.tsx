@@ -345,10 +345,15 @@ export function AITabButton({
   size,
   spotlight = false,
   onPressed,
+  emitGlobalPress = true,
+  accessibilityLabel,
 }: {
   size: number;
   spotlight?: boolean;
   onPressed?: () => void;
+  /** When false, skips `emitAIButtonPress` (use when the caller handles AI, e.g. onboarding wizard). */
+  emitGlobalPress?: boolean;
+  accessibilityLabel?: string;
 }) {
   const colorScheme = useColorScheme();
   const isDark = (colorScheme ?? 'dark') === 'dark';
@@ -413,7 +418,9 @@ export function AITabButton({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
     onPressed?.();
-    emitAIButtonPress();
+    if (emitGlobalPress) {
+      emitAIButtonPress();
+    }
   };
 
   const iconSize = size * 0.42;
@@ -449,6 +456,8 @@ export function AITabButton({
         <TouchableOpacity
           onPress={handlePress}
           activeOpacity={1}
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel}
           style={{
             width: size,
             height: size,
@@ -474,6 +483,8 @@ export function AITabButton({
           <TouchableOpacity
             onPress={handlePress}
             activeOpacity={1}
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel}
             style={lightInner}
           >
             <LinearGradient

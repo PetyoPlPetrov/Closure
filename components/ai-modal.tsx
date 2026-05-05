@@ -98,6 +98,15 @@ interface AIModalProps {
   pendingResponse?: PendingAIResponse | null;
   /** Golden event AI access: one-time Create memory per event (bypasses paywall/rate limit; official name). */
   goldenEventId?: string | null;
+  /** Onboarding Sfera AI bundle: lock entity/sphere and bypass daily AI consumption. */
+  onboardingSferaAI?: {
+    sphere: LifeSphere;
+    entityId: string;
+    entityName: string;
+    contextBlurb: string;
+  } | null;
+  /** After successful save during onboarding bundle — skips post-save alert/open-memory sheet. */
+  onOnboardingAIMemoryCommitted?: () => void;
 }
 
 interface AIMemoryItem {
@@ -114,6 +123,8 @@ export function AIModal({
   onSend,
   pendingResponse,
   goldenEventId = null,
+  onboardingSferaAI = null,
+  onOnboardingAIMemoryCommitted,
 }: AIModalProps) {
   const { width: windowWidth } = useWindowDimensions();
   const colorScheme = useColorScheme();
@@ -286,9 +297,11 @@ export function AIModal({
   const exceedsMaxLength = characterCount > MAX_INPUT_LENGTH;
   const hasMinWords = wordCount >= MIN_WORDS;
 
+  const bypassDailyAiQuota = Boolean(goldenEventId || onboardingSferaAI);
+
   // Sfera AI subscribers with 0 remaining: disable submit (daily cap). Free users at 0: keep submit enabled; tap opens upgrade paywall via handleSend → consumeAIRequestIfAvailable.
   const hasRemainingRequests =
-    goldenEventId ||
+    bypassDailyAiQuota ||
     remainingAIRequests === null ||
     (remainingAIRequests !== null && remainingAIRequests > 0) ||
     (!hasAIEntitlement && remainingAIRequests === 0);
@@ -374,7 +387,12 @@ export function AIModal({
   // Also subscribe to badge changes so the displayed limit/remaining updates the moment a memory
   // pushes the user across the Sferas threshold while the modal is still open.
   useEffect(() => {
-    if (visible && currentView === "input" && !goldenEventId) {
+    if (
+      visible &&
+      currentView === "input" &&
+      !goldenEventId &&
+      !onboardingSferaAI
+    ) {
       const refresh = () => {
         getRemainingAIRequests(hasAIEntitlement).then(setRemainingAIRequests);
         if (!hasAIEntitlement) {
@@ -387,7 +405,31 @@ export function AIModal({
     } else if (!visible) {
       setRemainingAIRequests(null);
     }
-  }, [visible, currentView, hasAIEntitlement, goldenEventId]);
+  }, [visible, currentView, hasAIEntitlement, goldenEventId, onboardingSferaAI]);
+
+  /** Lock sphere/entity while onboarding Sfera AI bundle is active. */
+  useEffect(() => {
+    if (!visible || !onboardingSferaAI) return;
+    const o = onboardingSferaAI;
+    setSelectedSphere(o.sphere);
+    setSelectedEntityId(o.entityId);
+    setSelectedEntityName(o.entityName);
+    setShowSpherePicker(false);
+    setShowEntityPicker(false);
+    setShowAddEntityForm(false);
+    setInputText("");
+    setAiResponse(null);
+    setMemoryItems([]);
+    setErrorMessage(null);
+    setShowValidationErrors(false);
+    setBackgroundRequestId(null);
+    setCurrentView("input");
+  }, [
+    visible,
+    onboardingSferaAI?.entityId,
+    onboardingSferaAI?.sphere,
+    onboardingSferaAI?.contextBlurb,
+  ]);
 
   // Watch for pendingResponse prop changes while modal is open (for when background task completes)
   useEffect(() => {
@@ -537,7 +579,7 @@ export function AIModal({
       setAiResponse(response);
       setMemoryItems(items);
 
-      // Map AI-suggested sphere and entity into the selection state
+      // Map AI-suggested sphere and entity into the selection state (or lock during onboarding bundle)
       const validSpheres: LifeSphere[] = [
         "relationships",
         "career",
@@ -546,7 +588,11 @@ export function AIModal({
         "hobbies",
       ];
 
-      if (response.sphere && validSpheres.includes(response.sphere)) {
+      if (onboardingSferaAI) {
+        setSelectedSphere(onboardingSferaAI.sphere);
+        setSelectedEntityId(onboardingSferaAI.entityId);
+        setSelectedEntityName(onboardingSferaAI.entityName);
+      } else if (response.sphere && validSpheres.includes(response.sphere)) {
         setSelectedSphere(response.sphere);
 
         // Try to match entityName to an existing entity in the sphere
@@ -802,10 +848,8 @@ export function AIModal({
       return;
     }
 
-    // Golden event AI access: bypass paywall and rate limit when modal opened from passed Sfera event or notification.
-    const isGoldenEventAccess = Boolean(goldenEventId);
-
-    if (!isGoldenEventAccess) {
+    // Golden / onboarding bundle: bypass paywall and rate limit when applicable.
+    if (!bypassDailyAiQuota) {
       // Enforce free-tier daily limit (3 by default, 5 with Sferas badge) and 30/day for Sfera AI.
       // Memory + entity creation share one pool. Atomic consume avoids race conditions.
       const consumed = await consumeAIRequestIfAvailable(hasAIEntitlement);
@@ -866,6 +910,11 @@ export function AIModal({
         hobbies: hobbies.length > 0 ? hobbies.map((h) => h.name) : undefined,
       };
 
+      const narrativeAppendix =
+        onboardingSferaAI?.contextBlurb?.trim()
+          ? `Focus entity: "${onboardingSferaAI.entityName}" (${onboardingSferaAI.sphere}).\n${onboardingSferaAI.contextBlurb.trim()}`
+          : undefined;
+
       // IMPORTANT: Only make ONE AI request to avoid rate limiting
       // If app is active, use foreground processing (faster). Otherwise use background task.
       if (appState === "active") {
@@ -874,6 +923,8 @@ export function AIModal({
             inputText.trim(),
             { sferas },
             language,
+            undefined,
+            narrativeAppendix,
           );
 
           await processAIResponse(response);
@@ -896,6 +947,7 @@ export function AIModal({
           { sferas },
           undefined,
           language,
+          narrativeAppendix,
         );
         setBackgroundRequestId(requestId);
       }
@@ -1395,50 +1447,54 @@ export function AIModal({
       // Close the modal first
       onClose();
 
-      // Show success alert with option to open memory
-      Alert.alert(
-        t("ai.save.success") || "Memory saved successfully!",
-        t("ai.save.successMessage") ||
-          "Your memory has been created with AI suggestions.",
-        [
-          {
-            text: t("common.close") || "Close",
-            style: "cancel",
-          },
-          {
-            text: t("ai.openMemory") || "Open memory",
-            onPress: () => {
-              const detailParams: {
-                sphere: LifeSphere;
-                entityId: string;
-                focusedMemoryId: string;
-                source?: string;
-                profileId?: string;
-                jobId?: string;
-                familyMemberId?: string;
-                friendId?: string;
-                hobbyId?: string;
-              } = {
-                sphere: finalSphere,
-                entityId: finalEntityId,
-                focusedMemoryId: memoryId,
-                source: "ai_modal_save",
-              };
-
-              if (finalSphere === "relationships") detailParams.profileId = finalEntityId;
-              else if (finalSphere === "career") detailParams.jobId = finalEntityId;
-              else if (finalSphere === "family") detailParams.familyMemberId = finalEntityId;
-              else if (finalSphere === "friends") detailParams.friendId = finalEntityId;
-              else if (finalSphere === "hobbies") detailParams.hobbyId = finalEntityId;
-
-              router.replace({
-                pathname: "/" as const,
-                params: detailParams,
-              });
+      if (onOnboardingAIMemoryCommitted) {
+        onOnboardingAIMemoryCommitted();
+      } else {
+        // Show success alert with option to open memory
+        Alert.alert(
+          t("ai.save.success") || "Memory saved successfully!",
+          t("ai.save.successMessage") ||
+            "Your memory has been created with AI suggestions.",
+          [
+            {
+              text: t("common.close") || "Close",
+              style: "cancel",
             },
-          },
-        ],
-      );
+            {
+              text: t("ai.openMemory") || "Open memory",
+              onPress: () => {
+                const detailParams: {
+                  sphere: LifeSphere;
+                  entityId: string;
+                  focusedMemoryId: string;
+                  source?: string;
+                  profileId?: string;
+                  jobId?: string;
+                  familyMemberId?: string;
+                  friendId?: string;
+                  hobbyId?: string;
+                } = {
+                  sphere: finalSphere,
+                  entityId: finalEntityId,
+                  focusedMemoryId: memoryId,
+                  source: "ai_modal_save",
+                };
+
+                if (finalSphere === "relationships") detailParams.profileId = finalEntityId;
+                else if (finalSphere === "career") detailParams.jobId = finalEntityId;
+                else if (finalSphere === "family") detailParams.familyMemberId = finalEntityId;
+                else if (finalSphere === "friends") detailParams.friendId = finalEntityId;
+                else if (finalSphere === "hobbies") detailParams.hobbyId = finalEntityId;
+
+                router.replace({
+                  pathname: "/" as const,
+                  params: detailParams,
+                });
+              },
+            },
+          ],
+        );
+      }
     } catch (error) {
       Alert.alert(
         t("common.error") || "Error",
@@ -2135,9 +2191,10 @@ export function AIModal({
                     </View>
                     <ThemedText size="sm" style={styles.headerSubtitle}>
                       {t("ai.subtitle") ||
-                        "Share what happened in your own words—we'll shape it into moments and lessons you can revisit."}
+                        "Use this for someone or something in your life—a person, a hobby, family, or work. A few honest lines are enough; Sfera AI will structure it into moments and lessons."}
                     </ThemedText>
                     {currentView !== "input" &&
+                      !onboardingSferaAI &&
                       remainingAIRequests !== null &&
                       (hasAIEntitlement && remainingAIRequests === 0 ? (
                         <ThemedText
@@ -2255,8 +2312,7 @@ export function AIModal({
                         onChangeText={setInputTextWithLimit}
                         maxLength={MAX_INPUT_LENGTH}
                         placeholder={
-                          t("ai.placeholder.input") ||
-                          "Tell a story—a person, a hobby, or a moment from your life..."
+                          t("ai.placeholder.input") || "Tell us your story here…"
                         }
                         placeholderTextColor={
                           colors.textMediumEmphasis || colors.text + "80"
@@ -2387,6 +2443,7 @@ export function AIModal({
                     </LinearGradient>
                   </TouchableOpacity>
                   {remainingAIRequests !== null &&
+                    !onboardingSferaAI &&
                     (hasAIEntitlement && remainingAIRequests === 0 ? (
                       <ThemedText
                         size="xs"
@@ -2728,19 +2785,30 @@ export function AIModal({
                             >
                               {t("ai.results.sphere") || "Sfera"}
                             </ThemedText>
-                            <Pressable
-                              style={styles.dropdownButton}
-                              onPress={() => setShowSpherePicker(true)}
-                            >
-                              <ThemedText size="sm" weight="semibold">
-                                {selectedSphere || ""}
-                              </ThemedText>
-                              <MaterialIcons
-                                name="arrow-drop-down"
-                                size={24 * fontScale}
-                                color={colors.text}
-                              />
-                            </Pressable>
+                            {onboardingSferaAI ? (
+                              <View style={styles.dropdownButton}>
+                                <ThemedText size="sm" weight="semibold">
+                                  {selectedSphere
+                                    ? (t(`onboarding.sphere.${selectedSphere}`) ||
+                                      selectedSphere)
+                                    : ""}
+                                </ThemedText>
+                              </View>
+                            ) : (
+                              <Pressable
+                                style={styles.dropdownButton}
+                                onPress={() => setShowSpherePicker(true)}
+                              >
+                                <ThemedText size="sm" weight="semibold">
+                                  {selectedSphere || ""}
+                                </ThemedText>
+                                <MaterialIcons
+                                  name="arrow-drop-down"
+                                  size={24 * fontScale}
+                                  color={colors.text}
+                                />
+                              </Pressable>
+                            )}
                           </View>
 
                           {/* Entity Dropdown - Show when sphere is selected, hide when form is expanded */}
@@ -2758,7 +2826,13 @@ export function AIModal({
                               >
                                 {t("ai.results.entity") || "Entity"}
                               </ThemedText>
-                              {availableEntitiesForSphere.length > 0 ? (
+                              {onboardingSferaAI ? (
+                                <View style={styles.dropdownButton}>
+                                  <ThemedText size="sm" weight="semibold">
+                                    {selectedEntityName || ""}
+                                  </ThemedText>
+                                </View>
+                              ) : availableEntitiesForSphere.length > 0 ? (
                                 <>
                                   <Pressable
                                     style={[

@@ -22,6 +22,8 @@ export interface PendingAIRequest {
   requestId: string;
   imageUri?: string; // Optional image URI if user uploaded an image
   language?: 'en' | 'bg'; // Language code for AI prompt and response
+  /** Passed through to processMemoryPrompt (onboarding entity blurb). */
+  entityNarrativeAppendix?: string;
 }
 
 export interface PendingAIResponse {
@@ -179,6 +181,7 @@ type AIBackgroundTaskData = {
   context: AIRequestContext;
   imageUri: string | undefined;
   language: 'en' | 'bg' | undefined;
+  entityNarrativeAppendix?: string;
 };
 
 const backgroundTask = async (taskData?: AIBackgroundTaskData) => {
@@ -190,9 +193,11 @@ const backgroundTask = async (taskData?: AIBackgroundTaskData) => {
     const pendingRequest = await getPendingAIRequest();
     const savedImageUri = pendingRequest?.imageUri || taskData.imageUri;
     const language = pendingRequest?.language || taskData.language || 'en';
+    const appendix =
+      pendingRequest?.entityNarrativeAppendix ?? taskData.entityNarrativeAppendix;
     
     // Process the AI request with language and optional image (AI analyzes image for better moments)
-    const response = await processMemoryPrompt(prompt, context, language, savedImageUri);
+    const response = await processMemoryPrompt(prompt, context, language, savedImageUri, appendix);
     
     // Save response to storage with image URI if available
     await savePendingAIResponse({
@@ -236,7 +241,8 @@ export async function startBackgroundAIProcessing(
   prompt: string,
   context: AIRequestContext,
   imageUri?: string,
-  language?: 'en' | 'bg'
+  language?: 'en' | 'bg',
+  entityNarrativeAppendix?: string,
 ): Promise<string> {
   const requestId = `ai_request_${Date.now()}`;
   
@@ -248,6 +254,7 @@ export async function startBackgroundAIProcessing(
     requestId,
     imageUri,
     language,
+    entityNarrativeAppendix,
   });
   
   // Start background task
@@ -268,6 +275,7 @@ export async function startBackgroundAIProcessing(
       context,
       imageUri,
       language,
+      entityNarrativeAppendix,
     },
   };
   

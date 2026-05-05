@@ -57,7 +57,9 @@ import { MomentNotificationProvider } from "@/utils/MomentNotificationProvider";
 import { NotificationsProvider } from "@/utils/NotificationsProvider";
 import { OnboardingGateContext } from "@/utils/OnboardingGateContext";
 import {
+  clearOnboardingPostEntityFlow,
   getOnboardingCompleted,
+  getOnboardingPostEntityPending,
   setOnboardingCompleted,
 } from "@/utils/onboarding-storage";
 import {
@@ -125,6 +127,7 @@ function AppContent() {
     useState<PendingAIResponse | null>(null);
 
   const requestShowOnboarding = useCallback(async () => {
+    await clearOnboardingPostEntityFlow();
     await setOnboardingCompleted(false);
     setOnboardingRequestTrigger((t) => t + 1);
   }, []);
@@ -248,12 +251,13 @@ function AppContent() {
     });
   }, [pathname]);
 
-  // Onboarding gate: show onboarding only when we have no data AND onboarding not completed
+  // Onboarding gate: show onboarding when no data OR dev re-run OR post-entity Sfera AI flow pending
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
       const completed = await getOnboardingCompleted();
       if (cancelled) return;
+      const pendingPostEntity = await getOnboardingPostEntityPending();
       const totalEntities =
         profiles.length +
         jobs.length +
@@ -263,7 +267,8 @@ function AppContent() {
       const totalMemories = idealizedMemories.length;
       const hasNoData = totalEntities === 0 && totalMemories === 0;
       const isDevReRun = __DEV__ && onboardingRequestTrigger > 0;
-      const shouldShow = !completed && (hasNoData || isDevReRun);
+      const shouldShow =
+        !completed && (hasNoData || isDevReRun || pendingPostEntity);
       setShowOnboarding(shouldShow);
     };
     check();
