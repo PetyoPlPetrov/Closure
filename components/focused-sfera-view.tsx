@@ -67,6 +67,7 @@ import Animated, {
   interpolate,
   runOnJS,
   SharedValue,
+  useAnimatedReaction,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
@@ -2119,8 +2120,11 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
 }) {
   const t = useTranslate();
   const [mode, setMode] = useState(0);
+  const [isAutoCyclePaused, setIsAutoCyclePaused] = useState(false);
   const modeOpacity = useSharedValue(1);
   const lastTapRef = useRef(0);
+  const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wasAutoCyclePausedRef = useRef(false);
   const progress = useSharedValue(0);
 
   const numEntities = entityIds.length;
@@ -2193,18 +2197,39 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     if (!isVisible || numEntities === 0) {
       cancelAnimation(progress);
       progress.value = 0;
+      wasAutoCyclePausedRef.current = false;
       return;
     }
-    progress.value = 0;
-    progress.value = withTiming(1, { duration: 5000 }, (finished) => {
+    if (isAutoCyclePaused) {
+      cancelAnimation(progress);
+      wasAutoCyclePausedRef.current = true;
+      return;
+    }
+    const currentProgress = wasAutoCyclePausedRef.current
+      ? Math.max(0, Math.min(1, progress.value))
+      : 0;
+    wasAutoCyclePausedRef.current = false;
+    progress.value = currentProgress;
+    const remainingDuration = Math.max(80, Math.round((1 - currentProgress) * 5000));
+    progress.value = withTiming(1, { duration: remainingDuration }, (finished) => {
       if (finished) {
+        progress.value = 0;
         runOnJS(cycleModeRef.current)(1);
       }
     });
     return () => {
       cancelAnimation(progress);
     };
-  }, [mode, numEntities, progress, isVisible]);
+  }, [mode, numEntities, progress, isVisible, isAutoCyclePaused]);
+
+  useEffect(() => {
+    return () => {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const progressBarStyle = useAnimatedStyle(() => ({
     width: `${progress.value * 100}%` as any,
@@ -2440,13 +2465,25 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
       const isDoubleTap = now - lastTapRef.current < 300;
       lastTapRef.current = now;
       if (isDoubleTap) {
+        if (singleTapTimerRef.current) {
+          clearTimeout(singleTapTimerRef.current);
+          singleTapTimerRef.current = null;
+        }
         const mems = entityMemories[entityIdx] ?? [];
         if (mems.length === 0) {
           onNeedMemoriesHintCenter?.();
           return;
         }
         onEntitySelect(entityId, sphere);
+        return;
       }
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+      }
+      singleTapTimerRef.current = setTimeout(() => {
+        singleTapTimerRef.current = null;
+        setIsAutoCyclePaused((prev) => !prev);
+      }, 300);
     }
   };
 
@@ -3073,6 +3110,7 @@ export function FocusedSferaView({
     memoriesHint?.place === "insightCard";
 
   const [focusedIdx, setFocusedIdx] = useState(initialFocusedIdx);
+  const [focusedLabelIdx, setFocusedLabelIdx] = useState(initialFocusedIdx);
   const N = SPHERE_LIST.length;
   /**
    * Continuous fractional focused-index. Drives all per-frame sphere visuals
@@ -3083,6 +3121,19 @@ export function FocusedSferaView({
    *   `withTiming` along the shortest orbit path, then settles back to an integer.
    */
   const focusedFracSv = useSharedValue(initialFocusedIdx);
+  useAnimatedReaction(
+    () => {
+      const rounded = Math.round(focusedFracSv.value);
+      return ((rounded % N) + N) % N;
+    },
+    (next, prev) => {
+      "worklet";
+      if (next !== prev) {
+        runOnJS(setFocusedLabelIdx)(next);
+      }
+    },
+    [N],
+  );
   const sphereTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -3181,6 +3232,7 @@ export function FocusedSferaView({
       },
     );
     setFocusedIdx(initialFocusedIdx);
+    setFocusedLabelIdx(initialFocusedIdx);
     // Intentionally omit focusedIdx from deps: this effect is the *external* sync path
     // and must not re-run when the user themselves changes the focused sphere via
     // gesture / chevron (those go through goToSphere, which already animates focusedFracSv).
@@ -3449,6 +3501,9 @@ export function FocusedSferaView({
 
   const t = useTranslate();
   const focusedSphere = SPHERE_LIST[focusedIdx];
+  const isLightTheme = colorScheme === "light";
+  const focusedSphereAccent = getSphereSferaColor(focusedSphere.type, colorScheme);
+  const doubleTapHintTextColor = isLightTheme ? Colors.light.text : "#FFFFFF";
   useLayoutEffect(() => {
     reportCosmicPulseAccentSphere(focusedSphere.type);
   }, [focusedSphere.type]);
@@ -3515,6 +3570,18 @@ export function FocusedSferaView({
     const v = focusedFracSv.value;
     const dist = Math.abs(v - Math.round(v));
     return { opacity: Math.max(0, Math.min(1, 1 - dist * 50)) };
+  });
+
+  /**
+   * Fade focused-sfera label/dots while scrubbing horizontally between spheres.
+   * At rest (integer focus index) opacity is 1; near half-step drag it approaches 0.
+   * Once the next sphere settles, the new title fades back to fully visible.
+   */
+  const focusedLabelDragFadeStyle = useAnimatedStyle(() => {
+    const v = focusedFracSv.value;
+    const distFromRest = Math.abs(v - Math.round(v)); // 0..~0.5
+    const opacity = Math.max(0, Math.min(1, 1 - distFromRest * 2.2));
+    return { opacity };
   });
 
   const memoryCountBySphere = useMemo(() => {
@@ -4168,18 +4235,19 @@ export function FocusedSferaView({
 
       {/* ─── Focused sfera label + pagination dots (below rotating entities) ─── */}
       {!isMemoryBalanceMode && (
-        <View
+        <Animated.View
           style={[
             styles.focusedLabelContainer,
             {
               top: focusedLabelTop,
               opacity: !sunLoadComplete || isSunExpanded ? 0 : 1,
             },
+            focusedLabelDragFadeStyle,
           ]}
           pointerEvents="none"
         >
           <ThemedText style={styles.focusedLabelText}>
-            {t(`spheres.${focusedSphere.type}`)}
+            {t(`spheres.${SPHERE_LIST[focusedLabelIdx].type}`)}
           </ThemedText>
           <View
             style={[styles.focusedLabelDotsRow, { marginTop: LABEL_TO_DOTS_GAP }]}
@@ -4189,14 +4257,14 @@ export function FocusedSferaView({
                 key={i}
                 style={[
                   styles.focusedLabelDot,
-                  i === focusedIdx && styles.focusedLabelDotActive,
+                  i === focusedLabelIdx && styles.focusedLabelDotActive,
                   {
                     backgroundColor:
                       colorScheme === "dark"
-                        ? i === focusedIdx
+                        ? i === focusedLabelIdx
                           ? "rgba(255,255,255,0.9)"
                           : "rgba(255,255,255,0.3)"
-                        : i === focusedIdx
+                        : i === focusedLabelIdx
                           ? Colors.light.text
                           : "rgba(13, 13, 13, 0.35)",
                   },
@@ -4204,7 +4272,7 @@ export function FocusedSferaView({
               />
             ))}
           </View>
-        </View>
+        </Animated.View>
       )}
 
       {/* ─── Double-tap UX hint: soft tooltip below sphere, triggered on single tap ─── */}
@@ -4223,17 +4291,39 @@ export function FocusedSferaView({
             doubleTapHintAnimatedStyle,
           ]}
         >
-          <ThemedText style={{
-            fontSize: scaleFocused(13),
-            color: "#FFFFFF",
-            opacity: 0.75,
-            letterSpacing: 0.2,
-            textShadowColor: "rgba(0,0,0,0.8)",
-            textShadowOffset: { width: 0, height: 1 },
-            textShadowRadius: 4,
-          }}>
-            {t("spheres.doubleTapHint")}
-          </ThemedText>
+          <View
+            style={{
+              paddingHorizontal: scaleFocused(12),
+              paddingVertical: scaleFocused(7),
+              borderRadius: scaleFocused(14),
+              backgroundColor: isLightTheme
+                ? "rgba(255,255,255,0.9)"
+                : "rgba(15,20,34,0.58)",
+              borderWidth: 1,
+              borderColor: isLightTheme
+                ? `${focusedSphereAccent}55`
+                : "rgba(255,255,255,0.18)",
+              shadowColor: isLightTheme ? focusedSphereAccent : "#000000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isLightTheme ? 0.14 : 0.2,
+              shadowRadius: isLightTheme ? 8 : 6,
+            }}
+          >
+            <ThemedText style={{
+              fontSize: scaleFocused(13),
+              color: doubleTapHintTextColor,
+              opacity: 1,
+              letterSpacing: 0.2,
+              textShadowColor:
+                colorScheme === "light"
+                  ? "rgba(255,255,255,0.35)"
+                  : "rgba(0,0,0,0.8)",
+              textShadowOffset: { width: 0, height: 1 },
+              textShadowRadius: colorScheme === "light" ? 1 : 4,
+            }}>
+              {t("spheres.doubleTapHint")}
+            </ThemedText>
+          </View>
         </Animated.View>
       )}
 

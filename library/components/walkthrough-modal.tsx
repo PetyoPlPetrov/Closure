@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Modal,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -45,6 +46,13 @@ export function WalkthroughModal({
   const colors = Colors[colorScheme ?? "dark"];
   const t = useTranslate();
   const nextSectionIndex = sections.findIndex((section) => !section.isDone);
+  const getSectionLabelColor = (section: SectionItem) => {
+    const isCurrent =
+      nextSectionIndex !== -1 && sections[nextSectionIndex]?.id === section.id;
+    if (section.isDone) return colorScheme === "dark" ? "#4ADE80" : "#1B5E20";
+    if (isCurrent) return colorScheme === "dark" ? "#FBBF24" : "#9A3412";
+    return colors.textMediumEmphasis;
+  };
 
   const styles = useMemo(
     () =>
@@ -270,7 +278,12 @@ export function WalkthroughModal({
       statusBarTranslucent
     >
       <View style={styles.root}>
-        <View style={styles.backdrop} pointerEvents="auto" />
+        <Pressable
+          style={styles.backdrop}
+          onPress={onDismiss}
+          accessibilityRole="button"
+          accessibilityLabel={t("guidePrompt.close")}
+        />
         <View style={styles.overlay} pointerEvents="box-none">
           <View style={cardShadowWrapStyle} collapsable={false}>
             <View style={styles.container}>
@@ -347,38 +360,42 @@ export function WalkthroughModal({
             <View style={styles.iconStrip}>
               {sections.map((section, index) => (
                 <Fragment key={section.id}>
+                  {(() => {
+                    const sectionIconColor = getSectionLabelColor(section);
+                    const isCurrent =
+                      nextSectionIndex !== -1 &&
+                      sections[nextSectionIndex]?.id === section.id;
+                    const sectionBadgeBackground = section.isDone
+                      ? colorScheme === "dark"
+                        ? "rgba(18, 50, 34, 0.95)"
+                        : "#DFF7E8"
+                      : isCurrent
+                        ? colorScheme === "dark"
+                          ? "rgba(58, 42, 10, 0.95)"
+                          : "#FDEAD7"
+                        : colorScheme === "dark"
+                          ? "rgba(36, 48, 65, 0.95)"
+                          : "#E7EDF6";
+                    const sectionBadgeBorder = sectionIconColor;
+                    return (
                   <View
                     style={[
                       styles.sectionIconBadge,
                       {
-                        backgroundColor: section.isDone
-                          ? colorScheme === "dark"
-                            ? "rgba(34, 197, 94, 0.22)"
-                            : "rgba(34, 197, 94, 0.16)"
-                          : nextSectionIndex !== -1 &&
-                              sections[nextSectionIndex]?.id === section.id
-                            ? colorScheme === "dark"
-                              ? "rgba(245, 158, 11, 0.24)"
-                              : "rgba(245, 158, 11, 0.2)"
-                            : colorScheme === "dark"
-                              ? "rgba(125, 181, 255, 0.14)"
-                              : "rgba(78, 141, 214, 0.12)",
+                        backgroundColor: sectionBadgeBackground,
+                        borderWidth: 2,
+                        borderColor: sectionBadgeBorder,
                       },
                     ]}
                   >
                     <MaterialIcons
                       name={section.isDone ? "check-circle" : section.icon}
                       size={18 * fontScale}
-                      color={
-                        section.isDone
-                          ? "#22C55E"
-                          : nextSectionIndex !== -1 &&
-                              sections[nextSectionIndex]?.id === section.id
-                            ? "#F59E0B"
-                            : colors.text
-                      }
+                      color={sectionIconColor}
                     />
                   </View>
+                    );
+                  })()}
                   {index < sections.length - 1 ? (
                     <View
                       style={[
@@ -401,16 +418,7 @@ export function WalkthroughModal({
             </View>
             <View style={styles.labelsRow}>
               {sections.map((section) => {
-                const isCurrent =
-                  nextSectionIndex !== -1 &&
-                  sections[nextSectionIndex]?.id === section.id;
-                const labelColor = section.isDone
-                  ? "#22C55E"
-                  : isCurrent
-                    ? colorScheme === "dark"
-                      ? "#FBBF24"
-                      : "#9A3412"
-                    : colors.textMediumEmphasis;
+                const labelColor = getSectionLabelColor(section);
 
                 return (
                 <View

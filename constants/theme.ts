@@ -26,11 +26,11 @@ export const Colors = {
     icon: '#2E2E2E',
     tabIconDefault: '#383838',
     tabIconSelected: '#0C3819',
-    /** Darkest green: fills / selected chrome; ≥7:1 vs background when used as text. */
-    primary: '#0C3819',
-    /** Slightly lighter than `primary` for gradients & pressed accents; still ≥7:1 vs background. */
-    primaryLight: '#0F4720',
-    primaryDark: '#082211',
+    /** Brand success green for light theme fills; lighter than legacy tone while keeping white-label contrast. */
+    primary: '#166A31',
+    /** Lighter companion stop for glossy gradients / pressed accents. */
+    primaryLight: '#1D7D3A',
+    primaryDark: '#0F5426',
     primaryText: '#FFFFFF',
     error: '#B71C1C',
     surface: '#D5D8DE',

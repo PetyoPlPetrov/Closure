@@ -616,6 +616,9 @@ function AnimatedSun({
     () => getSunTextLayout(Math.min(sunWidth, sunHeight), sun.text, placeholder),
     [sunWidth, sunHeight, sun.text, placeholder],
   );
+  const sunCoreDiameter = (Math.min(sunWidth, sunHeight) / 160) * 96;
+  const sunCoreOffsetX = (sunWidth - sunCoreDiameter) / 2;
+  const sunCoreOffsetY = (sunHeight - sunCoreDiameter) / 2;
 
   // Register animated values so PanResponder can access current position
   useEffect(() => {
@@ -690,7 +693,6 @@ function AnimatedSun({
 
   return (
     <Animated.View
-      {...panHandlers}
       style={[
         styles.sunContainer,
         {
@@ -714,6 +716,7 @@ function AnimatedSun({
           shadowRadius: 12,
           elevation: 10,
         }}
+        pointerEvents="none"
       >
         <Svg
           width={sunWidth}
@@ -797,12 +800,13 @@ function AnimatedSun({
       )}
 
       <Pressable
+        {...panHandlers}
         style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          width: sunWidth,
-          height: sunHeight,
+          top: sunCoreOffsetY,
+          left: sunCoreOffsetX,
+          width: sunCoreDiameter,
+          height: sunCoreDiameter,
           justifyContent: 'center',
           alignItems: 'center',
         }}
@@ -1154,6 +1158,41 @@ export default function AddIdealizedMemoryScreen() {
   const memoryId = Array.isArray(params.memoryId) ? params.memoryId[0] : (params.memoryId as string | undefined);
   const viewOnly = (Array.isArray(params.viewOnly) ? params.viewOnly[0] : params.viewOnly) === 'true';
   const isEditMode = memoryId !== undefined;
+  const useListEditMode = isEditMode && !viewOnly;
+  const listInputPlaceholderColor = colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.56)';
+  const cloudyRgb = hexToRgb(momentColors.cloudy.background);
+  const sunnyRgb = hexToRgb(momentColors.sunny.background);
+  const lessonRgb = hexToRgb(momentColors.lesson.background);
+
+  const applyCloudPlaceholder = useCallback((cloudId: string) => {
+    setClouds((prev) =>
+      prev.map((c) =>
+        c.id === cloudId && (!c.text || c.text.trim().length === 0) && c.placeholder
+          ? { ...c, text: c.placeholder, placeholder: undefined }
+          : c
+      )
+    );
+  }, []);
+
+  const applySunPlaceholder = useCallback((sunId: string) => {
+    setSuns((prev) =>
+      prev.map((s) =>
+        s.id === sunId && (!s.text || s.text.trim().length === 0) && s.placeholder
+          ? { ...s, text: s.placeholder, placeholder: undefined }
+          : s
+      )
+    );
+  }, []);
+
+  const applyLessonPlaceholder = useCallback((lessonId: string) => {
+    setLessons((prev) =>
+      prev.map((l) =>
+        l.id === lessonId && (!l.text || l.text.trim().length === 0) && l.placeholder
+          ? { ...l, text: l.placeholder, placeholder: undefined }
+          : l
+      )
+    );
+  }, []);
 
   // Determine which mode we're in: new (entityId + sphere) or old (profileId)
   const isNewMode = !!(entityId && sphere);
@@ -2529,10 +2568,10 @@ export default function AddIdealizedMemoryScreen() {
 
           shadowColor: colorScheme === 'dark' ? '#3BAFFB' : '#34C759',
           shadowOpacity: colorScheme === 'dark' ? 0.75 : 0.4,
-          shadowRadius: 50,
-          shadowOffset: { width: 0, height: 20 },
+          shadowRadius: 35,
+          shadowOffset: { width: 0, height: 12 },
 
-          elevation: 30,
+          elevation: 22,
         },
 
         // ⭐ Main upload container with strong shadow
@@ -2552,8 +2591,8 @@ export default function AddIdealizedMemoryScreen() {
           // Inner glow
           shadowColor: colorScheme === 'dark' ? '#0EA5E9' : '#34C759',
           shadowOpacity: colorScheme === 'dark' ? 0.55 : 0.3,
-          shadowRadius: 40,
-          shadowOffset: { width: 0, height: 18 },
+          shadowRadius: 28,
+          shadowOffset: { width: 0, height: 12 },
 
           elevation: 22,
         },
@@ -2572,7 +2611,8 @@ export default function AddIdealizedMemoryScreen() {
         },
 
         memoryLabelContainer: {
-          marginTop: 14,
+          marginTop: 4,
+          marginBottom: 22,
           width: '100%',
           alignItems: 'center',
         },
@@ -2634,6 +2674,85 @@ export default function AddIdealizedMemoryScreen() {
           width: '100%',
           gap: 16 * fontScale,
         },
+        editListContainer: {
+          width: '100%',
+          marginTop: 24,
+          gap: 14,
+          paddingBottom: 12,
+        },
+        editListSection: {
+          width: '100%',
+          borderRadius: 14,
+          padding: 12,
+          backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+          borderWidth: 1,
+          borderColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)',
+        },
+        editListSectionHeader: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 10,
+        },
+        editListAddButton: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+          borderRadius: 8,
+          backgroundColor: colorScheme === 'dark' ? 'rgba(59, 175, 251, 0.18)' : 'rgba(59, 175, 251, 0.12)',
+        },
+        editListItemRow: {
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: 8,
+          marginBottom: 10,
+        },
+        editListInput: {
+          flex: 1,
+          minHeight: 48,
+          maxHeight: 132,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)',
+          backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.8)',
+          color: colors.text,
+          paddingHorizontal: 10,
+          paddingVertical: 10,
+          fontSize: isLargeDevice ? 16 : 14,
+          textAlignVertical: 'top',
+        },
+        editListRemoveButton: {
+          width: isLargeDevice ? 34 : 28,
+          height: isLargeDevice ? 34 : 28,
+          borderRadius: isLargeDevice ? 17 : 14,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.error,
+          marginTop: 8,
+        },
+        editListApplyButton: {
+          position: 'absolute',
+          right: 8,
+          top: 12,
+          width: 28,
+          height: 28,
+          borderRadius: 14,
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10,
+          shadowColor: '#000',
+          shadowOpacity: 0.25,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: 3,
+        },
+        editListEmptyText: {
+          opacity: 0.65,
+          fontSize: isLargeDevice ? 14 : 12,
+          paddingVertical: 6,
+        },
 
         addHardTruthButton: {
           width: isLargeDevice ? 64 : 56,
@@ -2662,8 +2781,8 @@ export default function AddIdealizedMemoryScreen() {
 
         floatingButton: {
           position: 'absolute',
-          bottom: 200 * fontScale,
-          right: 22 * fontScale,
+          bottom: 26,
+          right: 26,
           zIndex: 1000,
         },
 
@@ -2911,9 +3030,20 @@ export default function AddIdealizedMemoryScreen() {
 
         imageDeleteButton: {
           position: 'absolute',
-          top: 8,
-          right: 8,
+          top: 10,
+          right: 10,
           zIndex: 1001,
+          width: isLargeDevice ? 34 : 28,
+          height: isLargeDevice ? 34 : 28,
+          borderRadius: isLargeDevice ? 17 : 14,
+          backgroundColor: '#D62828',
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: '#D62828',
+          shadowOpacity: 0.45,
+          shadowRadius: 4,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: 4,
         },
 
         deleteBadge: {
@@ -3051,65 +3181,6 @@ export default function AddIdealizedMemoryScreen() {
             style={styles.centerContent}
             onPress={() => Keyboard.dismiss()}
           >
-          <View style={styles.uploadShadowWrap}>
-            <TouchableOpacity
-              ref={containerRef}
-              style={styles.uploadContainer}
-              onPress={viewOnly ? undefined : () => {
-                // Don't open gallery if image is already selected
-                // User must remove current image first
-                if (selectedImage) {
-                  return;
-                }
-                pickImage();
-              }}
-              onLayout={() => {
-                // Container ref is available for potential future use
-              }}
-              activeOpacity={0.8}
-              delayPressIn={0}
-              disabled={isLoadingImage || viewOnly || !!selectedImage}
-            >
-              {isLoadingImage ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={colors.primaryLight} />
-                  <ThemedText style={{ marginTop: 12, opacity: 0.75, textAlign: 'center' }}>
-                    {t('profile.openingGallery')}
-                  </ThemedText>
-                </View>
-              ) : selectedImage ? (
-                <View style={{ width: '100%', height: '100%', position: 'relative' }}>
-                  <Image
-                    source={{ uri: selectedImage }}
-                    style={styles.uploadedImage}
-                    contentFit="cover"
-                  />
-                  {!viewOnly && (
-                    <TouchableOpacity
-                      style={styles.imageDeleteButton}
-                      onPress={() => setSelectedImage(null)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <View style={styles.deleteBadge}>
-                        <View style={styles.deleteLine} />
-                      </View>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ) : (
-                <>
-              <MaterialIcons
-                name="add-a-photo"
-                size={50}
-                color={colors.primaryLight}
-              />
-             
-                </>
-              )}
-            </TouchableOpacity>
-            </View>
-
-          {/* Editable memory label */}
           <View style={styles.memoryLabelContainer}>
             <View style={{ position: 'relative', width: '100%', alignItems: 'center' }}>
               <AnimatedTitleInput
@@ -3160,8 +3231,258 @@ export default function AddIdealizedMemoryScreen() {
             </View>
           </View>
 
+          <View style={styles.uploadShadowWrap}>
+            <TouchableOpacity
+              ref={containerRef}
+              style={styles.uploadContainer}
+              onPress={viewOnly ? undefined : () => {
+                // Don't open gallery if image is already selected
+                // User must remove current image first
+                if (selectedImage) {
+                  return;
+                }
+                pickImage();
+              }}
+              onLayout={() => {
+                // Container ref is available for potential future use
+              }}
+              activeOpacity={0.8}
+              delayPressIn={0}
+              disabled={isLoadingImage || viewOnly || !!selectedImage}
+            >
+              {isLoadingImage ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primaryLight} />
+                  <ThemedText style={{ marginTop: 12, opacity: 0.75, textAlign: 'center' }}>
+                    {t('profile.openingGallery')}
+                  </ThemedText>
+                </View>
+              ) : selectedImage ? (
+                <View style={{ width: '100%', height: '100%', position: 'relative' }}>
+                  <Image
+                    source={{ uri: selectedImage }}
+                    style={styles.uploadedImage}
+                    contentFit="cover"
+                  />
+                  {!viewOnly && (
+                    <TouchableOpacity
+                      style={styles.imageDeleteButton}
+                      onPress={() => setSelectedImage(null)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <MaterialIcons name="close" size={isLargeDevice ? 20 : 16} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : (
+                <MaterialIcons
+                  name="add-a-photo"
+                  size={50}
+                  color={colors.primaryLight}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Edit mode list view */}
+          {useListEditMode && (
+            <View style={styles.editListContainer}>
+              <View
+                style={[
+                  styles.editListSection,
+                  {
+                    backgroundColor: `rgba(${cloudyRgb.r}, ${cloudyRgb.g}, ${cloudyRgb.b}, ${colorScheme === 'dark' ? 0.22 : 0.14})`,
+                    borderColor: `rgba(${cloudyRgb.r}, ${cloudyRgb.g}, ${cloudyRgb.b}, ${colorScheme === 'dark' ? 0.42 : 0.28})`,
+                  },
+                ]}
+              >
+                <View style={styles.editListSectionHeader}>
+                  <ThemedText weight="bold">{t('memory.hardTruth.plural')}</ThemedText>
+                  <TouchableOpacity
+                    style={[
+                      styles.editListAddButton,
+                      {
+                        backgroundColor: `rgba(${cloudyRgb.r}, ${cloudyRgb.g}, ${cloudyRgb.b}, ${colorScheme === 'dark' ? 0.34 : 0.22})`,
+                      },
+                    ]}
+                    onPress={addNewCloud}
+                  >
+                    <MaterialIcons name="add" size={16} color={momentColors.cloudy.text} />
+                    <ThemedText size="xs" style={{ color: momentColors.cloudy.text }}>
+                      {t('memory.hardTruth.add')}
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
+                {clouds.length === 0 ? (
+                  <ThemedText style={styles.editListEmptyText}>{t('memory.hardTruth.none')}</ThemedText>
+                ) : (
+                  clouds.map((cloud) => (
+                    <View key={cloud.id} style={styles.editListItemRow}>
+                      <View style={{ flex: 1, position: 'relative' }}>
+                        <TextInput
+                          value={cloud.text}
+                          onChangeText={(text) =>
+                            setClouds((prev) => prev.map((c) => (c.id === cloud.id ? { ...c, text } : c)))
+                          }
+                          placeholder={cloud.placeholder || t('memory.hardTruth.placeholder')}
+                          placeholderTextColor={listInputPlaceholderColor}
+                          style={styles.editListInput}
+                          multiline
+                        />
+                        {cloud.placeholder && cloud.text.trim().length === 0 && (
+                          <TouchableOpacity
+                            style={[styles.editListApplyButton, { backgroundColor: momentColors.cloudy.background }]}
+                            onPress={() => applyCloudPlaceholder(cloud.id)}
+                          >
+                            <MaterialIcons name="check" size={16} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        style={styles.editListRemoveButton}
+                        onPress={() => setClouds((prev) => prev.filter((c) => c.id !== cloud.id))}
+                      >
+                        <MaterialIcons name="close" size={isLargeDevice ? 20 : 16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+              </View>
+
+              <View
+                style={[
+                  styles.editListSection,
+                  {
+                    backgroundColor: `rgba(${sunnyRgb.r}, ${sunnyRgb.g}, ${sunnyRgb.b}, ${colorScheme === 'dark' ? 0.2 : 0.12})`,
+                    borderColor: `rgba(${sunnyRgb.r}, ${sunnyRgb.g}, ${sunnyRgb.b}, ${colorScheme === 'dark' ? 0.36 : 0.24})`,
+                  },
+                ]}
+              >
+                <View style={styles.editListSectionHeader}>
+                  <ThemedText weight="bold">{t('memory.sunnyMoment.plural')}</ThemedText>
+                  <TouchableOpacity
+                    style={[
+                      styles.editListAddButton,
+                      {
+                        backgroundColor: `rgba(${sunnyRgb.r}, ${sunnyRgb.g}, ${sunnyRgb.b}, ${colorScheme === 'dark' ? 0.34 : 0.22})`,
+                      },
+                    ]}
+                    onPress={addNewSun}
+                  >
+                    <MaterialIcons name="add" size={16} color={momentPillGlyphColor(momentColors.sunny.background)} />
+                    <ThemedText size="xs" style={{ color: momentPillGlyphColor(momentColors.sunny.background) }}>
+                      {t('memory.sunnyMoment.add')}
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
+                {suns.length === 0 ? (
+                  <ThemedText style={styles.editListEmptyText}>{t('memory.sunnyMoment.none')}</ThemedText>
+                ) : (
+                  suns.map((sun) => (
+                    <View key={sun.id} style={styles.editListItemRow}>
+                      <View style={{ flex: 1, position: 'relative' }}>
+                        <TextInput
+                          value={sun.text}
+                          onChangeText={(text) =>
+                            setSuns((prev) => prev.map((s) => (s.id === sun.id ? { ...s, text } : s)))
+                          }
+                          placeholder={
+                            sun.placeholder && !isLikelySuggestionI18nKey(sun.placeholder)
+                              ? sun.placeholder
+                              : t('memory.sunnyMoment.placeholder')
+                          }
+                          placeholderTextColor={listInputPlaceholderColor}
+                          style={styles.editListInput}
+                          multiline
+                        />
+                        {sun.placeholder &&
+                          !isLikelySuggestionI18nKey(sun.placeholder) &&
+                          sun.text.trim().length === 0 && (
+                            <TouchableOpacity
+                              style={[styles.editListApplyButton, { backgroundColor: momentColors.sunny.background }]}
+                              onPress={() => applySunPlaceholder(sun.id)}
+                            >
+                              <MaterialIcons name="check" size={16} color="#FFFFFF" />
+                            </TouchableOpacity>
+                          )}
+                      </View>
+                      <TouchableOpacity
+                        style={styles.editListRemoveButton}
+                        onPress={() => setSuns((prev) => prev.filter((s) => s.id !== sun.id))}
+                      >
+                        <MaterialIcons name="close" size={isLargeDevice ? 20 : 16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+              </View>
+
+              <View
+                style={[
+                  styles.editListSection,
+                  {
+                    backgroundColor: `rgba(${lessonRgb.r}, ${lessonRgb.g}, ${lessonRgb.b}, ${colorScheme === 'dark' ? 0.2 : 0.12})`,
+                    borderColor: `rgba(${lessonRgb.r}, ${lessonRgb.g}, ${lessonRgb.b}, ${colorScheme === 'dark' ? 0.36 : 0.24})`,
+                  },
+                ]}
+              >
+                <View style={styles.editListSectionHeader}>
+                  <ThemedText weight="bold">{t('memory.lesson.plural')}</ThemedText>
+                  <TouchableOpacity
+                    style={[
+                      styles.editListAddButton,
+                      {
+                        backgroundColor: `rgba(${lessonRgb.r}, ${lessonRgb.g}, ${lessonRgb.b}, ${colorScheme === 'dark' ? 0.34 : 0.22})`,
+                      },
+                    ]}
+                    onPress={addNewLesson}
+                  >
+                    <MaterialIcons name="add" size={16} color={momentPillGlyphColor(momentColors.lesson.background)} />
+                    <ThemedText size="xs" style={{ color: momentPillGlyphColor(momentColors.lesson.background) }}>
+                      {t('memory.lesson')}
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
+                {lessons.length === 0 ? (
+                  <ThemedText style={styles.editListEmptyText}>{t('memory.lesson.none')}</ThemedText>
+                ) : (
+                  lessons.map((lesson) => (
+                    <View key={lesson.id} style={styles.editListItemRow}>
+                      <View style={{ flex: 1, position: 'relative' }}>
+                        <TextInput
+                          value={lesson.text}
+                          onChangeText={(text) =>
+                            setLessons((prev) => prev.map((l) => (l.id === lesson.id ? { ...l, text } : l)))
+                          }
+                          placeholder={lesson.placeholder || t('memory.lesson.placeholder')}
+                          placeholderTextColor={listInputPlaceholderColor}
+                          style={styles.editListInput}
+                          multiline
+                        />
+                        {lesson.placeholder && lesson.text.trim().length === 0 && (
+                          <TouchableOpacity
+                            style={[styles.editListApplyButton, { backgroundColor: momentColors.lesson.background }]}
+                            onPress={() => applyLessonPlaceholder(lesson.id)}
+                          >
+                            <MaterialIcons name="check" size={16} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        style={styles.editListRemoveButton}
+                        onPress={() => setLessons((prev) => prev.filter((l) => l.id !== lesson.id))}
+                      >
+                        <MaterialIcons name="close" size={isLargeDevice ? 20 : 16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
+          )}
+
           {/* Add Hard Truth and Good Fact - Same Row - hidden in view-only mode */}
-          {!viewOnly && (
+          {!viewOnly && !useListEditMode && (
           <View style={styles.buttonsRow}>
             <Pressable
               ref={plusButtonRef}
@@ -3399,7 +3720,7 @@ export default function AddIdealizedMemoryScreen() {
       </KeyboardAvoidingView>
 
       {/* Cloud Bubbles - render all clouds positioned on screen (after ScrollView to ensure they appear on top) */}
-      {clouds.map((cloud) => {
+      {!useListEditMode && clouds.map((cloud) => {
         const pan = createPanResponder(cloud.id);
         // Create or get ref for this cloud's input
         if (!cloudInputRefs.current[cloud.id]) {
@@ -3457,7 +3778,7 @@ export default function AddIdealizedMemoryScreen() {
       })}
 
       {/* Sun Elements - render all suns positioned on screen */}
-      {suns.map((sun) => {
+      {!useListEditMode && suns.map((sun) => {
         const pan = createSunPanResponder(sun.id);
         // Create or get ref for this sun's input
         if (!sunInputRefs.current[sun.id]) {
@@ -3516,7 +3837,7 @@ export default function AddIdealizedMemoryScreen() {
       })}
 
       {/* Lesson Lightbulbs - render all lessons positioned on screen */}
-      {lessons.map((lesson) => {
+      {!useListEditMode && lessons.map((lesson) => {
         const pan = createLessonPanResponder(lesson.id);
         // Create or get ref for this lesson's input
         if (!lessonInputRefs.current[lesson.id]) {

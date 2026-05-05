@@ -648,6 +648,8 @@ const FloatingAvatar = React.memo(
     const [imagePreviewUri, setImagePreviewUri] = React.useState<string | null>(
       null,
     );
+    const entityWheelModeEnabled = false;
+    const entityAvatarPressHintEnabled = false;
     const [showGifAnimation, setShowGifAnimation] = React.useState(false);
     const [showEntityWheel, setShowEntityWheel] = React.useState(false);
     const [selectedWheelMoment, setSelectedWheelMoment] = React.useState<{
@@ -893,6 +895,12 @@ const FloatingAvatar = React.memo(
       () => canEnterEntityWheelOfLife(memories),
       [memories],
     );
+
+    React.useEffect(() => {
+      if (!entityWheelModeEnabled && showEntityWheel) {
+        setShowEntityWheel(false);
+      }
+    }, [entityWheelModeEnabled, showEntityWheel]);
 
     React.useEffect(() => {
       if (!isFocused || canEnterEntityWheel || showEntityWheel) {
@@ -1986,6 +1994,7 @@ const FloatingAvatar = React.memo(
     // Avatar click hint animation: finger above avatar, appears after delay, scales like pressing
     React.useEffect(() => {
       if (
+        !entityAvatarPressHintEnabled ||
         !appUsabilityHints ||
         !isFocused ||
         !isScreenActive ||
@@ -2050,6 +2059,7 @@ const FloatingAvatar = React.memo(
       };
     }, [
       appUsabilityHints,
+      entityAvatarPressHintEnabled,
       isFocused,
       canEnterEntityWheel,
       memories.length,
@@ -2443,6 +2453,7 @@ const FloatingAvatar = React.memo(
       // Detect transition from unfocused to focused (entering focused view)
       // OR first render when already focused (e.g., clicking friend from spheres view)
       if (
+        entityAvatarPressHintEnabled &&
         isFocused &&
         canEnterEntityWheel &&
         (!previousIsFocused.current || !hasInitialPulseRun.current)
@@ -2488,6 +2499,9 @@ const FloatingAvatar = React.memo(
       } else if (!canEnterEntityWheel) {
         avatarPulseScale.value = 1;
         hasInitialPulseRun.current = false; // Allow pulse again if user later meets threshold
+      } else if (!entityAvatarPressHintEnabled) {
+        avatarPulseScale.value = 1;
+        hasInitialPulseRun.current = false;
       }
 
       // Update ref for next render
@@ -2497,6 +2511,7 @@ const FloatingAvatar = React.memo(
       canEnterEntityWheel,
       avatarPulseScale,
       setAvatarClickHintDismissed,
+      entityAvatarPressHintEnabled,
     ]);
 
     // Use a ref to track previous isFocused state to detect transitions
@@ -3554,6 +3569,7 @@ const FloatingAvatar = React.memo(
                   if (!dragStartedRef.current && !isDragging.value) {
                     // If entity is focused, toggle entity wheel mode
                     if (isFocused) {
+                      if (!entityWheelModeEnabled) return;
                       if (!canEnterEntityWheel) {
                         showEntityWheelGateToast();
                         if (memories.length > 0) {
@@ -4674,6 +4690,7 @@ const FloatingAvatar = React.memo(
 
         {/* Avatar click hint: finger below avatar pointing at its bottom (individual entity view, pre-wheel) */}
         {isFocused &&
+          entityAvatarPressHintEnabled &&
           canEnterEntityWheel &&
           !showEntityWheel &&
           appUsabilityHints &&
@@ -4725,7 +4742,7 @@ const FloatingAvatar = React.memo(
 
         {/* Entity Wheel of Life — wheel mode when entity circle is focused (orbit + sunny/cloudy % + lesson/sunny/cloudy buttons) */}
         {/* Wheel Mode UI - moment type icons positioned around entity like wheel of life */}
-        {showEntityWheel && isFocused && (
+        {entityWheelModeEnabled && showEntityWheel && isFocused && (
           <View
             style={{
               position: "absolute",
@@ -7769,31 +7786,31 @@ const MemoryActionButtons = React.memo(
                       />
                     </View>
                     {/* Count badge */}
-                    {totalLessonsCount > 0 && (
-                      <View
+                    <View
+                      style={{
+                        position: "absolute",
+                        bottom: isLargeDevice ? 8 : 6,
+                        left: 0,
+                        right: 0,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <ThemedText
                         style={{
-                          position: "absolute",
-                          bottom: isLargeDevice ? 8 : 6,
-                          left: 0,
-                          right: 0,
-                          alignItems: "center",
-                          justifyContent: "center",
+                          fontSize: isLargeDevice ? 14 : 12,
+                          fontWeight: "700",
+                          color: momentPillGlyphColor(
+                            momentColors.lesson.background,
+                          ),
+                          textAlign: "center",
                         }}
                       >
-                        <ThemedText
-                          style={{
-                            fontSize: isLargeDevice ? 14 : 12,
-                            fontWeight: "700",
-                            color: momentPillGlyphColor(
-                              momentColors.lesson.background,
-                            ),
-                            textAlign: "center",
-                          }}
-                        >
-                          {visibleLessonsCount}/{totalLessonsCount}
-                        </ThemedText>
-                      </View>
-                    )}
+                        {totalLessonsCount > 0
+                          ? `${visibleLessonsCount}/${totalLessonsCount}`
+                          : "0"}
+                      </ThemedText>
+                    </View>
                   </LinearGradient>
                 </Animated.View>
               </Pressable>
@@ -7906,29 +7923,29 @@ const MemoryActionButtons = React.memo(
                       />
                     </View>
                     {/* Count badge */}
-                    {totalCloudsCount > 0 && (
-                      <View
+                    <View
+                      style={{
+                        position: "absolute",
+                        bottom: isLargeDevice ? 8 : 6,
+                        left: 0,
+                        right: 0,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <ThemedText
                         style={{
-                          position: "absolute",
-                          bottom: isLargeDevice ? 8 : 6,
-                          left: 0,
-                          right: 0,
-                          alignItems: "center",
-                          justifyContent: "center",
+                          fontSize: isLargeDevice ? 14 : 12,
+                          fontWeight: "700",
+                          color: colorScheme === "dark" ? "#FFFFFF" : colors.textMediumEmphasis,
+                          textAlign: "center",
                         }}
                       >
-                        <ThemedText
-                          style={{
-                            fontSize: isLargeDevice ? 14 : 12,
-                            fontWeight: "700",
-                            color: colorScheme === "dark" ? "#FFFFFF" : colors.textMediumEmphasis,
-                            textAlign: "center",
-                          }}
-                        >
-                          {visibleCloudsCount}/{totalCloudsCount}
-                        </ThemedText>
-                      </View>
-                    )}
+                        {totalCloudsCount > 0
+                          ? `${visibleCloudsCount}/${totalCloudsCount}`
+                          : "0"}
+                      </ThemedText>
+                    </View>
                   </LinearGradient>
                 </Animated.View>
               </Pressable>
@@ -8043,31 +8060,31 @@ const MemoryActionButtons = React.memo(
                       />
                     </View>
                     {/* Count badge */}
-                    {totalSunsCount > 0 && (
-                      <View
+                    <View
+                      style={{
+                        position: "absolute",
+                        bottom: isLargeDevice ? 8 : 6,
+                        left: 0,
+                        right: 0,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <ThemedText
                         style={{
-                          position: "absolute",
-                          bottom: isLargeDevice ? 8 : 6,
-                          left: 0,
-                          right: 0,
-                          alignItems: "center",
-                          justifyContent: "center",
+                          fontSize: isLargeDevice ? 14 : 12,
+                          fontWeight: "700",
+                          color: momentPillGlyphColor(
+                            momentColors.sunny.background,
+                          ),
+                          textAlign: "center",
                         }}
                       >
-                        <ThemedText
-                          style={{
-                            fontSize: isLargeDevice ? 14 : 12,
-                            fontWeight: "700",
-                            color: momentPillGlyphColor(
-                              momentColors.sunny.background,
-                            ),
-                            textAlign: "center",
-                          }}
-                        >
-                          {visibleSunsCount}/{totalSunsCount}
-                        </ThemedText>
-                      </View>
-                    )}
+                        {totalSunsCount > 0
+                          ? `${visibleSunsCount}/${totalSunsCount}`
+                          : "0"}
+                      </ThemedText>
+                    </View>
                   </LinearGradient>
                 </Animated.View>
               </Pressable>
@@ -19363,7 +19380,8 @@ export default function HomeScreen() {
                 dismissLabel={t("guidePrompt.dismiss")}
                 onClose={handleSunnyVsCloudyHintClose}
                 onDontShowAgain={handleSunnyVsCloudyHintDontShowAgain}
-                actionAccessibilityLabel={t("guidePrompt.showSunnyMoments")}
+                actionLabel={t("guidePrompt.sunnyMomentsCta")}
+                actionAccessibilityLabel={t("guidePrompt.sunnyMomentsFromSferas")}
                 onActionPress={() => openSunnyCelebration()}
                 actionIconName="wb-sunny"
               />
@@ -22855,25 +22873,30 @@ export default function HomeScreen() {
 
     return (
       <View
-        style={[
-          sphereHeaderTitleRowStyle,
-          {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "flex-end",
-          },
-        ]}
+        pointerEvents="box-none"
+        style={{
+          position: "absolute",
+          top: sphereHeaderBackTop,
+          left: 20,
+          right: 20,
+          height: sphereHeaderBackSize,
+          zIndex: 1000,
+          flexDirection: "row",
+          alignItems: "center",
+        }}
       >
+        {/* Left spacer keeps title perfectly centered between equal side controls. */}
+        <View style={{ width: sphereHeaderBackSize, height: sphereHeaderBackSize }} />
         <ThemedText
           size="l"
           weight="semibold"
-          numberOfLines={2}
+          numberOfLines={1}
           ellipsizeMode="tail"
           style={{
             color: colors.text,
-            textAlign: "right",
-            flexShrink: 1,
-            maxWidth: "88%",
+            textAlign: "center",
+            flex: 1,
+            marginHorizontal: 8,
           }}
         >
           {memoryData.title || "Memory"}
@@ -22884,10 +22907,9 @@ export default function HomeScreen() {
           accessibilityLabel={t("memory.edit")}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: 16,
-            marginLeft: 8,
+            width: sphereHeaderBackSize,
+            height: sphereHeaderBackSize,
+            borderRadius: sphereHeaderBackSize / 2,
             backgroundColor:
               colorScheme === "dark"
                 ? "rgba(255, 255, 255, 0.12)"
@@ -22901,7 +22923,11 @@ export default function HomeScreen() {
                 : "rgba(0, 0, 0, 0.2)",
           }}
         >
-          <MaterialIcons name="edit" size={18} color={colors.text} />
+          <MaterialIcons
+            name="edit"
+            size={isTablet ? 36 : 24}
+            color={colors.text}
+          />
         </Pressable>
       </View>
     );

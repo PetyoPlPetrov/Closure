@@ -66,7 +66,7 @@ const PARADE_BACKDROP_FADE_MS = 1500;
 const PARADE_EXIT_JS_DISMISS_BUFFER_MS = 64;
 /** Without a cap, 280–420px discs leave almost no X travel on phones → a visual “middle column”. */
 function paradeSunSizeCap(isTablet: boolean, isLargeDevice: boolean): number {
-  return isTablet ? 300 : isLargeDevice ? 252 : 210;
+  return isTablet ? 360 : isLargeDevice ? 320 : 280;
 }
 
 function paradeComputeSunSize(
@@ -269,7 +269,9 @@ function FocusedMemorySunCelebrationBubble({
               ) * fontScale,
             maxWidth: (size / 160) * 48 * 1.5,
           }}
-          numberOfLines={6}
+          numberOfLines={8}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
         >
           {spec.text}
         </ThemedText>
@@ -448,12 +450,12 @@ function computeCelebrationSunSize(
     .reduce((max: number, word: string) => Math.max(max, word.length), 0);
   const baseSunSize = isTablet ? 240 : isLargeDevice ? 200 : 160;
   return Math.min(
-    isTablet ? 420 : isLargeDevice ? 340 : 290,
+    isTablet ? 500 : isLargeDevice ? 420 : 360,
     Math.max(
       baseSunSize,
       baseSunSize +
-        (sunEstimatedLines - 1) * (isTablet ? 18 : isLargeDevice ? 16 : 14) +
-        Math.floor(textLength * (isTablet ? 0.5 : isLargeDevice ? 0.45 : 0.35)) +
+        (sunEstimatedLines - 1) * (isTablet ? 20 : isLargeDevice ? 18 : 16) +
+        Math.floor(textLength * (isTablet ? 0.62 : isLargeDevice ? 0.56 : 0.48)) +
         Math.max(0, sunLongestWord - 10) * (isTablet ? 3 : 2),
     ),
   );
@@ -512,7 +514,7 @@ export function SunnyMomentsCelebrationOverlay({
     const nBusy = Math.max(1, total);
 
     return paradeMoments.map((entry, index) => {
-      const text = entry.text.trim().replace(/\s+/g, " ").slice(0, 85);
+      const text = entry.text.trim().replace(/\s+/g, " ").slice(0, 140);
       const textLength = text.length;
       const size = paradeComputeSunSize(text, isTablet, isLargeDevice);
       const idSalt = idScatterSalt(entry.id, index);
@@ -587,6 +589,8 @@ export function SunnyMomentsCelebrationOverlay({
   const paradeBackdropOpacity = useSharedValue(0);
   /** Fades density/speed rails + count pill with the scrim on exit so UI can’t stick at full opacity. */
   const controlsChromeOpacity = useSharedValue(1);
+  /** Fade bubbles themselves on dismiss so they don't disappear on modal unmount. */
+  const bubblesLayerOpacity = useSharedValue(1);
   const backdropExitInProgressRef = useRef(false);
   const exitFadeDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -615,12 +619,14 @@ export function SunnyMomentsCelebrationOverlay({
     clearExitFadeDismissTimer();
     cancelAnimation(paradeBackdropOpacity);
     cancelAnimation(controlsChromeOpacity);
+    cancelAnimation(bubblesLayerOpacity);
     const timingConfig = {
       duration: PARADE_BACKDROP_FADE_MS,
       easing: Easing.inOut(Easing.cubic),
     };
     controlsChromeOpacity.value = withTiming(0, timingConfig);
     paradeBackdropOpacity.value = withTiming(0, timingConfig);
+    bubblesLayerOpacity.value = withTiming(0, timingConfig);
 
     exitFadeDismissTimerRef.current = setTimeout(() => {
       exitFadeDismissTimerRef.current = null;
@@ -645,15 +651,19 @@ export function SunnyMomentsCelebrationOverlay({
       clearExitFadeDismissTimer();
       cancelAnimation(paradeBackdropOpacity);
       cancelAnimation(controlsChromeOpacity);
+    cancelAnimation(bubblesLayerOpacity);
       paradeBackdropOpacity.value = 0;
       controlsChromeOpacity.value = 1;
+    bubblesLayerOpacity.value = 1;
       return;
     }
     clearExitFadeDismissTimer();
     backdropExitInProgressRef.current = false;
     cancelAnimation(paradeBackdropOpacity);
     cancelAnimation(controlsChromeOpacity);
+  cancelAnimation(bubblesLayerOpacity);
     controlsChromeOpacity.value = 1;
+  bubblesLayerOpacity.value = 1;
     paradeBackdropOpacity.value = 0;
     paradeBackdropOpacity.value = withTiming(1, {
       duration: PARADE_BACKDROP_FADE_MS,
@@ -664,6 +674,7 @@ export function SunnyMomentsCelebrationOverlay({
     triggerToken,
     paradeBackdropOpacity,
     controlsChromeOpacity,
+    bubblesLayerOpacity,
     clearExitFadeDismissTimer,
   ]);
 
@@ -798,6 +809,10 @@ export function SunnyMomentsCelebrationOverlay({
     opacity: paradeBackdropOpacity.value,
   }));
 
+  const bubblesLayerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: bubblesLayerOpacity.value,
+  }));
+
   if (!visible) return null;
 
   const speedRailTop = Math.round(insets.top + SCREEN_HEIGHT * 0.45);
@@ -830,18 +845,23 @@ export function SunnyMomentsCelebrationOverlay({
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           />
-          {bubbleSpecs.map((spec) => (
-            <SunnyMomentBubble
-              key={`${spec.id}-${triggerToken}`}
-              spec={spec}
-              triggerToken={triggerToken}
-              paradeSessionStartedAtMs={paradeSessionStartedAtMs}
-              sunnyBackground={sunnyBackground}
-              fontScale={fontScale}
-              isTablet={isTablet}
-              isLargeDevice={isLargeDevice}
-            />
-          ))}
+          <Animated.View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFillObject, bubblesLayerAnimatedStyle]}
+          >
+            {bubbleSpecs.map((spec) => (
+              <SunnyMomentBubble
+                key={`${spec.id}-${triggerToken}`}
+                spec={spec}
+                triggerToken={triggerToken}
+                paradeSessionStartedAtMs={paradeSessionStartedAtMs}
+                sunnyBackground={sunnyBackground}
+                fontScale={fontScale}
+                isTablet={isTablet}
+                isLargeDevice={isLargeDevice}
+              />
+            ))}
+          </Animated.View>
           <Animated.View
             pointerEvents="box-none"
             style={[

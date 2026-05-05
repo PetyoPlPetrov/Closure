@@ -46,7 +46,7 @@ export function getDefaultMomentColors(
 ): MomentColors {
   return {
     sunny: {
-      background: colorScheme === "light" ? "#F59E0B" : "#FFD700",
+      background: colorScheme === "light" ? "#FFB300" : "#FFD700",
       text: "#000000",
     },
     cloudy: CLOUDY_DEFAULT,

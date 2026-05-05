@@ -5,6 +5,7 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import type { LifeSphere } from "@/utils/JourneyProvider";
 import { useJourney } from "@/utils/JourneyProvider";
+import { getSphereAccentColor } from "@/utils/sphere-styles";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
@@ -184,48 +185,27 @@ function WheelOfLifeVisualization({
     hobbiesSweepAngle,
   );
 
-  // Get sphere-specific colors - theme-aware for proper contrast (matching spheres.tsx)
-  const getSphereColor = (
-    sphereType: "relationships" | "career" | "family" | "friends" | "hobbies",
-  ): string => {
-    if (colorScheme === "light") {
-      switch (sphereType) {
-        case "relationships":
-          return "#D32F2F";
-        case "career":
-          return "#1976D2";
-        case "family":
-          return "#388E3C";
-        case "friends":
-          return "#7B1FA2";
-        case "hobbies":
-          return "#F57C00";
-        default:
-          return "#1976D2";
-      }
-    } else {
-      switch (sphereType) {
-        case "relationships":
-          return "#E57373";
-        case "career":
-          return Colors.dark.primary;
-        case "family":
-          return "#81C784";
-        case "friends":
-          return "#BA68C8";
-        case "hobbies":
-          return "#FFB74D";
-        default:
-          return Colors.dark.primary;
-      }
-    }
-  };
-
-  const relationshipsColor = getSphereColor("relationships");
-  const careerColor = getSphereColor("career");
-  const familyColor = getSphereColor("family");
-  const friendsColor = getSphereColor("friends");
-  const hobbiesColor = getSphereColor("hobbies");
+  // Use the shared sphere accent palette so the wheel matches sferas everywhere.
+  const relationshipsColor = getSphereAccentColor(
+    "relationships",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
+  const careerColor = getSphereAccentColor(
+    "career",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
+  const familyColor = getSphereAccentColor(
+    "family",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
+  const friendsColor = getSphereAccentColor(
+    "friends",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
+  const hobbiesColor = getSphereAccentColor(
+    "hobbies",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
 
   // Sphere icons
   const sphereIcons = {
@@ -495,7 +475,7 @@ function WheelOfLifeVisualization({
     >
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <Defs>
-          {/* Subtle static gradients for each slice - radial from center */}
+          {/* Static gradients for each slice, kept fully opaque so colors match sferas */}
           <SvgLinearGradient
             id="relationshipsStaticGradient"
             x1="0%"
@@ -504,11 +484,7 @@ function WheelOfLifeVisualization({
             y2="100%"
           >
             <Stop offset="0%" stopColor={relationshipsColor} stopOpacity="1" />
-            <Stop
-              offset="100%"
-              stopColor={relationshipsColor}
-              stopOpacity="0.5"
-            />
+            <Stop offset="100%" stopColor={relationshipsColor} stopOpacity="1" />
           </SvgLinearGradient>
 
           <SvgLinearGradient
@@ -519,7 +495,7 @@ function WheelOfLifeVisualization({
             y2="100%"
           >
             <Stop offset="0%" stopColor={careerColor} stopOpacity="1" />
-            <Stop offset="100%" stopColor={careerColor} stopOpacity="0.5" />
+            <Stop offset="100%" stopColor={careerColor} stopOpacity="1" />
           </SvgLinearGradient>
 
           <SvgLinearGradient
@@ -530,7 +506,7 @@ function WheelOfLifeVisualization({
             y2="100%"
           >
             <Stop offset="0%" stopColor={familyColor} stopOpacity="1" />
-            <Stop offset="100%" stopColor={familyColor} stopOpacity="0.5" />
+            <Stop offset="100%" stopColor={familyColor} stopOpacity="1" />
           </SvgLinearGradient>
 
           <SvgLinearGradient
@@ -541,7 +517,7 @@ function WheelOfLifeVisualization({
             y2="100%"
           >
             <Stop offset="0%" stopColor={friendsColor} stopOpacity="1" />
-            <Stop offset="100%" stopColor={friendsColor} stopOpacity="0.5" />
+            <Stop offset="100%" stopColor={friendsColor} stopOpacity="1" />
           </SvgLinearGradient>
 
           <SvgLinearGradient
@@ -552,7 +528,7 @@ function WheelOfLifeVisualization({
             y2="100%"
           >
             <Stop offset="0%" stopColor={hobbiesColor} stopOpacity="1" />
-            <Stop offset="100%" stopColor={hobbiesColor} stopOpacity="0.5" />
+            <Stop offset="100%" stopColor={hobbiesColor} stopOpacity="1" />
           </SvgLinearGradient>
 
           {/* Animated gradient for relationships slice */}
@@ -639,29 +615,6 @@ function WheelOfLifeVisualization({
             <Stop offset="100%" stopColor={hobbiesColor} stopOpacity="0" />
           </AnimatedLinearGradient>
         </Defs>
-
-        {/* Shadow/Elevation effect - multiple layers for depth */}
-        <Circle
-          cx={center + 3}
-          cy={center + 3}
-          r={radius}
-          fill={colorScheme === "dark" ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.2)"}
-          opacity={0.8}
-        />
-        <Circle
-          cx={center + 2}
-          cy={center + 2}
-          r={radius}
-          fill={colorScheme === "dark" ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.15)"}
-          opacity={0.6}
-        />
-        <Circle
-          cx={center + 1}
-          cy={center + 1}
-          r={radius}
-          fill={colorScheme === "dark" ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.1)"}
-          opacity={0.4}
-        />
 
         {/* Background circle */}
         <Circle

@@ -627,6 +627,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   }, [isRecording, speechToText, step]);
 
   const handleClose = useCallback(() => {
+    onClose();
     void (async () => {
       if (isRecording || isListening) {
         await speechToText.stop();
@@ -648,7 +649,6 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
       setQuestion("");
       setAnswerInput("");
       setAnalysis(null);
-      onClose();
     })();
   }, [
     step,
@@ -724,6 +724,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
             String(displayedTriesLeft),
           )
         : t("universe.exam.triesRemainingUnlimited") || "Unlimited tries left today";
+  const isSubmitDisabled = step !== "question" || answerInput.trim().length === 0;
 
   return (
     <Modal
@@ -908,6 +909,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                     style={[submitButtonStyle, { width: "100%", marginTop: 16 }]}
                   >
                     <Pressable
+                      disabled={isSubmitDisabled}
                       onPressIn={() => {
                         if (answerInputRef.current.trim().length >= 2) {
                           cancelAnimation(submitPressScale);
@@ -944,6 +946,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                         width: "100%",
                         borderRadius: 14,
                         overflow: "hidden",
+                        opacity: isSubmitDisabled ? 0.5 : 1,
                       }}
                     >
                       <LinearGradient

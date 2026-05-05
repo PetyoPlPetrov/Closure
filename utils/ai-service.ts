@@ -1093,7 +1093,7 @@ export async function analyzeLessonExamAnswer(
       }),
       feedback: Schema.string({
         description:
-          "One short supportive sentence. If correct: celebrate. If not: gentle encouragement. Max 80 chars.",
+          "If isCorrect=true: one short celebratory/supportive sentence. If isCorrect=false: briefly explain why the answer missed the lesson and suggest what to include next time. Keep concise (1-2 sentences).",
       }),
     },
     required: ["isCorrect", "feedback"],
@@ -1102,13 +1102,16 @@ export async function analyzeLessonExamAnswer(
   const systemPrompt = `Sfera AI coach. You evaluate whether a user's answer to a situational question shows they learned a personal lesson.
 Be generous: partial understanding, personal reflection, or situational awareness counts as correct.
 Only mark isCorrect=false if the answer is completely off-topic, nonsensical, or empty.
+When isCorrect=false, feedback must include:
+- why the answer does not match the lesson/question
+- a concrete hint for what a better answer should mention
 Respond in ${languageName}. JSON only.`;
 
   const userPrompt = `Lesson: "${lessonText}"
 Question: "${question}"
 User's answer: "${userAnswer}"
 
-Evaluate: isCorrect (boolean), feedback (short supportive sentence).`;
+Evaluate: isCorrect (boolean), feedback (follow the feedback rules above).`;
 
   const app = getApp();
   const ai = getAI(app, { appCheck: firebase.appCheck() });

@@ -405,6 +405,7 @@ export interface Translations {
   "guidePrompt.message": string;
   "guidePrompt.openGuide": string;
   "guidePrompt.dismiss": string;
+  "guidePrompt.sunnyMomentsCta": string;
   "guidePrompt.showSunnyMoments": string;
   /** Accessibility: animate sunny moments from each life sphere. */
   "guidePrompt.sunnyMomentsFromSferas": string;
@@ -901,6 +902,10 @@ export interface Translations {
   "memory.lesson.none": string;
   "memory.lesson.placeholder": string;
   "memory.sunnyMoment": string;
+  "memory.sunnyMoment.plural": string;
+  "memory.sunnyMoment.add": string;
+  "memory.sunnyMoment.none": string;
+  "memory.sunnyMoment.placeholder": string;
   "memory.fillAllClouds": string;
   "memory.fillAllSuns": string;
   "memory.save": string;
@@ -4477,6 +4482,7 @@ const translations: Record<Language, Translations> = {
     "guidePrompt.message": "Learn how to get the most out of Sferas.",
     "guidePrompt.openGuide": "Open Guide",
     "guidePrompt.dismiss": "Don't show again",
+    "guidePrompt.sunnyMomentsCta": "Let the suns out",
     "guidePrompt.showSunnyMoments": "Show sunny moments",
     "guidePrompt.sunnyMomentsFromSferas":
       "Animate sunny moments from each life sphere",
@@ -5151,6 +5157,10 @@ const translations: Record<Language, Translations> = {
     "memory.lesson.none": "No Lessons yet",
     "memory.lesson.placeholder": "Enter lesson learned...",
     "memory.sunnyMoment": "Sunny Moment",
+    "memory.sunnyMoment.plural": "Sunny Moments",
+    "memory.sunnyMoment.add": "Add Sunny Moment",
+    "memory.sunnyMoment.none": "No Sunny Moments yet",
+    "memory.sunnyMoment.placeholder": "Enter sunny moment...",
     "memory.fillAllClouds":
       "Please fill all available clouds with text before continuing.",
     "memory.fillAllSuns":
@@ -9527,6 +9537,7 @@ const translations: Record<Language, Translations> = {
     "guidePrompt.message": "Научете как да извлечете максимума от Sferas.",
     "guidePrompt.openGuide": "Отвори ръководството",
     "guidePrompt.dismiss": "Не показвай отново",
+    "guidePrompt.sunnyMomentsCta": "Пусни слънцата",
     "guidePrompt.showSunnyMoments": "Покажи слънчевите моменти",
     "guidePrompt.sunnyMomentsFromSferas":
       "Анимация на слънчеви моменти от всяка сфера на живота",
@@ -10210,6 +10221,10 @@ const translations: Record<Language, Translations> = {
     "memory.lesson.none": "Все още няма уроци",
     "memory.lesson.placeholder": "Въведете научен урок...",
     "memory.sunnyMoment": "Слънчев Момент",
+    "memory.sunnyMoment.plural": "Слънчеви Моменти",
+    "memory.sunnyMoment.add": "Слънчев Момент",
+    "memory.sunnyMoment.none": "Все още няма слънчеви моменти",
+    "memory.sunnyMoment.placeholder": "Въведете слънчев момент...",
     "memory.fillAllClouds":
       "Моля, попълнете всички облаци с текст, преди да продължите.",
     "memory.fillAllSuns":

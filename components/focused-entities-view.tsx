@@ -369,8 +369,11 @@ const SparkledDot = React.memo(function SparkledDot({
 
 // ───────────────────── Sfera Insight Card dimensions (used by both card and perimeter layout) ─────────────────────
 
-const INSIGHT_CARD_W = 240 * IPAD_ENTITIES_CARD_SCALE;
-const INSIGHT_CARD_H = 295 * IPAD_ENTITIES_CARD_SCALE;
+const INSIGHT_CARD_COLLAPSED_W = 240 * IPAD_ENTITIES_CARD_SCALE;
+const INSIGHT_CARD_COLLAPSED_H = 295 * IPAD_ENTITIES_CARD_SCALE;
+const INSIGHT_CARD_EXPANDED_SCALE = 1.2;
+const INSIGHT_CARD_EXPANDED_W = INSIGHT_CARD_COLLAPSED_W * INSIGHT_CARD_EXPANDED_SCALE;
+const INSIGHT_CARD_EXPANDED_H = INSIGHT_CARD_COLLAPSED_H * INSIGHT_CARD_EXPANDED_SCALE;
 
 const NEED_MEMORIES_HINT_WIDTH = 220 * IPAD_ENTITIES_CARD_SCALE;
 
@@ -450,6 +453,8 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   perimeterOffset,
   momentsOrbitAngle,
   isTablet,
+  cardWidth,
+  cardHeight,
 }: {
   entity: BaseEntity | { id: string; name: string; imageUri?: string; isCompleted: boolean; createdAt?: string };
   memories: IdealizedMemory[];
@@ -465,6 +470,8 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   perimeterOffset: SharedValue<number>;
   momentsOrbitAngle: SharedValue<number>;
   isTablet: boolean;
+  cardWidth: number;
+  cardHeight: number;
 }) {
   const t = useTranslate();
   const scale = useSharedValue(1);
@@ -475,7 +482,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
 
   const animatedStyle = useAnimatedStyle(() => {
     const t = (baseT + perimeterOffset.value) % 1;
-    const pos = perimeterPoint(t, centerX, centerY, INSIGHT_CARD_W, INSIGHT_CARD_H, gap);
+    const pos = perimeterPoint(t, centerX, centerY, cardWidth, cardHeight, gap);
     return {
       position: "absolute",
       left: pos.x - avatarSize / 2,
@@ -490,7 +497,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   const iconAreaSize = (MOMENT_ORBIT_RADIUS + MOMENT_ICON_SIZE) * 2;
   const momentIconsStyle = useAnimatedStyle(() => {
     const t = (baseT + perimeterOffset.value) % 1;
-    const pos = perimeterPoint(t, centerX, centerY, INSIGHT_CARD_W, INSIGHT_CARD_H, gap);
+    const pos = perimeterPoint(t, centerX, centerY, cardWidth, cardHeight, gap);
     return {
       position: "absolute",
       left: pos.x - iconAreaSize / 2,
@@ -632,6 +639,8 @@ const EntityRing = React.memo(function EntityRing({
   glowColor,
   orbitDurationMs = DEFAULT_ORBIT_DURATION_MS,
   animationsEnabled,
+  cardWidth,
+  cardHeight,
 }: {
   entities: (BaseEntity | { id: string; name: string; imageUri?: string; isCompleted: boolean; createdAt?: string })[];
   memoriesPerEntity: IdealizedMemory[][];
@@ -645,6 +654,8 @@ const EntityRing = React.memo(function EntityRing({
   glowColor: string;
   orbitDurationMs?: number;
   animationsEnabled: boolean;
+  cardWidth: number;
+  cardHeight: number;
 }) {
   const { isTablet } = useLargeDevice();
   // Single offset value drives all entities sliding clockwise around the card perimeter
@@ -707,6 +718,8 @@ const EntityRing = React.memo(function EntityRing({
             perimeterOffset={perimeterOffset}
             momentsOrbitAngle={momentsOrbitAngle}
             isTablet={isTablet}
+            cardWidth={cardWidth}
+            cardHeight={cardHeight}
           />
         );
       })}
@@ -718,6 +731,7 @@ const EntityRing = React.memo(function EntityRing({
 
 const INSIGHT_ARROW_SIZE = 28;
 const INSIGHT_ARROW_HIT = 36;
+const INSIGHT_SIZE_TOGGLE_ICON_SIZE = 20;
 
 /**
  * Insight card copy — AAA-oriented vs the actual cosmic card face (tiny meta stays ≥7:1 typical).
@@ -825,6 +839,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   y,
   animationsEnabled,
   sphere3DEffect = false,
+  cardWidth,
+  cardHeight,
+  isExpanded,
+  onToggleSize,
 }: {
   sphere: LifeSphere;
   entities: FocusedEntitiesViewProps["entities"];
@@ -837,6 +855,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   y: number;
   animationsEnabled: boolean;
   sphere3DEffect?: boolean;
+  cardWidth: number;
+  cardHeight: number;
+  isExpanded: boolean;
+  onToggleSize: () => void;
 }) {
   const t = useTranslate();
   const { momentColors } = useMomentColors();
@@ -1110,13 +1132,13 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const gradientColors =
     colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
 
-  const totalW = INSIGHT_CARD_W + INSIGHT_ARROW_HIT * 2;
+  const totalW = cardWidth + INSIGHT_ARROW_HIT * 2;
   const wrapperStyle = {
     position: "absolute" as const,
     left: x - totalW / 2,
-    top: y - INSIGHT_CARD_H / 2,
+    top: y - cardHeight / 2,
     width: totalW,
-    height: INSIGHT_CARD_H,
+    height: cardHeight,
     zIndex: 25,
     flexDirection: "row" as const,
     alignItems: "center" as const,
@@ -1202,7 +1224,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
   const emptyEntityCardStyle = {
     flex: 1,
-    minHeight: INSIGHT_CARD_H,
+    minHeight: cardHeight,
     borderRadius: 22,
     borderWidth: 1.5,
     borderColor: shadowColor + "99",
@@ -1215,7 +1237,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   if (numEntities === 0) {
     return (
       <View
-        style={[wrapperStyle, { height: undefined, minHeight: INSIGHT_CARD_H }]}
+        style={[wrapperStyle, { height: undefined, minHeight: cardHeight }]}
         pointerEvents="box-none"
       >
         <View style={{ width: INSIGHT_ARROW_HIT }} />
@@ -1259,7 +1281,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     const zeroMemOuter = {
       ...wrapperStyle,
       overflow: "visible" as const,
-      minHeight: INSIGHT_CARD_H + (showNeedMemoriesHintBelowCard ? 52 : 0),
+      minHeight: cardHeight + (showNeedMemoriesHintBelowCard ? 52 : 0),
       height: undefined as number | undefined,
     };
     return (
@@ -1272,7 +1294,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 colors={[...gradientColors]}
                 style={{
                   flex: 1,
-                  minHeight: INSIGHT_CARD_H,
+                  minHeight: cardHeight,
                   borderRadius: 22,
                   borderWidth: 1.5,
                   borderColor: shadowColor + "99",
@@ -1301,7 +1323,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               <View
                 style={{
                   flex: 1,
-                  minHeight: INSIGHT_CARD_H,
+                  minHeight: cardHeight,
                   borderRadius: 22,
                   borderWidth: 1.5,
                   borderColor: shadowColor + "99",
@@ -1363,7 +1385,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         showNeedMemoriesHintBelowCard && totalMemoriesCount > 0
           ? {
               overflow: "visible",
-              minHeight: INSIGHT_CARD_H + 52,
+              minHeight: cardHeight + 52,
               height: undefined as number | undefined,
             }
           : null,
@@ -1386,7 +1408,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
       {/* Card — pan responder handles both swipe (next/prev) and tap (entity nav) */}
       <View
-        style={{ flex: 1, height: INSIGHT_CARD_H }}
+        style={{ flex: 1, height: cardHeight }}
         accessibilityRole="button"
         accessibilityLabel={entity ? `${cardLabel}: ${entityName}` : undefined}
         {...cardPanResponder.panHandlers}
@@ -1545,7 +1567,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 moodCloudy > moodSunny,
               );
               return (
-                <View style={{ flex: 1, alignSelf: "stretch", borderRadius: 10, overflow: "hidden", borderWidth: 1.5, borderColor: moodColor + "88" }}>
+                <View style={{ flex: 1, alignSelf: "stretch", borderRadius: 10, overflow: "hidden" }}>
                   <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
                   <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
                     <ThemedText style={{ color: stripCaptionColor, fontSize: 10 }} numberOfLines={1}>
@@ -1676,8 +1698,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                     flex: 1,
                     borderRadius: 10,
                     overflow: "hidden",
-                    borderWidth: 1.5,
-                    borderColor: moodColor + "88",
                     backgroundColor: shadowColor + "18",
                   }}
                 >
@@ -1721,11 +1741,32 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                   width: i === modeIdx ? 14 : 6,
                   height: 6,
                   borderRadius: 3,
-                  backgroundColor: i === modeIdx ? shadowColor : shadowColor + "88",
+                  backgroundColor:
+                    i === modeIdx
+                      ? shadowColor
+                      : colorScheme === "dark"
+                        ? "rgba(232, 244, 246, 0.45)"
+                        : "rgba(18, 18, 18, 0.38)",
                 }}
               />
             ))}
           </View>
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation();
+              onToggleSize();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={isExpanded ? "Shrink card" : "Expand card"}
+            hitSlop={8}
+            style={{ alignSelf: "center", padding: 4, marginTop: 2 }}
+          >
+            <MaterialIcons
+              name={isExpanded ? "unfold-less" : "unfold-more"}
+              size={INSIGHT_SIZE_TOGGLE_ICON_SIZE}
+              color={shadowColor + "CC"}
+            />
+          </Pressable>
           </View>
         </View>
       </View>
@@ -1749,7 +1790,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           style={{
             position: "absolute",
             left: (totalW - NEED_MEMORIES_HINT_WIDTH) / 2,
-            top: INSIGHT_CARD_H + 6,
+            top: cardHeight + 6,
             width: NEED_MEMORIES_HINT_WIDTH,
             zIndex: 40,
             ...needMemoriesHintBubbleStyle,
@@ -1840,6 +1881,9 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
   const orbitHintEntityId =
     memoriesHint?.place === "orbit" ? memoriesHint.entityId : null;
   const showInsightCardHint = memoriesHint?.place === "insightCard";
+  const [isCardExpanded, setIsCardExpanded] = useState(true);
+  const insightCardWidth = isCardExpanded ? INSIGHT_CARD_EXPANDED_W : INSIGHT_CARD_COLLAPSED_W;
+  const insightCardHeight = isCardExpanded ? INSIGHT_CARD_EXPANDED_H : INSIGHT_CARD_COLLAPSED_H;
 
   // Sort entities: ongoing first (isCompleted=false), then by date descending
   const { sortedEntities, sortedMemoriesPerEntity } = useMemo(() => {
@@ -1915,6 +1959,10 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
           y={AVATAR_CY}
           animationsEnabled={animationsEnabled}
           sphere3DEffect={sphere3DEffect}
+          cardWidth={insightCardWidth}
+          cardHeight={insightCardHeight}
+          isExpanded={isCardExpanded}
+          onToggleSize={() => setIsCardExpanded((prev) => !prev)}
         />
       </View>
     );
@@ -1959,6 +2007,10 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         y={AVATAR_CY}
         animationsEnabled={animationsEnabled}
         sphere3DEffect={sphere3DEffect}
+        cardWidth={insightCardWidth}
+        cardHeight={insightCardHeight}
+        isExpanded={isCardExpanded}
+        onToggleSize={() => setIsCardExpanded((prev) => !prev)}
       />
 
       {/* Entities sliding clockwise around the card perimeter */}
@@ -1975,6 +2027,8 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         glowColor={sunnyBackground}
         orbitDurationMs={orbitDurationMs}
         animationsEnabled={animationsEnabled}
+        cardWidth={insightCardWidth}
+        cardHeight={insightCardHeight}
       />
     </View>
   );

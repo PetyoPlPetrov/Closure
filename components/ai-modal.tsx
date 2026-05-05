@@ -1675,7 +1675,7 @@ export function AIModal({
       flexDirection: "row",
     },
     submitButtonDisabled: {
-      opacity: 0.5,
+      opacity: 1,
     },
     backButton: {
       position: "absolute",
@@ -2416,10 +2416,10 @@ export function AIModal({
                               ]
                           : colorScheme === "dark"
                             ? [
-                                "rgba(255, 255, 255, 0.1)",
-                                "rgba(255, 255, 255, 0.1)",
+                                "rgba(255, 255, 255, 0.3)",
+                                "rgba(255, 255, 255, 0.28)",
                               ]
-                            : ["rgba(0, 0, 0, 0.1)", "rgba(0, 0, 0, 0.1)"]
+                            : ["rgba(0, 0, 0, 0.2)", "rgba(0, 0, 0, 0.18)"]
                       }
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
@@ -2429,6 +2429,7 @@ export function AIModal({
                         style={{
                           fontSize: 20 * fontScale,
                           marginRight: 8 * fontScale,
+                          color: canSubmit ? "#FFFFFF" : colorScheme === "dark" ? "#FFFFFF" : "#1F2937",
                         }}
                       >
                         ✨
@@ -2436,7 +2437,14 @@ export function AIModal({
                       <ThemedText
                         size="l"
                         weight="bold"
-                        style={{ color: "#ffffff" }}
+                        style={{
+                          color:
+                            canSubmit
+                              ? "#FFFFFF"
+                              : colorScheme === "dark"
+                                ? "#FFFFFF"
+                                : "#1F2937",
+                        }}
                       >
                         {t("ai.submit") || "Submit"}
                       </ThemedText>
