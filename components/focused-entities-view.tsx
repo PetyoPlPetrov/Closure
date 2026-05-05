@@ -831,6 +831,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   sphere,
   entities,
   memoriesPerEntity,
+  onMemorySelect,
   onEntitySelect,
   onNeedMemoriesHintCenter,
   showNeedMemoriesHintBelowCard,
@@ -847,6 +848,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   sphere: LifeSphere;
   entities: FocusedEntitiesViewProps["entities"];
   memoriesPerEntity: IdealizedMemory[][];
+  onMemorySelect?: (memoryId: string, entityId: string) => void;
   onEntitySelect?: (entityId: string) => void;
   onNeedMemoriesHintCenter?: () => void;
   showNeedMemoriesHintBelowCard?: boolean;
@@ -1222,6 +1224,79 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   ];
   const cardLabel = cardLabels[mode] ?? cardLabels[0];
 
+  const getModeMemory = useCallback(
+    (targetMode: number, idx: number): IdealizedMemory | null => {
+      const mems = memoriesPerEntity[idx] ?? [];
+      if (mems.length === 0) return null;
+      if (targetMode === 1) {
+        return mems.reduce((a, b) =>
+          new Date(a.createdAt) < new Date(b.createdAt) ? a : b,
+        );
+      }
+      if (targetMode === 2) {
+        return mems.reduce((a, b) =>
+          new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b,
+        );
+      }
+      if (targetMode === 4) {
+        return mems.reduce((a, b) =>
+          (a.hardTruths?.length ?? 0) > (b.hardTruths?.length ?? 0) ? a : b,
+        );
+      }
+      if (targetMode === 5) {
+        return mems.reduce((a, b) =>
+          (a.goodFacts?.length ?? 0) > (b.goodFacts?.length ?? 0) ? a : b,
+        );
+      }
+      return null;
+    },
+    [memoriesPerEntity],
+  );
+
+  const openEntity = useCallback(() => {
+    if (entity) onEntitySelect?.(entity.id);
+  }, [entity, onEntitySelect]);
+
+  const openMemory = useCallback(
+    (memory: IdealizedMemory) => {
+      if (!entity) return;
+      if (onMemorySelect) {
+        onMemorySelect(memory.id, entity.id);
+        return;
+      }
+      const params: Record<string, string> = {
+        sphere,
+        entityId: entity.id,
+        focusedMemoryId: memory.id,
+      };
+      if (sphere === "relationships") params.profileId = entity.id;
+      else if (sphere === "career") params.jobId = entity.id;
+      else if (sphere === "family") params.familyMemberId = entity.id;
+      else if (sphere === "friends") params.friendId = entity.id;
+      else if (sphere === "hobbies") params.hobbyId = entity.id;
+
+      router.replace({
+        pathname: "/(tabs)",
+        params,
+      });
+    },
+    [entity, onMemorySelect, sphere],
+  );
+
+  const openInsightTarget = useCallback(() => {
+    // Plural / aggregate insights should open entity view.
+    if (mode === 0 || mode === 3) {
+      openEntity();
+      return;
+    }
+    const memory = getModeMemory(mode, entityIdx);
+    if (memory) {
+      openMemory(memory);
+      return;
+    }
+    openEntity();
+  }, [mode, openEntity, getModeMemory, entityIdx, openMemory]);
+
   const emptyEntityCardStyle = {
     flex: 1,
     minHeight: cardHeight,
@@ -1407,8 +1482,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       )}
 
       {/* Card — pan responder handles both swipe (next/prev) and tap (entity nav) */}
-      <View
+      <Pressable
         style={{ flex: 1, height: cardHeight }}
+        onPress={openInsightTarget}
         accessibilityRole="button"
         accessibilityLabel={entity ? `${cardLabel}: ${entityName}` : undefined}
         {...cardPanResponder.panHandlers}
@@ -1466,9 +1542,19 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
           {/* Top label — the insight, not the person */}
           <Animated.View style={insightLabelAnimStyle} accessibilityLiveRegion="polite">
-            <ThemedText style={{ color: insightInk, fontSize: 16, textAlign: "center", fontWeight: "700", letterSpacing: 0.2 }} numberOfLines={1}>
-              {cardLabel}
-            </ThemedText>
+            <Pressable
+              onPress={() => {
+                setIsAutoLoopPaused((prev) => !prev);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`${cardLabel}. ${isAutoLoopPaused ? "Resume auto-swipe" : "Pause auto-swipe"}`}
+              hitSlop={8}
+              style={{ alignSelf: "center", paddingHorizontal: 4, paddingVertical: 2 }}
+            >
+              <ThemedText style={{ color: insightInk, fontSize: 16, textAlign: "center", fontWeight: "700", letterSpacing: 0.2 }} numberOfLines={1}>
+                {cardLabel}
+              </ThemedText>
+            </Pressable>
           </Animated.View>
 
           {/* Person block */}
@@ -1550,12 +1636,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
           {/* Modes 0/1: show memory preview, or add-memories CTA */}
           {(mode === 0 || mode === 1) && (() => {
-            const mems = memoriesPerEntity[entityIdx] ?? [];
-            const mem = mems.length > 0
-              ? (mode === 1
-                ? mems.reduce((a, b) => new Date(a.createdAt) < new Date(b.createdAt) ? a : b)
-                : mems.reduce((a, b) => new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b))
-              : null;
+            const mem = mode === 1
+              ? getModeMemory(1, entityIdx)
+              : getModeMemory(2, entityIdx);
             if (mem?.imageUri) {
               const moodSunny = mem.goodFacts?.length ?? 0;
               const moodCloudy = mem.hardTruths?.length ?? 0;
@@ -1566,7 +1649,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 momentColors.cloudy.background,
                 moodCloudy > moodSunny,
               );
-              return (
+              const body = (
                 <View style={{ flex: 1, alignSelf: "stretch", borderRadius: 10, overflow: "hidden" }}>
                   <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
                   <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
@@ -1576,10 +1659,29 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                   </View>
                 </View>
               );
+              if (mode === 1) {
+                return (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      openMemory(mem);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={mem.title?.trim() || t("sferaInsight.oldestMemory")}
+                    style={{ flex: 1, alignSelf: "stretch" }}
+                  >
+                    {body}
+                  </Pressable>
+                );
+              }
+              return body;
             }
             return (
               <Pressable
-                onPress={(e) => { e.stopPropagation(); entity && onEntitySelect?.(entity.id); }}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  openEntity();
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={`${entityName}: ${t("sferaInsight.zeroMemoriesAvailable")}`}
                 style={{
@@ -1662,11 +1764,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
           {/* Modes 2/4/5: memory preview — image when available, otherwise title + description */}
           {(mode === 2 || mode === 4 || mode === 5) && (() => {
-            const mems = memoriesPerEntity[entityIdx] ?? [];
-            let mem: IdealizedMemory | null = null;
-            if (mode === 2) mem = mems.length > 0 ? mems.reduce((a, b) => new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b) : null;
-            if (mode === 4) mem = mems.length > 0 ? mems.reduce((a, b) => (a.hardTruths?.length ?? 0) > (b.hardTruths?.length ?? 0) ? a : b) : null;
-            if (mode === 5) mem = mems.length > 0 ? mems.reduce((a, b) => (a.goodFacts?.length ?? 0) > (b.goodFacts?.length ?? 0) ? a : b) : null;
+            const mem = getModeMemory(mode, entityIdx);
             if (!mem) return null;
             const moodSunny = mem.goodFacts?.length ?? 0;
             const moodCloudy = mem.hardTruths?.length ?? 0;
@@ -1682,12 +1780,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               (mode === 4 ? mem.hardTruths?.[0]?.text : undefined) ||
               (mode === 5 ? mem.goodFacts?.[0]?.text : undefined) ||
               t("sferaInsight.noMemories");
-            const openEntity = () => entity && onEntitySelect?.(entity.id);
             return (
               <Pressable
                 onPress={(e) => {
                   e.stopPropagation();
-                  openEntity();
+                  openMemory(mem);
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={titleText}
@@ -1769,7 +1866,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           </Pressable>
           </View>
         </View>
-      </View>
+      </Pressable>
 
       {/* Right arrow */}
       {numModes > 1 ? (
@@ -1951,6 +2048,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
           sphere={sphere}
           entities={sortedEntities}
           memoriesPerEntity={sortedMemoriesPerEntity}
+          onMemorySelect={onMemorySelect}
           onEntitySelect={onEntitySelect}
           onNeedMemoriesHintCenter={showInsightCardNeedMemoriesHint}
           showNeedMemoriesHintBelowCard={showInsightCardHint}
@@ -1999,6 +2097,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         sphere={sphere}
         entities={sortedEntities}
         memoriesPerEntity={sortedMemoriesPerEntity}
+        onMemorySelect={onMemorySelect}
         onEntitySelect={onEntitySelect}
         onNeedMemoriesHintCenter={showInsightCardNeedMemoriesHint}
         showNeedMemoriesHintBelowCard={showInsightCardHint}

@@ -89,6 +89,7 @@ const COSMIC_TEXT = "#B8E8EC";
 
 type LessonCard = {
   id: string;
+  lessonId: string;
   text: string;
   memoryTitle: string;
   memoryImageUri?: string;
@@ -333,8 +334,6 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
         emptyLessons: tc.textMediumEmphasis,
         resultScrim: "rgba(17,24,39,0.4)",
         resultCardBg: "#FFFFFF",
-        resultCloseIcon: tc.text,
-        resultCloseBg: tc.surfaceElevated2,
         resultTitle: tc.text,
         resultFeedback: tc.textMediumEmphasis,
         resultLesson: tc.textMediumEmphasis,
@@ -373,8 +372,6 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
       emptyLessons: Colors.dark.textMediumEmphasis,
       resultScrim: "rgba(0,0,0,0.88)",
       resultCardBg: "rgba(10, 16, 30, 0.98)",
-      resultCloseIcon: Colors.dark.textHighEmphasis,
-      resultCloseBg: "rgba(255,255,255,0.12)",
       resultTitle: "#fff",
       resultFeedback: Colors.dark.textHighEmphasis,
       resultLesson: Colors.dark.textMediumEmphasis,
@@ -423,6 +420,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
         if (l.text.trim()) {
           real.push({
             id: `${mem.id}_${l.id}`,
+            lessonId: l.id,
             text: l.text.trim(),
             memoryTitle: mem.title,
             memoryImageUri: mem.imageUri,
@@ -491,35 +489,46 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
     setAnswerInput("");
     setAnalysis(null);
 
-    const card = cards[Math.floor(Math.random() * cards.length)];
-    setCurrentCard(card);
-
     const fallbackQ =
       language === "bg"
         ? "Как бихте приложили този урок в реален живот?"
         : "How would you apply this lesson in real life?";
 
     let nextQuestion: string | null = null;
+    let selectedCard: LessonCard | null = null;
     try {
       const preloaded = await pickAndConsumePreloadedQuestion({ type: "main" });
       if (preloaded) {
-        nextQuestion = preloaded.question;
+        const matchedCard = cards.find(
+          (card) =>
+            card.lessonId === preloaded.lessonId &&
+            (!preloaded.memoryId || !card.memoryId || card.memoryId === preloaded.memoryId),
+        );
+        if (matchedCard) {
+          selectedCard = matchedCard;
+          nextQuestion = preloaded.question;
+        }
       }
     } catch {
       // fall through to generation
     }
+
+    if (!selectedCard) {
+      selectedCard = cards[Math.floor(Math.random() * cards.length)];
+    }
+    setCurrentCard(selectedCard);
 
     if (nextQuestion === null) {
       try {
         const results = await generateLessonExamQuestionsBatch(
           [
             {
-              id: card.id,
-              text: card.text,
-              memoryId: card.memoryId,
-              memoryImageUri: card.memoryImageUri,
-              entityId: card.entityId,
-              sphere: card.sphere,
+              id: selectedCard.lessonId,
+              text: selectedCard.text,
+              memoryId: selectedCard.memoryId,
+              memoryImageUri: selectedCard.memoryImageUri,
+              entityId: selectedCard.entityId,
+              sphere: selectedCard.sphere,
             },
           ],
           language,
@@ -538,7 +547,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
     } finally {
       loadQuestionInFlightRef.current = false;
     }
-  }, [cards, language, hasAIEntitlement, onClose, refreshRemainingExamTries]);
+  }, [cards, language, hasAIEntitlement, onClose, refreshRemainingExamTries, visible]);
 
   const loadQuestionRef = useRef(loadQuestion);
   loadQuestionRef.current = loadQuestion;
@@ -568,7 +577,8 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   const handleSubmit = useCallback(async () => {
     if (submitInFlightRef.current) return;
     const trimmed = answerInputRef.current.trim();
-    if (!currentCard || trimmed.length < 2) return;
+    const activeQuestion = question.trim();
+    if (!currentCard || activeQuestion.length === 0 || trimmed.length < 2) return;
     submitInFlightRef.current = true;
     try {
       if (isRecording || isListening) {
@@ -589,7 +599,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
       try {
         const result = await analyzeLessonExamAnswer(
           currentCard.text,
-          question,
+          activeQuestion,
           trimmed,
           language,
         );
@@ -1003,22 +1013,6 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                   },
                 ]}
               >
-                {/* Close button */}
-                <Pressable
-                  onPress={handleClose}
-                  hitSlop={12}
-                  style={[
-                    styles.resultCloseBtn,
-                    { backgroundColor: pal.resultCloseBg },
-                  ]}
-                >
-                  <MaterialIcons
-                    name="close"
-                    size={22}
-                    color={pal.resultCloseIcon}
-                  />
-                </Pressable>
-
                 <View style={styles.resultContent}>
                   {/* Result icon */}
                   <View
@@ -1353,18 +1347,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 24,
     elevation: 12,
-  },
-  resultCloseBtn: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    zIndex: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   resultContent: {
     paddingTop: 24,
