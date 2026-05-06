@@ -177,10 +177,16 @@ export default function InsightsMomentDistributionScreen() {
         legendLabel: {
           flexShrink: 1,
         },
+        legendCountBeforeBar: {
+          width: 36 * fontScale,
+          textAlign: "right",
+          opacity: 0.6,
+          marginRight: 6 * fontScale,
+        },
         legendMetrics: {
           flexDirection: "row",
           alignItems: "center",
-          width: 112 * fontScale,
+          width: 72 * fontScale,
           justifyContent: "flex-end",
           gap: 6 * fontScale,
           marginLeft: 8 * fontScale,
@@ -382,6 +388,9 @@ export default function InsightsMomentDistributionScreen() {
                           {label}
                         </ThemedText>
                       </View>
+                      <ThemedText size="xs" style={styles.legendCountBeforeBar}>
+                        ({row.count})
+                      </ThemedText>
                       <View style={styles.rowBarTrack}>
                         <View
                           style={[
@@ -391,9 +400,6 @@ export default function InsightsMomentDistributionScreen() {
                         />
                       </View>
                       <View style={styles.legendMetrics}>
-                        <ThemedText size="xs" style={styles.legendCount}>
-                          ({row.count})
-                        </ThemedText>
                         <ThemedText
                           size="m"
                           weight="bold"

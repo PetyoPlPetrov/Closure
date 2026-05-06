@@ -1161,6 +1161,7 @@ export default function AddIdealizedMemoryScreen() {
   const isEditMode = memoryId !== undefined;
   const useListEditMode = isEditMode && !viewOnly;
   const listInputPlaceholderColor = colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.56)';
+  const [focusedListInputId, setFocusedListInputId] = useState<string | null>(null);
   const cloudyRgb = hexToRgb(momentColors.cloudy.background);
   const sunnyRgb = hexToRgb(momentColors.sunny.background);
   const lessonRgb = hexToRgb(momentColors.lesson.background);
@@ -2715,6 +2716,17 @@ export default function AddIdealizedMemoryScreen() {
           gap: 8,
           marginBottom: 10,
         },
+        editListInputContainer: {
+          flex: 1,
+          position: 'relative',
+        },
+        editListInputIcon: {
+          position: 'absolute',
+          left: 10,
+          top: 14,
+          zIndex: 2,
+          opacity: 0.9,
+        },
         editListInput: {
           flex: 1,
           minHeight: 48,
@@ -2725,9 +2737,20 @@ export default function AddIdealizedMemoryScreen() {
           backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.8)',
           color: colors.text,
           paddingHorizontal: 10,
+          paddingLeft: 34,
           paddingVertical: 10,
           fontSize: isLargeDevice ? 16 : 14,
           textAlignVertical: 'top',
+        },
+        editListInputFocused: {
+          borderColor: colors.primary,
+          borderWidth: 1.5,
+          backgroundColor: colorScheme === 'dark' ? 'rgba(100, 181, 246, 0.10)' : 'rgba(100, 181, 246, 0.12)',
+          shadowColor: colors.primary,
+          shadowOpacity: colorScheme === 'dark' ? 0.35 : 0.2,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: 2,
         },
         editListRemoveButton: {
           width: isLargeDevice ? 34 : 28,
@@ -3324,15 +3347,28 @@ export default function AddIdealizedMemoryScreen() {
                 ) : (
                   clouds.map((cloud) => (
                     <View key={cloud.id} style={styles.editListItemRow}>
-                      <View style={{ flex: 1, position: 'relative' }}>
+                      <View style={styles.editListInputContainer}>
+                        <MaterialIcons
+                          name="edit"
+                          size={16}
+                          color={focusedListInputId === cloud.id ? colors.primary : listInputPlaceholderColor}
+                          style={styles.editListInputIcon}
+                        />
                         <TextInput
                           value={cloud.text}
                           onChangeText={(text) =>
                             setClouds((prev) => prev.map((c) => (c.id === cloud.id ? { ...c, text } : c)))
                           }
+                          onFocus={() => setFocusedListInputId(cloud.id)}
+                          onBlur={() => setFocusedListInputId((prev) => (prev === cloud.id ? null : prev))}
                           placeholder={cloud.placeholder || t('memory.hardTruth.placeholder')}
                           placeholderTextColor={listInputPlaceholderColor}
-                          style={styles.editListInput}
+                          style={[
+                            styles.editListInput,
+                            focusedListInputId === cloud.id && styles.editListInputFocused,
+                          ]}
+                          cursorColor={colors.primary}
+                          selectionColor={colors.primary}
                           multiline
                         />
                         {cloud.placeholder && cloud.text.trim().length === 0 && (
@@ -3386,19 +3422,32 @@ export default function AddIdealizedMemoryScreen() {
                 ) : (
                   suns.map((sun) => (
                     <View key={sun.id} style={styles.editListItemRow}>
-                      <View style={{ flex: 1, position: 'relative' }}>
+                      <View style={styles.editListInputContainer}>
+                        <MaterialIcons
+                          name="edit"
+                          size={16}
+                          color={focusedListInputId === sun.id ? colors.primary : listInputPlaceholderColor}
+                          style={styles.editListInputIcon}
+                        />
                         <TextInput
                           value={sun.text}
                           onChangeText={(text) =>
                             setSuns((prev) => prev.map((s) => (s.id === sun.id ? { ...s, text } : s)))
                           }
+                          onFocus={() => setFocusedListInputId(sun.id)}
+                          onBlur={() => setFocusedListInputId((prev) => (prev === sun.id ? null : prev))}
                           placeholder={
                             sun.placeholder && !isLikelySuggestionI18nKey(sun.placeholder)
                               ? sun.placeholder
                               : t('memory.sunnyMoment.placeholder')
                           }
                           placeholderTextColor={listInputPlaceholderColor}
-                          style={styles.editListInput}
+                          style={[
+                            styles.editListInput,
+                            focusedListInputId === sun.id && styles.editListInputFocused,
+                          ]}
+                          cursorColor={colors.primary}
+                          selectionColor={colors.primary}
                           multiline
                         />
                         {sun.placeholder &&
@@ -3454,15 +3503,28 @@ export default function AddIdealizedMemoryScreen() {
                 ) : (
                   lessons.map((lesson) => (
                     <View key={lesson.id} style={styles.editListItemRow}>
-                      <View style={{ flex: 1, position: 'relative' }}>
+                      <View style={styles.editListInputContainer}>
+                        <MaterialIcons
+                          name="edit"
+                          size={16}
+                          color={focusedListInputId === lesson.id ? colors.primary : listInputPlaceholderColor}
+                          style={styles.editListInputIcon}
+                        />
                         <TextInput
                           value={lesson.text}
                           onChangeText={(text) =>
                             setLessons((prev) => prev.map((l) => (l.id === lesson.id ? { ...l, text } : l)))
                           }
+                          onFocus={() => setFocusedListInputId(lesson.id)}
+                          onBlur={() => setFocusedListInputId((prev) => (prev === lesson.id ? null : prev))}
                           placeholder={lesson.placeholder || t('memory.lesson.placeholder')}
                           placeholderTextColor={listInputPlaceholderColor}
-                          style={styles.editListInput}
+                          style={[
+                            styles.editListInput,
+                            focusedListInputId === lesson.id && styles.editListInputFocused,
+                          ]}
+                          cursorColor={colors.primary}
+                          selectionColor={colors.primary}
                           multiline
                         />
                         {lesson.placeholder && lesson.text.trim().length === 0 && (

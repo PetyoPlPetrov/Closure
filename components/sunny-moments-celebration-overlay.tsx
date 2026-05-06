@@ -62,6 +62,15 @@ const PARADE_AUTO_CLOSE_MIN_MS = 400;
 const PARADE_BACKDROP_FADE_MS = 1500;
 /** Small slack after fade duration before JS dismiss — avoids runOnJS from the animation callback (crash-prone with Modal). */
 const PARADE_EXIT_JS_DISMISS_BUFFER_MS = 64;
+/** Suns launched close in time keep a minimum horizontal separation to avoid stacked overlap. */
+const PARADE_COLLISION_DELAY_WINDOW_MS = 560;
+const PARADE_COLLISION_EXTRA_PADDING_PX = 12;
+/** Prevent initial mount jank from launching first suns in one stack. */
+const PARADE_INITIAL_LAUNCH_GUARANTEED_STAGGER_MS = 110;
+const PARADE_INITIAL_LAUNCH_STAGGERED_COUNT = 6;
+/** If two suns are in overlapping horizontal lanes, stagger their launch times harder. */
+const PARADE_LANE_DECONFLICT_BASE_GAP_MS = 360;
+const PARADE_LANE_DECONFLICT_SIZE_FACTOR = 0.5;
 /** Without a cap, 280–420px discs leave almost no X travel on phones → a visual “middle column”. */
 function paradeSunSizeCap(isTablet: boolean, isLargeDevice: boolean): number {
   return isTablet ? 360 : isLargeDevice ? 320 : 280;
@@ -103,6 +112,7 @@ type BubbleSpec = {
   id: string;
   text: string;
   size: number;
+  launchOrder: number;
   delayMs: number;
   durationMs: number;
   driftX: number;
@@ -129,6 +139,106 @@ function idScatterSalt(id: string, index: number): number {
     h = (h * 29 + id.charCodeAt(i) * (i + 11)) >>> 0;
   }
   return h & 0xffff;
+}
+
+function resolveParadeSpawnOverlap(
+  specs: BubbleSpec[],
+  paradeMargin: number,
+): BubbleSpec[] {
+  if (specs.length <= 1) return specs;
+
+  const resolved = specs.map((spec) => ({ ...spec }));
+  const maxIterations = 4;
+
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    let movedInPass = false;
+
+    for (let i = 0; i < resolved.length; i++) {
+      for (let j = i + 1; j < resolved.length; j++) {
+        const a = resolved[i];
+        const b = resolved[j];
+        if (
+          Math.abs(a.delayMs - b.delayMs) > PARADE_COLLISION_DELAY_WINDOW_MS
+        ) {
+          continue;
+        }
+
+        const aCenter = a.riseStartX + a.size / 2;
+        const bCenter = b.riseStartX + b.size / 2;
+        const minCenterGap =
+          (a.size + b.size) / 2 + PARADE_COLLISION_EXTRA_PADDING_PX;
+        const currentGap = Math.abs(bCenter - aCenter);
+
+        if (currentGap >= minCenterGap) continue;
+
+        const overlap = minCenterGap - currentGap;
+        const direction =
+          bCenter === aCenter
+            ? (j + iteration) % 2 === 0
+              ? 1
+              : -1
+            : bCenter > aCenter
+              ? 1
+              : -1;
+        const halfPush = overlap / 2;
+
+        let nextACenter = aCenter - direction * halfPush;
+        let nextBCenter = bCenter + direction * halfPush;
+
+        const aMin = paradeMargin + a.size / 2;
+        const aMax = SCREEN_WIDTH - paradeMargin - a.size / 2;
+        const bMin = paradeMargin + b.size / 2;
+        const bMax = SCREEN_WIDTH - paradeMargin - b.size / 2;
+
+        nextACenter = Math.min(aMax, Math.max(aMin, nextACenter));
+        nextBCenter = Math.min(bMax, Math.max(bMin, nextBCenter));
+
+        a.riseStartX = Math.round(nextACenter - a.size / 2);
+        b.riseStartX = Math.round(nextBCenter - b.size / 2);
+        movedInPass = true;
+      }
+    }
+
+    if (!movedInPass) break;
+  }
+
+  return resolved;
+}
+
+function deconflictParadeLaneTiming(specs: BubbleSpec[]): BubbleSpec[] {
+  if (specs.length <= 1) return specs;
+
+  const ordered = [...specs]
+    .map((spec) => ({ ...spec }))
+    .sort((a, b) => (a.delayMs === b.delayMs ? a.launchOrder - b.launchOrder : a.delayMs - b.delayMs));
+
+  for (let i = 0; i < ordered.length; i++) {
+    for (let j = i + 1; j < ordered.length; j++) {
+      const left = ordered[i];
+      const right = ordered[j];
+
+      const leftMinX = left.riseStartX;
+      const leftMaxX = left.riseStartX + left.size;
+      const rightMinX = right.riseStartX;
+      const rightMaxX = right.riseStartX + right.size;
+      const horizontalOverlapPx =
+        Math.min(leftMaxX, rightMaxX) - Math.max(leftMinX, rightMinX);
+
+      if (horizontalOverlapPx <= 0) continue;
+
+      const dynamicGapMs = Math.round(
+        PARADE_LANE_DECONFLICT_BASE_GAP_MS +
+          Math.min(left.size, right.size) * PARADE_LANE_DECONFLICT_SIZE_FACTOR,
+      );
+      const minDelayForRight = left.delayMs + dynamicGapMs;
+
+      if (right.delayMs < minDelayForRight) {
+        right.delayMs = minDelayForRight;
+      }
+    }
+  }
+
+  return ordered.sort((a, b) => a.launchOrder - b.launchOrder);
 }
 
 /** Keep parade cadence at the previous default ("balanced") now that density control is removed. */
@@ -306,7 +416,10 @@ function SunnyMomentBubble({
       cancelAnimation(progress);
       scheduledLaunchAtMsRef.current = null;
       progress.value = 0;
-      const waitMs = delayMsFromSessionClock();
+      const initialStaggerFloorMs =
+        Math.min(spec.launchOrder, PARADE_INITIAL_LAUNCH_STAGGERED_COUNT) *
+        PARADE_INITIAL_LAUNCH_GUARANTEED_STAGGER_MS;
+      const waitMs = Math.max(delayMsFromSessionClock(), initialStaggerFloorMs);
       scheduledLaunchAtMsRef.current = Date.now() + waitMs;
       progress.value = withDelay(
         waitMs,
@@ -364,6 +477,7 @@ function SunnyMomentBubble({
   }, [
     triggerToken,
     spec.delayMs,
+    spec.launchOrder,
     spec.durationMs,
     paradeSessionStartedAtMs,
     progress,
@@ -499,7 +613,7 @@ export function SunnyMomentsCelebrationOverlay({
     const saltBase = paradeMargin * 101 + SCREEN_WIDTH;
     const nBusy = Math.max(1, total);
 
-    return paradeMoments.map((entry, index) => {
+    const rawSpecs = paradeMoments.map((entry, index) => {
       const text = entry.text.trim().replace(/\s+/g, " ").slice(0, 140);
       const textLength = text.length;
       const size = paradeComputeSunSize(text, isTablet, isLargeDevice);
@@ -536,12 +650,16 @@ export function SunnyMomentsCelebrationOverlay({
         id: `sunny-float-${entry.id}-${index}`,
         text,
         size,
+        launchOrder: index,
         riseStartX,
         driftX: driftAmp,
         delayMs: Math.round(index * staggerMs),
         durationMs,
       };
     });
+
+    const nonOverlappingSpawnSpecs = resolveParadeSpawnOverlap(rawSpecs, paradeMargin);
+    return deconflictParadeLaneTiming(nonOverlappingSpawnSpecs);
   }, [paradeMoments, isTablet, isLargeDevice]);
 
   const bubbleSpecs = useMemo<BubbleSpec[]>(() => {
@@ -968,11 +1086,17 @@ const styles = StyleSheet.create({
     position: "absolute",
     alignItems: "center",
     justifyContent: "flex-start",
+    paddingVertical: 8,
+    paddingHorizontal: 7,
+    borderRadius: 14,
+    backgroundColor: "rgba(6, 12, 24, 0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.28)",
   },
   speedTierMinimalHit: {
-    minWidth: 40,
-    paddingVertical: 4,
-    paddingHorizontal: 2,
+    minWidth: 42,
+    paddingVertical: 5,
+    paddingHorizontal: 3,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -980,21 +1104,27 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   speedMinimalSegment: {
-    width: StyleSheet.hairlineWidth + 1,
-    height: 18,
-    backgroundColor: "rgba(255,255,255,0.5)",
-    marginVertical: 1,
-    borderRadius: 1,
+    width: 2,
+    height: 20,
+    backgroundColor: "rgba(255,255,255,0.86)",
+    marginVertical: 2,
+    borderRadius: 2,
     alignSelf: "center",
   },
   speedTierMinimalLabel: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.82)",
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.93)",
     letterSpacing: 0.15,
+    textShadowColor: "rgba(0,0,0,0.65)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   speedTierMinimalLabelSelected: {
-    color: "rgba(255,250,220,0.96)",
+    color: "rgba(255,241,170,0.99)",
     fontWeight: "800",
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 });

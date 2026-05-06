@@ -1675,14 +1675,11 @@ export function AIModal({
       position: "relative",
       paddingHorizontal: 18 * fontScale,
     },
-    submitButtonIcon: {
-      position: "absolute",
-      left: "50%",
-      marginLeft: -62 * fontScale,
-      top: 0,
-      bottom: 0,
+    submitButtonContent: {
       justifyContent: "center",
       alignItems: "center",
+      flexDirection: "row",
+      gap: 8 * fontScale,
     },
     submitButtonDisabled: {
       opacity: 1,
@@ -2435,7 +2432,10 @@ export function AIModal({
                       end={{ x: 1, y: 0 }}
                       style={styles.submitButton}
                     >
-                      <View style={styles.submitButtonIcon} pointerEvents="none">
+                      <View
+                        style={styles.submitButtonContent}
+                        pointerEvents="none"
+                      >
                         <ThemedText
                           style={{
                             fontSize: 20 * fontScale,
@@ -2449,21 +2449,21 @@ export function AIModal({
                         >
                           ✨
                         </ThemedText>
-                      </View>
-                      <ThemedText
-                        size="l"
-                        weight="bold"
-                        style={{
-                          color:
-                            canSubmit
-                              ? "#FFFFFF"
-                              : colorScheme === "dark"
+                        <ThemedText
+                          size="l"
+                          weight="bold"
+                          style={{
+                            color:
+                              canSubmit
                                 ? "#FFFFFF"
-                                : "#1F2937",
-                        }}
-                      >
-                        {t("ai.submit") || "Submit"}
-                      </ThemedText>
+                                : colorScheme === "dark"
+                                  ? "#FFFFFF"
+                                  : "#1F2937",
+                          }}
+                        >
+                          {t("ai.submit") || "Submit"}
+                        </ThemedText>
+                      </View>
                     </LinearGradient>
                   </TouchableOpacity>
                   {remainingAIRequests !== null &&

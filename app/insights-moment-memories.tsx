@@ -183,6 +183,12 @@ export default function InsightsMomentMemoriesScreen() {
         legendLabel: {
           flexShrink: 1,
         },
+        legendCountBeforeBar: {
+          width: 34 * fontScale,
+          textAlign: "right",
+          opacity: 0.6,
+          marginRight: 6 * fontScale,
+        },
         rowBarTrack: {
           flex: 1,
           height: 6 * fontScale,
@@ -201,8 +207,9 @@ export default function InsightsMomentMemoriesScreen() {
         legendMetrics: {
           flexDirection: "row",
           alignItems: "center",
-          width: 78 * fontScale,
-          justifyContent: "space-between",
+          width: 72 * fontScale,
+          justifyContent: "flex-end",
+          gap: 6 * fontScale,
           marginLeft: 8 * fontScale,
         },
         legendCount: {
@@ -336,6 +343,9 @@ export default function InsightsMomentMemoriesScreen() {
                         {row.label}
                       </ThemedText>
                     </View>
+                    <ThemedText size="xs" style={styles.legendCountBeforeBar}>
+                      ({row.count})
+                    </ThemedText>
                     <View style={styles.rowBarTrack}>
                       <View
                         style={[
@@ -348,9 +358,6 @@ export default function InsightsMomentMemoriesScreen() {
                       />
                     </View>
                     <View style={styles.legendMetrics}>
-                      <ThemedText size="sm" style={styles.legendCount}>
-                        {row.count}
-                      </ThemedText>
                       <ThemedText
                         size="m"
                         weight="bold"

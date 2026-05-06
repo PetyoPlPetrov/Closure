@@ -18,6 +18,7 @@ import Reanimated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSequence,
   withSpring,
   withTiming,
@@ -31,6 +32,9 @@ const INTRO_PULSE_PEAK = 1.68;
 const INTRO_PULSE_UP_MS = 220;
 /** Periodic reminder pulse when usability → pulsing animation is on */
 const SUN_ACTION_PERIODIC_PULSE_MS = 10_000;
+/** Small left chip icon attention pulse after banner enters. */
+const SUN_CHIP_ICON_DOUBLE_PULSE_DELAY_MS = 650;
+const SUN_CHIP_ICON_DOUBLE_PULSE_GAP_MS = 340;
 
 type Props = {
   message: string;
@@ -86,9 +90,13 @@ export function SferaSizeHintBanner({
   const entranceProgress = React.useRef(new Animated.Value(0)).current;
   /** UI-thread pulse so heavy JS work from `onActionPress` cannot stall mid-animation. */
   const actionIconScale = useSharedValue(1);
+  const actionButtonScale = useSharedValue(1);
 
   const actionIconPulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: actionIconScale.value }],
+  }));
+  const actionButtonPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: actionButtonScale.value }],
   }));
 
   const pulseSunActionIcon = React.useCallback(() => {
@@ -99,6 +107,50 @@ export function SferaSizeHintBanner({
         easing: Easing.out(Easing.quad),
       }),
       withSpring(1, { damping: 12, stiffness: 320 }),
+    );
+  }, [actionIconScale]);
+
+  const pulseSunActionButton = React.useCallback(() => {
+    actionButtonScale.value = 1;
+    actionButtonScale.value = withSequence(
+      withTiming(0.94, {
+        duration: 140,
+        easing: Easing.out(Easing.quad),
+      }),
+      withTiming(1, {
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+      }),
+    );
+  }, [actionButtonScale]);
+
+  const pulseSunChipIconTwice = React.useCallback(() => {
+    actionIconScale.value = 1;
+    actionIconScale.value = withDelay(
+      SUN_CHIP_ICON_DOUBLE_PULSE_DELAY_MS,
+      withSequence(
+        withTiming(1.12, {
+          duration: 240,
+          easing: Easing.out(Easing.cubic),
+        }),
+        withTiming(1, {
+          duration: 280,
+          easing: Easing.out(Easing.cubic),
+        }),
+        withDelay(
+          SUN_CHIP_ICON_DOUBLE_PULSE_GAP_MS,
+          withSequence(
+            withTiming(1.12, {
+              duration: 240,
+              easing: Easing.out(Easing.cubic),
+            }),
+            withTiming(1, {
+              duration: 280,
+              easing: Easing.out(Easing.cubic),
+            }),
+          ),
+        ),
+      ),
     );
   }, [actionIconScale]);
 
@@ -130,6 +182,22 @@ export function SferaSizeHintBanner({
     pulsingAnimations,
     pulseSunActionIcon,
     pulseSunActionIconIntro,
+  ]);
+
+  React.useEffect(() => {
+    const shouldPulseChipIcon =
+      pulsingAnimations &&
+      Boolean(actionLabel) &&
+      Boolean(onActionPress) &&
+      actionIconName === "wb-sunny";
+    if (!shouldPulseChipIcon) return;
+    pulseSunChipIconTwice();
+  }, [
+    pulsingAnimations,
+    actionLabel,
+    onActionPress,
+    actionIconName,
+    pulseSunChipIconTwice,
   ]);
 
   // Mount-only: message includes live stats (e.g. sunny %) and must not retrigger this.
@@ -229,50 +297,68 @@ export function SferaSizeHintBanner({
                 </Pressable>
               ) : null}
               {onActionPress ? (
-                <Pressable
-                  onPress={() => {
-                    if (!actionLabel && pulsingAnimations) pulseSunActionIcon();
-                    onActionPress();
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    actionLabel ? undefined : actionAccessibilityLabel
-                  }
-                  hitSlop={
-                    actionLabel
-                      ? undefined
-                      : ({ top: 10, bottom: 10, left: 10, right: 10 } as const)
-                  }
-                  style={
-                    actionLabel ? [styles.dismissRow, styles.actionRow] : styles.actionIconOnly
-                  }
-                >
-                  <Reanimated.View
-                    style={[
-                      {
-                        flexDirection: actionLabel ? "row" : undefined,
-                        alignItems: actionLabel ? "center" : undefined,
-                        columnGap: actionLabel ? 4 : undefined,
-                      },
-                      actionIconPulseStyle,
-                    ]}
+                <Reanimated.View style={actionLabel ? actionButtonPulseStyle : undefined}>
+                  <Pressable
+                    onPress={() => {
+                      if (pulsingAnimations) {
+                        if (actionLabel) pulseSunActionButton();
+                        else pulseSunActionIcon();
+                      }
+                      onActionPress();
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      actionLabel ? undefined : actionAccessibilityLabel
+                    }
+                    hitSlop={
+                      actionLabel
+                        ? undefined
+                        : ({ top: 10, bottom: 10, left: 10, right: 10 } as const)
+                    }
+                    style={
+                      actionLabel
+                        ? [
+                            styles.actionRow,
+                            styles.actionPill,
+                            { backgroundColor: colors.primaryDark },
+                          ]
+                        : styles.actionIconOnly
+                    }
                   >
-                    <MaterialIcons
-                      name={actionIconName}
-                      size={actionLabel ? 14 : 22}
-                      color={sunnyActionIconColor}
-                      style={actionLabel ? styles.actionIcon : undefined}
-                    />
-                    {actionLabel ? (
-                      <ThemedText
-                        style={[styles.actionLinkLabel, styles.actionText, { color: colors.tint, opacity: 0.95 }]}
-                        type="link"
-                      >
-                        {actionLabel}
-                      </ThemedText>
-                    ) : null}
-                  </Reanimated.View>
-                </Pressable>
+                    <Reanimated.View
+                      style={[
+                        {
+                          flexDirection: actionLabel ? "row" : undefined,
+                          alignItems: "center",
+                        },
+                        !actionLabel && actionIconPulseStyle,
+                      ]}
+                    >
+                      <Reanimated.View style={actionLabel ? actionIconPulseStyle : undefined}>
+                        <MaterialIcons
+                          name={actionIconName}
+                          size={actionLabel ? 16 : 22}
+                          color={actionLabel ? colors.primaryText : sunnyActionIconColor}
+                          style={actionLabel ? styles.actionIcon : undefined}
+                        />
+                      </Reanimated.View>
+                      {actionLabel ? (
+                        <ThemedText
+                          style={[styles.actionLinkLabel, styles.actionText, { color: colors.primaryText }]}
+                        >
+                          {actionLabel}
+                        </ThemedText>
+                      ) : null}
+                      {actionLabel ? (
+                        <MaterialIcons
+                          name="chevron-right"
+                          size={18}
+                          color={colors.primaryText}
+                        />
+                      ) : null}
+                    </Reanimated.View>
+                  </Pressable>
+                </Reanimated.View>
               ) : null}
             </View>
           ) : null}
@@ -341,7 +427,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    columnGap: 4,
+    gap: 4,
+  },
+  actionPill: {
+    minHeight: 34,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    justifyContent: "center",
   },
   actionIcon: {
     marginTop: 1,

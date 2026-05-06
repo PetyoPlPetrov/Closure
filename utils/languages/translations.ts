@@ -4836,7 +4836,7 @@ const translations: Record<Language, Translations> = {
     "insights.wheelOfLife.subtitle":
       "Analyze your life balance across different sferas",
     "insights.wheelOfLife.emptyState":
-      "Add memories and moments on other sferas to see data insights",
+      "Add at least one memory and one moment in other sferas to see data insights.",
     "insights.wheelOfLife.distributionExplanation":
       "This chart shows the overall distribution of your life moments across all sferas.",
     "insights.wheelOfLife.percentageExplanation":
@@ -9933,7 +9933,7 @@ const translations: Record<Language, Translations> = {
     "insights.wheelOfLife.subtitle":
       "Анализирайте жизнения си баланс в различните сфери",
     "insights.wheelOfLife.emptyState":
-      "Добавете спомени и моменти в други сфери, за да видите анализи на данните",
+      "Добавете поне един спомен и един момент в други сфери, за да видите анализи на данните.",
     "insights.wheelOfLife.distributionExplanation":
       "Тази диаграма показва общото разпределение на житейските ви моменти във всички сфери.",
     "insights.wheelOfLife.percentageExplanation":
