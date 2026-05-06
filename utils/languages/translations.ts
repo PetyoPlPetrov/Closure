@@ -691,6 +691,12 @@ export interface Translations {
   "insights.momentDistribution.subtitleSunny": string;
   "insights.momentDistribution.subtitleCloudy": string;
   "insights.momentDistribution.subtitleLessons": string;
+  "insights.momentDistribution.totalCountMoments": string;
+  "insights.momentDistribution.totalCountLessons": string;
+  "insights.momentDistribution.allSferas": string;
+  "insights.momentDistribution.explainerSunny": string;
+  "insights.momentDistribution.explainerCloudy": string;
+  "insights.momentDistribution.explainerLessons": string;
   "insights.momentDrill.screenSphereTitleSunny": string;
   "insights.momentDrill.screenSphereTitleCloudy": string;
   "insights.momentDrill.screenSphereTitleLessons": string;
@@ -4852,6 +4858,15 @@ const translations: Record<Language, Translations> = {
     "insights.momentDistribution.subtitleSunny": "Distribution across sferas.",
     "insights.momentDistribution.subtitleCloudy": "Distribution across sferas.",
     "insights.momentDistribution.subtitleLessons": "Distribution across sferas.",
+    "insights.momentDistribution.totalCountMoments": "{count} moments",
+    "insights.momentDistribution.totalCountLessons": "{count} lessons",
+    "insights.momentDistribution.allSferas": "All",
+    "insights.momentDistribution.explainerSunny":
+      "The most sunny moments of your life come from {sphere} sfera.",
+    "insights.momentDistribution.explainerCloudy":
+      "The most cloudy moments of your life come from {sphere} sfera.",
+    "insights.momentDistribution.explainerLessons":
+      "Most of your lessons come from {sphere} sfera.",
     "insights.momentDrill.screenSphereTitleSunny": "Sunny moments — {sphere}",
     "insights.momentDrill.screenSphereTitleCloudy": "Cloudy moments — {sphere}",
     "insights.momentDrill.screenSphereTitleLessons": "Lessons — {sphere}",
@@ -9940,6 +9955,15 @@ const translations: Record<Language, Translations> = {
     "insights.momentDistribution.subtitleSunny": "Разпределение по сфери.",
     "insights.momentDistribution.subtitleCloudy": "Разпределение по сфери.",
     "insights.momentDistribution.subtitleLessons": "Разпределение по сфери.",
+    "insights.momentDistribution.totalCountMoments": "{count} момента",
+    "insights.momentDistribution.totalCountLessons": "{count} урока",
+    "insights.momentDistribution.allSferas": "Всички",
+    "insights.momentDistribution.explainerSunny":
+      "Най-много слънчеви моменти в живота ви идват от сферата {sphere}.",
+    "insights.momentDistribution.explainerCloudy":
+      "Най-много облачни моменти в живота ви идват от сферата {sphere}.",
+    "insights.momentDistribution.explainerLessons":
+      "Най-много уроци в живота ви идват от сферата {sphere}.",
     "insights.momentDrill.screenSphereTitleSunny": "Слънчеви моменти — {sphere}",
     "insights.momentDrill.screenSphereTitleCloudy": "Облачни моменти — {sphere}",
     "insights.momentDrill.screenSphereTitleLessons": "Уроци — {sphere}",

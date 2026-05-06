@@ -25,6 +25,22 @@ const SPHERES: LifeSphere[] = [
   "hobbies",
 ];
 
+const CLOUDY_PERCENT_LIGHT_COLORS: Record<LifeSphere, string> = {
+  relationships: "#8E2A30",
+  career: "#14538A",
+  family: "#256B30",
+  friends: "#5A1D78",
+  hobbies: "#995307",
+};
+
+const CLOUDY_PERCENT_DARK_COLORS: Record<LifeSphere, string> = {
+  relationships: "#CF7A82",
+  career: "#7BB4E3",
+  family: "#83C68E",
+  friends: "#BC8AD8",
+  hobbies: "#E2A45D",
+};
+
 export default function InsightsMomentDistributionScreen() {
   const colorScheme = useColorScheme();
   const scheme = (colorScheme ?? "dark") as "light" | "dark";
@@ -84,6 +100,7 @@ export default function InsightsMomentDistributionScreen() {
     () => sphereRows.reduce((s, r) => s + r.count, 0),
     [sphereRows],
   );
+  const topRow = sphereRows[0];
 
   const title =
     kind === "sunny"
@@ -102,8 +119,8 @@ export default function InsightsMomentDistributionScreen() {
           alignItems: "center",
           justifyContent: "space-between",
           paddingHorizontal: 16 * fontScale,
-          paddingTop: 20 * fontScale,
-          paddingBottom: 8 * fontScale,
+          paddingTop: 14 * fontScale,
+          paddingBottom: 12 * fontScale,
           marginTop: 50,
         },
         headerButton: {
@@ -120,27 +137,37 @@ export default function InsightsMomentDistributionScreen() {
           paddingHorizontal: 16 * fontScale,
           paddingBottom: 100 * fontScale,
         },
+        heroHint: {
+          opacity: 0.7,
+        },
         card: {
           marginTop: 8 * fontScale,
           marginBottom: 24 * fontScale,
           padding: 20 * fontScale,
-          borderRadius: 16 * fontScale,
+          borderRadius: 20 * fontScale,
           backgroundColor:
             colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.05)"
-              : "rgba(0, 0, 0, 0.05)",
+              ? "rgba(255, 255, 255, 0.06)"
+              : "rgba(0, 0, 0, 0.045)",
+        },
+        barMeta: {
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 12 * fontScale,
         },
         legendItem: {
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 14 * fontScale,
+          paddingVertical: 10 * fontScale,
+          minHeight: 58 * fontScale,
         },
         legendLeft: {
           flexDirection: "row",
           alignItems: "center",
-          flex: 1,
-          gap: 10 * fontScale,
+          width: "42%",
+          gap: 9 * fontScale,
         },
         legendDot: {
           width: 12 * fontScale,
@@ -148,27 +175,72 @@ export default function InsightsMomentDistributionScreen() {
           borderRadius: 6 * fontScale,
         },
         legendLabel: {
-          flex: 1,
+          flexShrink: 1,
         },
-        pct: {
+        legendMetrics: {
+          flexDirection: "row",
+          alignItems: "center",
+          width: 78 * fontScale,
+          justifyContent: "space-between",
           marginLeft: 8 * fontScale,
         },
+        legendCount: {
+          opacity: 0.68,
+          minWidth: 20 * fontScale,
+          textAlign: "right",
+        },
+        pct: {
+          minWidth: 44 * fontScale,
+          textAlign: "right",
+        },
+        rowBarTrack: {
+          flex: 1,
+          height: 6 * fontScale,
+          borderRadius: 999,
+          marginHorizontal: 8 * fontScale,
+          overflow: "hidden",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.14)"
+              : "rgba(0, 0, 0, 0.12)",
+        },
+        rowBarFill: {
+          height: "100%",
+          borderRadius: 999,
+        },
         stackedBarWrapper: {
-          height: 48 * fontScale,
-          borderRadius: 24 * fontScale,
+          height: 28 * fontScale,
+          borderRadius: 999,
           overflow: "hidden",
           flexDirection: "row",
           backgroundColor:
             colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.1)"
+              ? "rgba(255, 255, 255, 0.12)"
               : "rgba(0, 0, 0, 0.1)",
         },
         stackedBarSegment: {
           height: "100%",
         },
+        rowsWrap: {
+          marginTop: 14 * fontScale,
+          gap: 8 * fontScale,
+        },
         emptyWrap: {
           paddingVertical: 48 * fontScale,
           alignItems: "center",
+        },
+        explanationText: {
+          opacity: 0.82,
+          lineHeight: 22,
+        },
+        explanationCard: {
+          borderRadius: 14 * fontScale,
+          paddingHorizontal: 14 * fontScale,
+          paddingVertical: 12 * fontScale,
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.06)"
+              : "rgba(0, 0, 0, 0.035)",
         },
       }),
     [fontScale, colorScheme],
@@ -183,6 +255,16 @@ export default function InsightsMomentDistributionScreen() {
       pathname: "/insights-moment-sphere",
       params: { type: kind, sphere },
     });
+  };
+
+  const getRowColor = (sphere: LifeSphere) => getSphereAccentColor(sphere, scheme);
+  const getPercentageColor = (sphere: LifeSphere) => {
+    if (kind !== "cloudy") {
+      return getRowColor(sphere);
+    }
+    return scheme === "dark"
+      ? CLOUDY_PERCENT_DARK_COLORS[sphere]
+      : CLOUDY_PERCENT_LIGHT_COLORS[sphere];
   };
 
   return (
@@ -221,51 +303,18 @@ export default function InsightsMomentDistributionScreen() {
             <View style={styles.emptyWrap} />
           ) : (
             <>
-              {sphereRows.map((row) => {
-                const pct =
-                  totalCount > 0 ? (row.count / totalCount) * 100 : 0;
-                const sphereColor = getSphereAccentColor(row.sphere, scheme);
-                const label = t(`spheres.${row.sphere}` as const);
-                return (
-                  <TouchableOpacity
-                    key={row.sphere}
-                    style={styles.legendItem}
-                    onPress={() => openSphere(row.sphere)}
-                    activeOpacity={0.65}
-                  >
-                    <View style={styles.legendLeft}>
-                      <View
-                        style={[
-                          styles.legendDot,
-                          { backgroundColor: sphereColor },
-                        ]}
-                      />
-                      <ThemedText
-                        size="m"
-                        weight="semibold"
-                        style={styles.legendLabel}
-                      >
-                        {label} ({row.count})
-                      </ThemedText>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <ThemedText
-                        size="m"
-                        weight="bold"
-                        style={[styles.pct, { color: sphereColor }]}
-                      >
-                        {Math.round(pct)}%
-                      </ThemedText>
-                      <MaterialIcons
-                        name="chevron-right"
-                        size={22 * fontScale}
-                        color={colors.icon}
-                      />
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-
+              <View style={styles.barMeta}>
+                <ThemedText size="sm" style={styles.heroHint}>
+                  {kind === "sunny"
+                    ? t("insights.momentDistribution.subtitleSunny")
+                    : kind === "cloudy"
+                      ? t("insights.momentDistribution.subtitleCloudy")
+                      : t("insights.momentDistribution.subtitleLessons")}
+                </ThemedText>
+                <ThemedText size="sm" weight="semibold" style={styles.heroHint}>
+                  {t("insights.momentDistribution.allSferas")}
+                </ThemedText>
+              </View>
               <View style={styles.stackedBarWrapper}>
                 {sphereRows.map((row, i) => {
                   const pct =
@@ -294,16 +343,93 @@ export default function InsightsMomentDistributionScreen() {
                         styles.stackedBarSegment,
                         {
                           width: `${w}%`,
-                          backgroundColor: getSphereAccentColor(row.sphere, scheme),
+                          backgroundColor: getRowColor(row.sphere),
+                          opacity: 1,
                         },
                       ]}
                     />
                   );
                 })}
               </View>
+              <View style={styles.rowsWrap}>
+                {sphereRows.map((row) => {
+                  const pct =
+                    totalCount > 0 ? (row.count / totalCount) * 100 : 0;
+                  const sphereColor = getRowColor(row.sphere);
+                  const label = t(`spheres.${row.sphere}` as const);
+                  return (
+                    <TouchableOpacity
+                      key={row.sphere}
+                      style={styles.legendItem}
+                      onPress={() => openSphere(row.sphere)}
+                      activeOpacity={0.72}
+                    >
+                      <View style={styles.legendLeft}>
+                        <View
+                          style={[
+                            styles.legendDot,
+                            { backgroundColor: sphereColor },
+                          ]}
+                        />
+                        <ThemedText
+                          size="m"
+                          weight="semibold"
+                          style={styles.legendLabel}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {label}
+                        </ThemedText>
+                      </View>
+                      <View style={styles.rowBarTrack}>
+                        <View
+                          style={[
+                            styles.rowBarFill,
+                            { width: `${Math.max(7, pct)}%`, backgroundColor: sphereColor },
+                          ]}
+                        />
+                      </View>
+                      <View style={styles.legendMetrics}>
+                        <ThemedText size="sm" style={styles.legendCount}>
+                          {row.count}
+                        </ThemedText>
+                        <ThemedText
+                          size="m"
+                          weight="bold"
+                          style={[styles.pct, { color: getPercentageColor(row.sphere) }]}
+                        >
+                          {Math.round(pct)}%
+                        </ThemedText>
+                        <MaterialIcons
+                          name="chevron-right"
+                          size={20 * fontScale}
+                          color={colors.icon}
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </>
           )}
         </View>
+        {topRow && totalCount > 0 ? (
+          <View style={styles.explanationCard}>
+            <ThemedText size="sm" style={styles.explanationText}>
+              {kind === "sunny"
+                ? t("insights.momentDistribution.explainerSunny", {
+                    sphere: t(`spheres.${topRow.sphere}` as const),
+                  })
+                : kind === "cloudy"
+                  ? t("insights.momentDistribution.explainerCloudy", {
+                      sphere: t(`spheres.${topRow.sphere}` as const),
+                    })
+                  : t("insights.momentDistribution.explainerLessons", {
+                      sphere: t(`spheres.${topRow.sphere}` as const),
+                    })}
+            </ThemedText>
+          </View>
+        ) : null}
       </ScrollView>
     </TabScreenContainer>
   );

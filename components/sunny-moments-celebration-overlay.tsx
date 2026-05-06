@@ -49,8 +49,6 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const SUNNY_CELEBRATION_SPEED_TIERS = [3, 2, 1] as const;
 type SunnyCelebrationPlaybackSpeed = (typeof SUNNY_CELEBRATION_SPEED_TIERS)[number];
-const SUNNY_CELEBRATION_DENSITY_TIERS = [3, 2, 1] as const;
-type SunnyCelebrationDensity = (typeof SUNNY_CELEBRATION_DENSITY_TIERS)[number];
 const MIN_CELEBRATION_BUBBLE_DURATION_MS = 320;
 /** Mounting hundreds of SVG + Reanimated nodes tanks the JS thread; parade samples a capped set. */
 const MAX_PARADE_BUBBLES = 96;
@@ -133,17 +131,8 @@ function idScatterSalt(id: string, index: number): number {
   return h & 0xffff;
 }
 
-/** Tier 3 = dense (overlap), tier 2 = balanced, tier 1 = sparse. Applied to stagger between launches. */
-function densityTierToStaggerMultiplier(tier: SunnyCelebrationDensity): number {
-  switch (tier) {
-    case 3:
-      return 0.36;
-    case 2:
-      return 1;
-    default:
-      return 1.72;
-  }
-}
+/** Keep parade cadence at the previous default ("balanced") now that density control is removed. */
+const PARADE_DENSITY_STAGGER_MULTIPLIER = 1;
 
 function FocusedMemorySunCelebrationBubble({
   spec,
@@ -477,13 +466,10 @@ export function SunnyMomentsCelebrationOverlay({
   const insets = useSafeAreaInsets();
   const [playbackSpeedTier, setPlaybackSpeedTier] =
     useState<SunnyCelebrationPlaybackSpeed>(1);
-  const [densityTier, setDensityTier] =
-    useState<SunnyCelebrationDensity>(2);
 
   useEffect(() => {
     if (visible) {
       setPlaybackSpeedTier(1);
-      setDensityTier(2);
     }
   }, [visible, triggerToken]);
 
@@ -504,7 +490,7 @@ export function SunnyMomentsCelebrationOverlay({
     const baseStaggerRounded = Math.round(
       Math.min(800, Math.max(280, rawStagger)),
     );
-    const densMul = densityTierToStaggerMultiplier(densityTier);
+    const densMul = PARADE_DENSITY_STAGGER_MULTIPLIER;
     const staggerMs = Math.round(
       Math.min(960, Math.max(44, baseStaggerRounded * densMul)),
     );
@@ -556,7 +542,7 @@ export function SunnyMomentsCelebrationOverlay({
         durationMs,
       };
     });
-  }, [paradeMoments, isTablet, isLargeDevice, densityTier]);
+  }, [paradeMoments, isTablet, isLargeDevice]);
 
   const bubbleSpecs = useMemo<BubbleSpec[]>(() => {
     const inv = 1 / playbackSpeedTier;
@@ -743,43 +729,22 @@ export function SunnyMomentsCelebrationOverlay({
     deferTierInteractionUpdate(() => setPlaybackSpeedTier(tier));
   };
 
-  const selectDensityTier = (tier: SunnyCelebrationDensity) => {
-    if (tier === densityTier) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
-      () => {},
-    );
-    deferTierInteractionUpdate(() => setDensityTier(tier));
-  };
-
   /** Side rails: fade in + scale overshoot when the parade starts (same moment as overlay opens). */
-  const densityRailScale = useSharedValue(1);
   const speedRailScale = useSharedValue(1);
 
   useEffect(() => {
     if (!visible) {
-      cancelAnimation(densityRailScale);
       cancelAnimation(speedRailScale);
-      densityRailScale.value = 1;
       speedRailScale.value = 1;
       return;
     }
 
-    cancelAnimation(densityRailScale);
     cancelAnimation(speedRailScale);
-    densityRailScale.value = 1;
     speedRailScale.value = 1;
 
     const PEAK = 1.09;
     const RISE_MS = 420;
     const STAGGER_MS = 140;
-
-    densityRailScale.value = withSequence(
-      withTiming(PEAK, {
-        duration: RISE_MS,
-        easing: Easing.out(Easing.cubic),
-      }),
-      withSpring(1, { damping: 11, stiffness: 300 }),
-    );
 
     speedRailScale.value = withDelay(
       STAGGER_MS,
@@ -791,11 +756,7 @@ export function SunnyMomentsCelebrationOverlay({
         withSpring(1, { damping: 11, stiffness: 300 }),
       ),
     );
-  }, [visible, triggerToken, densityRailScale, speedRailScale]);
-
-  const densityRailAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: densityRailScale.value }],
-  }));
+  }, [visible, triggerToken, speedRailScale]);
 
   const speedRailAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: speedRailScale.value }],
@@ -817,7 +778,6 @@ export function SunnyMomentsCelebrationOverlay({
 
   const speedRailTop = Math.round(insets.top + SCREEN_HEIGHT * 0.45);
   const speedRailRight = Math.max(8, insets.right + 6);
-  const densityRailLeft = Math.max(8, insets.left + 6);
 
   return (
     <Modal
@@ -870,54 +830,6 @@ export function SunnyMomentsCelebrationOverlay({
               controlsChromeAnimatedStyle,
             ]}
           >
-            <Animated.View
-              accessibilityRole="radiogroup"
-              accessibilityLabel={t("home.sunnyCelebrate.densityA11y")}
-              pointerEvents="auto"
-              collapsable={false}
-              style={[
-                styles.speedRailColumn,
-                {
-                  top: speedRailTop,
-                  left: densityRailLeft,
-                },
-                densityRailAnimatedStyle,
-              ]}
-            >
-              {SUNNY_CELEBRATION_DENSITY_TIERS.map((tier, tierIndex) => {
-                const selected = densityTier === tier;
-                return (
-                  <React.Fragment key={`density-tier-${tier}`}>
-                    <Pressable
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      accessibilityLabel={`${tier}`}
-                      onPress={() => selectDensityTier(tier)}
-                      style={({ pressed }) => [
-                        styles.speedTierMinimalHit,
-                        pressed && styles.speedTierMinimalPressed,
-                      ]}
-                      hitSlop={{ top: 14, bottom: 14, left: 22, right: 22 }}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.speedTierMinimalLabel,
-                          selected && styles.speedTierMinimalLabelSelected,
-                        ]}
-                      >
-                        {tier}
-                      </ThemedText>
-                    </Pressable>
-                    {tierIndex < SUNNY_CELEBRATION_DENSITY_TIERS.length - 1 ? (
-                      <View
-                        style={styles.speedMinimalSegment}
-                        pointerEvents="none"
-                      />
-                    ) : null}
-                  </React.Fragment>
-                );
-              })}
-            </Animated.View>
             <Animated.View
               accessibilityRole="radiogroup"
               accessibilityLabel={t("home.sunnyCelebrate.speedA11y")}

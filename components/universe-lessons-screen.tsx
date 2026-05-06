@@ -1012,8 +1012,22 @@ const LessonSfera = React.memo(function LessonSfera({
                     onError={() => setMoonImageFailed(true)}
                   />
                 ) : (
-                  <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center", backgroundColor: accentColor + "22", borderRadius: MOON_SIZE / 2 }]}>
-                    <MaterialIcons name="auto-awesome" size={20} color={accentColor} />
+                  <View
+                    style={[
+                      StyleSheet.absoluteFill,
+                      {
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: isLight ? "rgba(255,255,255,0.92)" : "rgba(8,14,28,0.72)",
+                        borderRadius: MOON_SIZE / 2,
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="photo-camera"
+                      size={20}
+                      color={isLight ? Colors.light.textMediumEmphasis : Colors.dark.textMediumEmphasis}
+                    />
                   </View>
                 )}
               </Animated.View>
@@ -1169,7 +1183,6 @@ interface Props {
 export function UniverseLessonsScreen({
   visible,
   onClose,
-  standaloneRoute = false,
   embeddedInTab = false,
   tabBarOverlapHeight = 0,
   initialTarget,
@@ -1682,20 +1695,11 @@ export function UniverseLessonsScreen({
     else if (card.sphere === "friends") detailParams.friendId = card.entityId;
     else if (card.sphere === "hobbies") detailParams.hobbyId = card.entityId;
 
-    if (standaloneRoute) {
-      router.replace({
-        pathname: "/(tabs)" as const,
-        params: detailParams,
-      });
-      return;
-    }
-
-    onClose();
     router.replace({
       pathname: "/(tabs)" as const,
       params: detailParams,
     });
-  }, [onClose, standaloneRoute]);
+  }, []);
 
   const renderItem = useCallback(
     ({ item, index }: { item: LessonCard; index: number }) => (

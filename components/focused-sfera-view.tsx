@@ -3171,10 +3171,6 @@ export function FocusedSferaView({
   /** Hide top-right memory-balance toggle as soon as central avatar press starts (before sun menu state updates). */
   const [hideMemoryBalanceToggleForAvatar, setHideMemoryBalanceToggleForAvatar] =
     useState(false);
-  const isSunExpandedRef = useRef(isSunExpanded);
-  useEffect(() => {
-    isSunExpandedRef.current = isSunExpanded;
-  }, [isSunExpanded]);
   useEffect(() => {
     if (selectedSphere !== null) setHideMemoryBalanceToggleForAvatar(false);
   }, [selectedSphere]);
@@ -3644,22 +3640,6 @@ export function FocusedSferaView({
     setHideMemoryBalanceToggleForAvatar(false);
     if (isSunExpanded) handleSunPress();
   }, [isSunExpanded, handleSunPress]);
-
-  const handleAvatarPressInHideMemoryBalance = useCallback(() => {
-    if (selectedSphere === null && hasMemories) {
-      setHideMemoryBalanceToggleForAvatar(true);
-    }
-  }, [selectedSphere, hasMemories]);
-
-  const handleAvatarPressOutRestoreMemoryBalance = useCallback(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!isSunExpandedRef.current) {
-          setHideMemoryBalanceToggleForAvatar(false);
-        }
-      });
-    });
-  }, []);
 
   useEffect(() => {
     if (!sunMenuCollapseActionRef) return;
@@ -4182,8 +4162,6 @@ export function FocusedSferaView({
           <Animated.View style={[{ flex: 1 }, insightsHubAnimatedStyle]}>
             <Pressable
               onPress={handleCircleAvatarPress}
-              onPressIn={handleAvatarPressInHideMemoryBalance}
-              onPressOut={handleAvatarPressOutRestoreMemoryBalance}
               accessibilityRole="button"
               accessibilityLabel={t("insights.wheelOfLife.title")}
               accessibilityHint={t("insights.wheelOfLife.subtitle")}

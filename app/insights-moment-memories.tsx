@@ -15,7 +15,7 @@ import { useTranslate } from "@/utils/languages/use-translate";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo } from "react";
-import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 
 const ROW_PALETTE = [
   "#64B5F6",
@@ -140,43 +140,88 @@ export default function InsightsMomentMemoriesScreen() {
           marginTop: 8 * fontScale,
           marginBottom: 24 * fontScale,
           padding: 20 * fontScale,
-          borderRadius: 16 * fontScale,
+          borderRadius: 20 * fontScale,
           backgroundColor:
             colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.05)"
-              : "rgba(0, 0, 0, 0.05)",
+              ? "rgba(255, 255, 255, 0.06)"
+              : "rgba(0, 0, 0, 0.045)",
         },
         legendItem: {
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 14 * fontScale,
+          paddingVertical: 10 * fontScale,
+          minHeight: 58 * fontScale,
         },
         legendLeft: {
           flexDirection: "row",
           alignItems: "center",
-          flex: 1,
-          gap: 10 * fontScale,
+          width: "46%",
+          gap: 9 * fontScale,
         },
         legendDot: {
           width: 12 * fontScale,
           height: 12 * fontScale,
           borderRadius: 6 * fontScale,
         },
-        legendLabel: {
-          flex: 1,
+        memoryAvatar: {
+          width: 30 * fontScale,
+          height: 30 * fontScale,
+          borderRadius: 15 * fontScale,
+          overflow: "hidden",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.12)"
+              : "rgba(0, 0, 0, 0.08)",
         },
-        pct: {
+        memoryAvatarImage: {
+          width: "100%",
+          height: "100%",
+        },
+        legendLabel: {
+          flexShrink: 1,
+        },
+        rowBarTrack: {
+          flex: 1,
+          height: 6 * fontScale,
+          borderRadius: 999,
+          marginHorizontal: 8 * fontScale,
+          overflow: "hidden",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.14)"
+              : "rgba(0, 0, 0, 0.12)",
+        },
+        rowBarFill: {
+          height: "100%",
+          borderRadius: 999,
+        },
+        legendMetrics: {
+          flexDirection: "row",
+          alignItems: "center",
+          width: 78 * fontScale,
+          justifyContent: "space-between",
           marginLeft: 8 * fontScale,
         },
+        legendCount: {
+          opacity: 0.68,
+          minWidth: 20 * fontScale,
+          textAlign: "right",
+        },
+        pct: {
+          minWidth: 44 * fontScale,
+          textAlign: "right",
+        },
         stackedBarWrapper: {
-          height: 48 * fontScale,
-          borderRadius: 24 * fontScale,
+          height: 28 * fontScale,
+          borderRadius: 999,
           overflow: "hidden",
           flexDirection: "row",
           backgroundColor:
             colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.1)"
+              ? "rgba(255, 255, 255, 0.12)"
               : "rgba(0, 0, 0, 0.1)",
         },
         stackedBarSegment: {
@@ -185,6 +230,10 @@ export default function InsightsMomentMemoriesScreen() {
         emptyWrap: {
           paddingVertical: 48 * fontScale,
           alignItems: "center",
+        },
+        rowsWrap: {
+          gap: 8 * fontScale,
+          marginTop: 2 * fontScale,
         },
       }),
     [fontScale, colorScheme],
@@ -248,7 +297,8 @@ export default function InsightsMomentMemoriesScreen() {
             <View style={styles.emptyWrap} />
           ) : (
             <>
-              {memoryRows.map((row, index) => {
+              <View style={styles.rowsWrap}>
+                {memoryRows.map((row, index) => {
                 const pct =
                   totalCount > 0 ? (row.count / totalCount) * 100 : 0;
                 const rowColor = ROW_PALETTE[index % ROW_PALETTE.length];
@@ -257,25 +307,50 @@ export default function InsightsMomentMemoriesScreen() {
                     key={row.memory.id}
                     style={styles.legendItem}
                     onPress={() => openMemory(row.memory.id)}
-                    activeOpacity={0.65}
+                    activeOpacity={0.72}
                   >
                     <View style={styles.legendLeft}>
-                      <View
-                        style={[
-                          styles.legendDot,
-                          { backgroundColor: rowColor },
-                        ]}
-                      />
+                      <View style={styles.memoryAvatar}>
+                        {row.memory.imageUri ? (
+                          <Image
+                            source={{ uri: row.memory.imageUri }}
+                            style={styles.memoryAvatarImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.legendDot,
+                              { backgroundColor: rowColor },
+                            ]}
+                          />
+                        )}
+                      </View>
                       <ThemedText
                         size="m"
                         weight="semibold"
                         style={styles.legendLabel}
-                        numberOfLines={2}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
                       >
-                        {row.label} ({row.count})
+                        {row.label}
                       </ThemedText>
                     </View>
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={styles.rowBarTrack}>
+                      <View
+                        style={[
+                          styles.rowBarFill,
+                          {
+                            width: `${Math.max(7, pct)}%`,
+                            backgroundColor: rowColor,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <View style={styles.legendMetrics}>
+                      <ThemedText size="sm" style={styles.legendCount}>
+                        {row.count}
+                      </ThemedText>
                       <ThemedText
                         size="m"
                         weight="bold"
@@ -285,13 +360,14 @@ export default function InsightsMomentMemoriesScreen() {
                       </ThemedText>
                       <MaterialIcons
                         name="chevron-right"
-                        size={22 * fontScale}
+                        size={20 * fontScale}
                         color={colors.icon}
                       />
                     </View>
                   </TouchableOpacity>
                 );
-              })}
+                })}
+              </View>
 
               <View style={styles.stackedBarWrapper}>
                 {memoryRows.map((row, i) => {
@@ -323,6 +399,7 @@ export default function InsightsMomentMemoriesScreen() {
                         {
                           width: `${w}%`,
                           backgroundColor: rowColor,
+                          opacity: 1,
                         },
                       ]}
                     />

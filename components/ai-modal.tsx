@@ -1672,7 +1672,17 @@ export function AIModal({
       justifyContent: "center",
       marginTop: 24 * fontScale,
       marginBottom: 0,
-      flexDirection: "row",
+      position: "relative",
+      paddingHorizontal: 18 * fontScale,
+    },
+    submitButtonIcon: {
+      position: "absolute",
+      left: "50%",
+      marginLeft: -62 * fontScale,
+      top: 0,
+      bottom: 0,
+      justifyContent: "center",
+      alignItems: "center",
     },
     submitButtonDisabled: {
       opacity: 1,
@@ -2425,15 +2435,21 @@ export function AIModal({
                       end={{ x: 1, y: 0 }}
                       style={styles.submitButton}
                     >
-                      <ThemedText
-                        style={{
-                          fontSize: 20 * fontScale,
-                          marginRight: 8 * fontScale,
-                          color: canSubmit ? "#FFFFFF" : colorScheme === "dark" ? "#FFFFFF" : "#1F2937",
-                        }}
-                      >
-                        ✨
-                      </ThemedText>
+                      <View style={styles.submitButtonIcon} pointerEvents="none">
+                        <ThemedText
+                          style={{
+                            fontSize: 20 * fontScale,
+                            color:
+                              canSubmit
+                                ? "#FFFFFF"
+                                : colorScheme === "dark"
+                                  ? "#FFFFFF"
+                                  : "#1F2937",
+                          }}
+                        >
+                          ✨
+                        </ThemedText>
+                      </View>
                       <ThemedText
                         size="l"
                         weight="bold"
