@@ -677,6 +677,30 @@ export interface Translations {
   "insights.wheelOfLife.emptyState": string;
   "insights.wheelOfLife.distributionExplanation": string;
   "insights.wheelOfLife.percentageExplanation": string;
+  "insights.momentsView.subtitle": string;
+  "insights.momentsView.distributionExplanation": string;
+  "insights.momentsView.emptyState": string;
+  "insights.momentsView.topSunny": string;
+  "insights.momentsView.topCloudy": string;
+  "insights.momentsView.topLessons": string;
+  "insights.viewToggle.a11yToMoments": string;
+  "insights.viewToggle.a11yToSferas": string;
+  "insights.momentDistribution.titleSunny": string;
+  "insights.momentDistribution.titleCloudy": string;
+  "insights.momentDistribution.titleLessons": string;
+  "insights.momentDistribution.subtitleSunny": string;
+  "insights.momentDistribution.subtitleCloudy": string;
+  "insights.momentDistribution.subtitleLessons": string;
+  "insights.momentDrill.screenSphereTitleSunny": string;
+  "insights.momentDrill.screenSphereTitleCloudy": string;
+  "insights.momentDrill.screenSphereTitleLessons": string;
+  "insights.momentDrill.screenMemoryTitleSunny": string;
+  "insights.momentDrill.screenMemoryTitleCloudy": string;
+  "insights.momentDrill.screenMemoryTitleLessons": string;
+  "insights.momentDrill.subtitleEntities": string;
+  "insights.momentDrill.subtitleMemories": string;
+  "insights.momentDrill.unnamedEntity": string;
+  "insights.momentDrill.memoryUntitled": string;
   "insights.recommendations.title": string;
   "insights.relationships.critical": string;
   "insights.relationships.needsImprovement": string;
@@ -4808,9 +4832,36 @@ const translations: Record<Language, Translations> = {
     "insights.wheelOfLife.emptyState":
       "Add memories and moments on other sferas to see data insights",
     "insights.wheelOfLife.distributionExplanation":
-      "The percentages show how much time you dedicate to each sphere in terms of total moments. They represent the proportion of all your moments that belong to each sphere compared to the others.",
+      "This chart shows the overall distribution of your life moments across all sferas.",
     "insights.wheelOfLife.percentageExplanation":
-      "The percentages represent the proportion of sunny (positive) moments versus cloudy (difficult) moments across all entities in each sphere. A higher percentage indicates more positive experiences.",
+      "The percentages are sunny versus cloudy moments within each sfera. A higher value means more positive moments there.",
+    "insights.momentsView.subtitle":
+      "Distribution of sunny moments, cloudy moments, and lessons across sferas.",
+    "insights.momentsView.distributionExplanation":
+      "This chart shows moment quality distribution. It highlights where most sunny, cloudy, and lesson moments come from by sfera, and then by sferas objects.",
+    "insights.momentsView.emptyState":
+      "Add moments to see this distribution.",
+    "insights.momentsView.topSunny": "Most sunny moments: {sphere}",
+    "insights.momentsView.topCloudy": "Most cloudy moments: {sphere}",
+    "insights.momentsView.topLessons": "Most lessons: {sphere}",
+    "insights.viewToggle.a11yToMoments": "Switch to moments breakdown",
+    "insights.viewToggle.a11yToSferas": "Switch to sferas balance view",
+    "insights.momentDistribution.titleSunny": "Sunny moments",
+    "insights.momentDistribution.titleCloudy": "Cloudy moments",
+    "insights.momentDistribution.titleLessons": "Lessons",
+    "insights.momentDistribution.subtitleSunny": "Distribution across sferas.",
+    "insights.momentDistribution.subtitleCloudy": "Distribution across sferas.",
+    "insights.momentDistribution.subtitleLessons": "Distribution across sferas.",
+    "insights.momentDrill.screenSphereTitleSunny": "Sunny moments — {sphere}",
+    "insights.momentDrill.screenSphereTitleCloudy": "Cloudy moments — {sphere}",
+    "insights.momentDrill.screenSphereTitleLessons": "Lessons — {sphere}",
+    "insights.momentDrill.screenMemoryTitleSunny": "Sunny moments — {name}",
+    "insights.momentDrill.screenMemoryTitleCloudy": "Cloudy moments — {name}",
+    "insights.momentDrill.screenMemoryTitleLessons": "Lessons — {name}",
+    "insights.momentDrill.subtitleEntities": "Overall amount of moments",
+    "insights.momentDrill.subtitleMemories": "Overall amount of moments",
+    "insights.momentDrill.unnamedEntity": "Unnamed",
+    "insights.momentDrill.memoryUntitled": "Untitled memory",
     "insights.recommendations.title": "Recommendations",
     "insights.relationships.critical":
       "Your relationships sphere needs urgent attention. Focus on creating positive memories and addressing challenges.",
@@ -9869,9 +9920,36 @@ const translations: Record<Language, Translations> = {
     "insights.wheelOfLife.emptyState":
       "Добавете спомени и моменти в други сфери, за да видите анализи на данните",
     "insights.wheelOfLife.distributionExplanation":
-      "Процентите показват колко време отделяте на всяка сфера по отношение на общите моменти. Те представляват пропорцията на всичките ви моменти, които принадлежат на всяка сфера, в сравнение с останалите.",
+      "Тази диаграма показва общото разпределение на житейските ви моменти във всички сфери.",
     "insights.wheelOfLife.percentageExplanation":
-      "Процентите представляват пропорцията на слънчеви (позитивни) моменти спрямо облачни (трудни) моменти във всички обекти в всяка сфера. По-висок процент означава повече позитивни преживявания.",
+      "Процентите са слънчеви спрямо облачни моменти във всяка сфера. По-висока стойност означава повече позитивни моменти там.",
+    "insights.momentsView.subtitle":
+      "Разпределение на слънчеви и облачни моменти и уроци по сфери.",
+    "insights.momentsView.distributionExplanation":
+      "Тази диаграма показва разпределението по качество на моментите. Показва откъде идват най-много слънчеви, облачни моменти и уроци по сфери, а след това и по обекти в съответната сфера.",
+    "insights.momentsView.emptyState":
+      "Добавете моменти, за да видите разпределението.",
+    "insights.momentsView.topSunny": "Най-много слънчеви моменти: {sphere}",
+    "insights.momentsView.topCloudy": "Най-много облачни моменти: {sphere}",
+    "insights.momentsView.topLessons": "Най-много уроци: {sphere}",
+    "insights.viewToggle.a11yToMoments": "Превключване към разбивка по моменти",
+    "insights.viewToggle.a11yToSferas": "Превключване към изглед баланс по сфери",
+    "insights.momentDistribution.titleSunny": "Слънчеви моменти",
+    "insights.momentDistribution.titleCloudy": "Облачни моменти",
+    "insights.momentDistribution.titleLessons": "Уроци",
+    "insights.momentDistribution.subtitleSunny": "Разпределение по сфери.",
+    "insights.momentDistribution.subtitleCloudy": "Разпределение по сфери.",
+    "insights.momentDistribution.subtitleLessons": "Разпределение по сфери.",
+    "insights.momentDrill.screenSphereTitleSunny": "Слънчеви моменти — {sphere}",
+    "insights.momentDrill.screenSphereTitleCloudy": "Облачни моменти — {sphere}",
+    "insights.momentDrill.screenSphereTitleLessons": "Уроци — {sphere}",
+    "insights.momentDrill.screenMemoryTitleSunny": "Слънчеви моменти — {name}",
+    "insights.momentDrill.screenMemoryTitleCloudy": "Облачни моменти — {name}",
+    "insights.momentDrill.screenMemoryTitleLessons": "Уроци — {name}",
+    "insights.momentDrill.subtitleEntities": "Общо количество моменти",
+    "insights.momentDrill.subtitleMemories": "Общо количество моменти",
+    "insights.momentDrill.unnamedEntity": "Без име",
+    "insights.momentDrill.memoryUntitled": "Спомен без заглавие",
     "insights.recommendations.title": "Препоръки",
     "insights.relationships.critical":
       "Сферата на връзките ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни спомени и решаването на предизвикателства.",

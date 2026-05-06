@@ -187,6 +187,7 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
                     resetScreen(screenId);
                   }
                   doSpheresTabPress();
+                  props.onPress?.(ev);
                 },
               },
             ]
@@ -195,6 +196,8 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
         }
       }
       doSpheresTabPress();
+      // Hidden tab routes (edit-*, *-detail, …) still need the default tab press so React Navigation switches back to Home.
+      props.onPress?.(ev);
       return;
     }
 

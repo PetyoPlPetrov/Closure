@@ -1157,6 +1157,7 @@ export default function AddIdealizedMemoryScreen() {
   const sphere = Array.isArray(params.sphere) ? params.sphere[0] as LifeSphere : (params.sphere as LifeSphere | undefined);
   const memoryId = Array.isArray(params.memoryId) ? params.memoryId[0] : (params.memoryId as string | undefined);
   const viewOnly = (Array.isArray(params.viewOnly) ? params.viewOnly[0] : params.viewOnly) === 'true';
+  const fromInsightsDrill = (Array.isArray(params.fromInsightsDrill) ? params.fromInsightsDrill[0] : params.fromInsightsDrill) === 'true';
   const isEditMode = memoryId !== undefined;
   const useListEditMode = isEditMode && !viewOnly;
   const listInputPlaceholderColor = colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.56)';
@@ -1209,6 +1210,11 @@ export default function AddIdealizedMemoryScreen() {
   const navigateToMemoriesList = useCallback(() => {
     isNavigatingAway.current = true;
 
+    if (fromInsightsDrill) {
+      router.back();
+      return;
+    }
+
     if (entityId && sphere) {
       router.replace({
         pathname: '/idealized-memories',
@@ -1226,7 +1232,7 @@ export default function AddIdealizedMemoryScreen() {
     }
 
     router.replace('/idealized-memories');
-  }, [entityId, sphere, profileId]);
+  }, [fromInsightsDrill, entityId, sphere, profileId]);
 
   // Redirect if we don't have either profileId or (entityId + sphere)
   useEffect(() => {

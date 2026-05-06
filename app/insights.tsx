@@ -5,14 +5,16 @@ import { useFontScale } from "@/hooks/use-device-size";
 import { TabScreenContainer } from "@/library/components/tab-screen-container";
 import type { LifeSphere } from "@/utils/JourneyProvider";
 import { useJourney } from "@/utils/JourneyProvider";
-import { getSphereAccentColor } from "@/utils/sphere-styles";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { useMomentColors } from "@/utils/MomentColorsProvider";
+import {
+  useMomentColors,
+  type MomentColors,
+} from "@/utils/MomentColorsProvider";
 import { showPaywallForAnySubscriptionAccess } from "@/utils/premium-access";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
   ScrollView,
@@ -21,11 +23,12 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  Extrapolation,
   Easing,
-  useAnimatedProps,
+  interpolate,
   useAnimatedStyle,
+  useAnimatedProps,
   useSharedValue,
-  withRepeat,
   withSequence,
   withTiming,
 } from "react-native-reanimated";
@@ -39,222 +42,113 @@ import Svg, {
   LinearGradient as SvgLinearGradient,
   Text as SvgText,
 } from "react-native-svg";
+import { WheelOfLifeVisualization } from "@/components/wheel-of-life-visualization";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const AnimatedG = Animated.createAnimatedComponent(G);
 const AnimatedLinearGradient =
   Animated.createAnimatedComponent(SvgLinearGradient);
-const AnimatedView = Animated.View;
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+type MomentKind = "sunny" | "cloudy" | "lessons";
 
-// Wheel of Life Visualization Component
-function WheelOfLifeVisualization({
+function MomentTypesPieVisualization({
   distribution,
-  quality,
   colors,
   colorScheme,
   fontScale,
+  momentColors,
   onSlicePress,
 }: {
-  distribution: {
-    relationships: number;
-    career: number;
-    family: number;
-    friends: number;
-    hobbies: number;
-  }; // Percentage of total moments
-  quality: {
-    relationships: number;
-    career: number;
-    family: number;
-    friends: number;
-    hobbies: number;
-  }; // Sunny percentage for gradient
+  distribution: { sunny: number; cloudy: number; lessons: number };
   colors: typeof Colors.dark;
   colorScheme: "light" | "dark" | null;
   fontScale: number;
-  onSlicePress?: (sphere: LifeSphere) => void;
+  momentColors: MomentColors;
+  onSlicePress?: (kind: MomentKind) => void;
 }) {
-  const t = useTranslate();
-  const { momentColors } = useMomentColors();
   const size = Math.min(380 * fontScale, SCREEN_WIDTH - 40);
   const center = size / 2;
   const radius = size / 2 - 20;
-  const gapAngle = 5; // Gap in degrees between slices
+  const gapAngle = 5;
+  const total =
+    distribution.sunny + distribution.cloudy + distribution.lessons;
+  const hasNoData = total === 0;
 
-  // Normalize distribution percentages
-  const totalDistribution =
-    distribution.relationships +
-    distribution.career +
-    distribution.family +
-    distribution.friends +
-    distribution.hobbies;
-  const hasNoData = totalDistribution === 0;
-  const normalizedDist = {
-    relationships:
-      totalDistribution > 0
-        ? (distribution.relationships / totalDistribution) * 100
-        : 0,
-    career:
-      totalDistribution > 0
-        ? (distribution.career / totalDistribution) * 100
-        : 0,
-    family:
-      totalDistribution > 0
-        ? (distribution.family / totalDistribution) * 100
-        : 0,
-    friends:
-      totalDistribution > 0
-        ? (distribution.friends / totalDistribution) * 100
-        : 0,
-    hobbies:
-      totalDistribution > 0
-        ? (distribution.hobbies / totalDistribution) * 100
-        : 0,
+  const normalized = {
+    sunny: total > 0 ? (distribution.sunny / total) * 100 : 0,
+    cloudy: total > 0 ? (distribution.cloudy / total) * 100 : 0,
+    lessons: total > 0 ? (distribution.lessons / total) * 100 : 0,
   };
 
-  // Calculate available angle (360 minus gaps between 5 slices)
-  const totalGaps = gapAngle * 5; // 5 gaps between 5 slices
+  const totalGaps = gapAngle * 3;
   const availableAngle = 360 - totalGaps;
 
-  // Calculate pie slice angles (start from top, clockwise)
-  let currentAngle = -90; // Start at top
+  let currentAngle = -90;
+  const sunnyStart = currentAngle;
+  const sunnySweep = (normalized.sunny / 100) * availableAngle;
+  currentAngle += sunnySweep + gapAngle;
+  const cloudyStart = currentAngle;
+  const cloudySweep = (normalized.cloudy / 100) * availableAngle;
+  currentAngle += cloudySweep + gapAngle;
+  const lessonsStart = currentAngle;
+  const lessonsSweep = (normalized.lessons / 100) * availableAngle;
 
-  const relStartAngle = currentAngle;
-  const relSweepAngle = (normalizedDist.relationships / 100) * availableAngle;
-  currentAngle += relSweepAngle + gapAngle;
-
-  const careerStartAngle = currentAngle;
-  const careerSweepAngle = (normalizedDist.career / 100) * availableAngle;
-  currentAngle += careerSweepAngle + gapAngle;
-
-  const familyStartAngle = currentAngle;
-  const familySweepAngle = (normalizedDist.family / 100) * availableAngle;
-  currentAngle += familySweepAngle + gapAngle;
-
-  const friendsStartAngle = currentAngle;
-  const friendsSweepAngle = (normalizedDist.friends / 100) * availableAngle;
-  currentAngle += friendsSweepAngle + gapAngle;
-
-  const hobbiesStartAngle = currentAngle;
-  const hobbiesSweepAngle = (normalizedDist.hobbies / 100) * availableAngle;
-
-  // Helper function to create pie slice path (triangle from center)
   const createPieSlice = (startAngle: number, sweepAngle: number) => {
     if (sweepAngle <= 0) return "";
-
     const startRad = (startAngle * Math.PI) / 180;
     const endRad = ((startAngle + sweepAngle) * Math.PI) / 180;
-
     const x1 = center + Math.cos(startRad) * radius;
     const y1 = center + Math.sin(startRad) * radius;
     const x2 = center + Math.cos(endRad) * radius;
     const y2 = center + Math.sin(endRad) * radius;
-
     const largeArcFlag = sweepAngle > 180 ? 1 : 0;
-
     return `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
   };
 
-  const relationshipsPath = createPieSlice(relStartAngle, relSweepAngle);
-  const careerPath = createPieSlice(careerStartAngle, careerSweepAngle);
-  const familyPath = createPieSlice(familyStartAngle, familySweepAngle);
-  const friendsPath = createPieSlice(friendsStartAngle, friendsSweepAngle);
-  const hobbiesPath = createPieSlice(hobbiesStartAngle, hobbiesSweepAngle);
+  const sunnyPath = createPieSlice(sunnyStart, sunnySweep);
+  const cloudyPath = createPieSlice(cloudyStart, cloudySweep);
+  const lessonsPath = createPieSlice(lessonsStart, lessonsSweep);
 
-  // Calculate label positions (middle of each slice)
   const getLabelPosition = (startAngle: number, sweepAngle: number) => {
     const midAngle = startAngle + sweepAngle / 2;
     const midRad = (midAngle * Math.PI) / 180;
-    const labelRadius = radius * 0.65; // Position label at 65% of radius
+    const labelRadius = radius * 0.65;
     return {
       x: center + Math.cos(midRad) * labelRadius,
       y: center + Math.sin(midRad) * labelRadius,
     };
   };
 
-  const relLabelPos = getLabelPosition(relStartAngle, relSweepAngle);
-  const careerLabelPos = getLabelPosition(careerStartAngle, careerSweepAngle);
-  const familyLabelPos = getLabelPosition(familyStartAngle, familySweepAngle);
-  const friendsLabelPos = getLabelPosition(
-    friendsStartAngle,
-    friendsSweepAngle,
-  );
-  const hobbiesLabelPos = getLabelPosition(
-    hobbiesStartAngle,
-    hobbiesSweepAngle,
-  );
-
-  // Use the shared sphere accent palette so the wheel matches sferas everywhere.
-  const relationshipsColor = getSphereAccentColor(
-    "relationships",
-    (colorScheme ?? "dark") as "light" | "dark",
-  );
-  const careerColor = getSphereAccentColor(
-    "career",
-    (colorScheme ?? "dark") as "light" | "dark",
-  );
-  const familyColor = getSphereAccentColor(
-    "family",
-    (colorScheme ?? "dark") as "light" | "dark",
-  );
-  const friendsColor = getSphereAccentColor(
-    "friends",
-    (colorScheme ?? "dark") as "light" | "dark",
-  );
-  const hobbiesColor = getSphereAccentColor(
-    "hobbies",
-    (colorScheme ?? "dark") as "light" | "dark",
-  );
-
-  // Sphere icons
-  const sphereIcons = {
-    relationships: "favorite",
-    career: "work",
-    family: "family-restroom",
-    friends: "people",
-    hobbies: "sports-esports",
-  };
-
-  // Icon size
+  const sunnyLabel = getLabelPosition(sunnyStart, sunnySweep);
+  const cloudyLabel = getLabelPosition(cloudyStart, cloudySweep);
+  const lessonsLabel = getLabelPosition(lessonsStart, lessonsSweep);
   const iconSize = 24 * fontScale;
 
-  // Pulsing animation state - randomly select which slice to pulse
-  const [pulsingSlice, setPulsingSlice] = useState<LifeSphere>("relationships");
+  const iconFor: Record<MomentKind, string> = {
+    sunny: "wb-sunny",
+    cloudy: "cloud",
+    lessons: "lightbulb",
+  };
+
+  const [pulsingSlice, setPulsingSlice] = useState<MomentKind>("sunny");
   const pulseScale = useSharedValue(1);
   const pulseRotation = useSharedValue(0);
   const gradientOffset = useSharedValue(-1);
-  const glowPulse = useSharedValue(1);
 
   useEffect(() => {
-    // Pulse duration: 1200ms grow + 1200ms shrink = 2400ms total
-    // Pause duration: 5000ms
-    // Total cycle: 2400ms + 5000ms = 7400ms per slice
-
-    const spheres: LifeSphere[] = [
-      "relationships",
-      "career",
-      "family",
-      "friends",
-      "hobbies",
-    ];
+    const slices: MomentKind[] = ["sunny", "cloudy", "lessons"];
     let currentIndex = 0;
 
     const runPulseAnimation = () => {
-      // Start scale animation - one pulse cycle
       pulseScale.value = withSequence(
-        withTiming(1.12, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
         withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
       );
-
-      // Start shake animation - subtle wiggle during pulse
       pulseRotation.value = withSequence(
         withTiming(1.5, { duration: 200, easing: Easing.inOut(Easing.ease) }),
         withTiming(-1.5, { duration: 200, easing: Easing.inOut(Easing.ease) }),
         withTiming(0, { duration: 200, easing: Easing.inOut(Easing.ease) }),
       );
-
-      // Start gradient sweep animation - one sweep cycle
       gradientOffset.value = -1;
       gradientOffset.value = withTiming(2, {
         duration: 2400,
@@ -262,143 +156,60 @@ function WheelOfLifeVisualization({
       });
     };
 
-    // Start first animation immediately
     runPulseAnimation();
 
-    // Start continuous glow pulsing animation
-    glowPulse.value = withRepeat(
-      withSequence(
-        withTiming(1.2, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      false,
-    );
-
-    // Schedule slice changes: wait for animation to complete (2400ms) + pause (5000ms)
     const interval = setInterval(() => {
-      // Move to next slice
-      currentIndex = (currentIndex + 1) % spheres.length;
-      setPulsingSlice(spheres[currentIndex]);
-
-      // Start new animation
+      currentIndex = (currentIndex + 1) % slices.length;
+      setPulsingSlice(slices[currentIndex]);
       runPulseAnimation();
-    }, 7400); // 2400ms animation + 5000ms pause
+    }, 7400);
 
     return () => clearInterval(interval);
-  }, [pulseScale, pulseRotation, gradientOffset, glowPulse]);
+  }, [gradientOffset, pulseRotation, pulseScale]);
 
-  // Helper to get gradient colors for pulsing effect
-  const getGradientColor = (baseColor: string, isPulsing: boolean) => {
-    if (!isPulsing) return baseColor;
-
-    // Lighten the color for pulsing effect
-    if (baseColor.startsWith("#")) {
-      const r = parseInt(baseColor.slice(1, 3), 16);
-      const g = parseInt(baseColor.slice(3, 5), 16);
-      const b = parseInt(baseColor.slice(5, 7), 16);
-
-      // Increase brightness by 20%
-      const newR = Math.min(255, Math.floor(r * 1.2));
-      const newG = Math.min(255, Math.floor(g * 1.2));
-      const newB = Math.min(255, Math.floor(b * 1.2));
-
-      return `rgb(${newR}, ${newG}, ${newB})`;
-    }
-    return baseColor;
-  };
-
-  // Animated props for gradient sweep
-  const relationshipsGradientProps = useAnimatedProps(() => ({
+  const sunnyGradientProps = useAnimatedProps(() => ({
     x1: `${(gradientOffset.value - 0.3) * 100}%`,
     x2: `${(gradientOffset.value + 0.3) * 100}%`,
   }));
-
-  const careerGradientProps = useAnimatedProps(() => ({
+  const cloudyGradientProps = useAnimatedProps(() => ({
     x1: `${(gradientOffset.value - 0.3) * 100}%`,
     x2: `${(gradientOffset.value + 0.3) * 100}%`,
   }));
-
-  const familyGradientProps = useAnimatedProps(() => ({
+  const lessonGradientProps = useAnimatedProps(() => ({
     x1: `${(gradientOffset.value - 0.3) * 100}%`,
     x2: `${(gradientOffset.value + 0.3) * 100}%`,
   }));
-
-  const friendsGradientProps = useAnimatedProps(() => ({
-    x1: `${(gradientOffset.value - 0.3) * 100}%`,
-    x2: `${(gradientOffset.value + 0.3) * 100}%`,
-  }));
-
-  const hobbiesGradientProps = useAnimatedProps(() => ({
-    x1: `${(gradientOffset.value - 0.3) * 100}%`,
-    x2: `${(gradientOffset.value + 0.3) * 100}%`,
-  }));
-
-  // Animated style for glow pulsing
-  const glowAnimatedStyle = useAnimatedStyle(() => ({
-    shadowOpacity: 0.2 * glowPulse.value,
-    shadowRadius: 15 * glowPulse.value,
-  }));
-
-  // Animated style for each slice group - for scale and rotation transform
-  const relationshipsAnimatedStyle = useAnimatedProps(() => ({
+  const sunnyAnimatedStyle = useAnimatedProps(() => ({
     transform: [
       { translateX: center },
       { translateY: center },
-      { scale: pulsingSlice === "relationships" ? pulseScale.value : 1 },
-      {
-        rotate: `${pulsingSlice === "relationships" ? pulseRotation.value : 0}deg`,
-      },
+      { scale: pulsingSlice === "sunny" ? pulseScale.value : 1 },
+      { rotate: `${pulsingSlice === "sunny" ? pulseRotation.value : 0}deg` },
+      { translateX: -center },
+      { translateY: -center },
+    ],
+  }));
+  const cloudyAnimatedStyle = useAnimatedProps(() => ({
+    transform: [
+      { translateX: center },
+      { translateY: center },
+      { scale: pulsingSlice === "cloudy" ? pulseScale.value : 1 },
+      { rotate: `${pulsingSlice === "cloudy" ? pulseRotation.value : 0}deg` },
+      { translateX: -center },
+      { translateY: -center },
+    ],
+  }));
+  const lessonAnimatedStyle = useAnimatedProps(() => ({
+    transform: [
+      { translateX: center },
+      { translateY: center },
+      { scale: pulsingSlice === "lessons" ? pulseScale.value : 1 },
+      { rotate: `${pulsingSlice === "lessons" ? pulseRotation.value : 0}deg` },
       { translateX: -center },
       { translateY: -center },
     ],
   }));
 
-  const careerAnimatedStyle = useAnimatedProps(() => ({
-    transform: [
-      { translateX: center },
-      { translateY: center },
-      { scale: pulsingSlice === "career" ? pulseScale.value : 1 },
-      { rotate: `${pulsingSlice === "career" ? pulseRotation.value : 0}deg` },
-      { translateX: -center },
-      { translateY: -center },
-    ],
-  }));
-
-  const familyAnimatedStyle = useAnimatedProps(() => ({
-    transform: [
-      { translateX: center },
-      { translateY: center },
-      { scale: pulsingSlice === "family" ? pulseScale.value : 1 },
-      { rotate: `${pulsingSlice === "family" ? pulseRotation.value : 0}deg` },
-      { translateX: -center },
-      { translateY: -center },
-    ],
-  }));
-
-  const friendsAnimatedStyle = useAnimatedProps(() => ({
-    transform: [
-      { translateX: center },
-      { translateY: center },
-      { scale: pulsingSlice === "friends" ? pulseScale.value : 1 },
-      { rotate: `${pulsingSlice === "friends" ? pulseRotation.value : 0}deg` },
-      { translateX: -center },
-      { translateY: -center },
-    ],
-  }));
-
-  const hobbiesAnimatedStyle = useAnimatedProps(() => ({
-    transform: [
-      { translateX: center },
-      { translateY: center },
-      { scale: pulsingSlice === "hobbies" ? pulseScale.value : 1 },
-      { rotate: `${pulsingSlice === "hobbies" ? pulseRotation.value : 0}deg` },
-      { translateX: -center },
-      { translateY: -center },
-    ],
-  }));
-
-  // Show empty state when there's no data
   if (hasNoData) {
     return (
       <View
@@ -410,7 +221,6 @@ function WheelOfLifeVisualization({
         }}
       >
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          {/* Background circle */}
           <Circle
             cx={center}
             cy={center}
@@ -424,446 +234,174 @@ function WheelOfLifeVisualization({
             strokeWidth={2}
           />
         </Svg>
-        <View
-          style={{
-            position: "absolute",
-            alignItems: "center",
-            justifyContent: "center",
-            paddingHorizontal: 40 * fontScale,
-          }}
-        >
-          <MaterialIcons
-            name="insights"
-            size={48 * fontScale}
-            color={
-              colorScheme === "dark"
-                ? "rgba(255,255,255,0.3)"
-                : "rgba(0,0,0,0.3)"
-            }
-            style={{ marginBottom: 16 * fontScale }}
-          />
-          <ThemedText
-            style={{
-              fontSize: 16 * fontScale,
-              fontWeight: "600",
-              textAlign: "center",
-              opacity: 0.7,
-              color: colors.text,
-            }}
-          >
-            {t("insights.wheelOfLife.emptyState")}
-          </ThemedText>
-        </View>
       </View>
     );
   }
 
   return (
-    <AnimatedView
-      style={[
-        {
-          width: size,
-          height: size,
-          shadowColor: momentColors.sunny.background,
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.2,
-          shadowRadius: 15,
-          elevation: 8,
-        },
-        glowAnimatedStyle,
-      ]}
-    >
+    <View style={{ width: size, height: size }}>
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <Defs>
-          {/* Static gradients for each slice, kept fully opaque so colors match sferas */}
-          <SvgLinearGradient
-            id="relationshipsStaticGradient"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <Stop offset="0%" stopColor={relationshipsColor} stopOpacity="1" />
-            <Stop offset="100%" stopColor={relationshipsColor} stopOpacity="1" />
+          <SvgLinearGradient id="sunnyMomentSlice" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+            <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="1" />
+          </SvgLinearGradient>
+          <SvgLinearGradient id="cloudyMomentSlice" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={momentColors.cloudy.background} stopOpacity="1" />
+            <Stop offset="100%" stopColor={momentColors.cloudy.background} stopOpacity="1" />
+          </SvgLinearGradient>
+          <SvgLinearGradient id="lessonMomentSlice" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={momentColors.lesson.background} stopOpacity="1" />
+            <Stop offset="100%" stopColor={momentColors.lesson.background} stopOpacity="1" />
           </SvgLinearGradient>
 
-          <SvgLinearGradient
-            id="careerStaticGradient"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <Stop offset="0%" stopColor={careerColor} stopOpacity="1" />
-            <Stop offset="100%" stopColor={careerColor} stopOpacity="1" />
-          </SvgLinearGradient>
-
-          <SvgLinearGradient
-            id="familyStaticGradient"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <Stop offset="0%" stopColor={familyColor} stopOpacity="1" />
-            <Stop offset="100%" stopColor={familyColor} stopOpacity="1" />
-          </SvgLinearGradient>
-
-          <SvgLinearGradient
-            id="friendsStaticGradient"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <Stop offset="0%" stopColor={friendsColor} stopOpacity="1" />
-            <Stop offset="100%" stopColor={friendsColor} stopOpacity="1" />
-          </SvgLinearGradient>
-
-          <SvgLinearGradient
-            id="hobbiesStaticGradient"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <Stop offset="0%" stopColor={hobbiesColor} stopOpacity="1" />
-            <Stop offset="100%" stopColor={hobbiesColor} stopOpacity="1" />
-          </SvgLinearGradient>
-
-          {/* Animated gradient for relationships slice */}
           <AnimatedLinearGradient
-            id="relationshipsGradient"
+            id="sunnyMomentLaser"
             y1="0%"
             y2="0%"
-            animatedProps={relationshipsGradientProps}
+            animatedProps={sunnyGradientProps}
           >
-            <Stop offset="0%" stopColor={relationshipsColor} stopOpacity="0" />
-            <Stop
-              offset="50%"
-              stopColor="rgba(255,255,255,0.8)"
-              stopOpacity="1"
-            />
-            <Stop
-              offset="100%"
-              stopColor={relationshipsColor}
-              stopOpacity="0"
-            />
+            <Stop offset="0%" stopColor={momentColors.sunny.background} stopOpacity="0" />
+            <Stop offset="50%" stopColor="rgba(255,255,255,0.85)" stopOpacity="1" />
+            <Stop offset="100%" stopColor={momentColors.sunny.background} stopOpacity="0" />
           </AnimatedLinearGradient>
-
-          {/* Animated gradient for career slice */}
           <AnimatedLinearGradient
-            id="careerGradient"
+            id="cloudyMomentLaser"
             y1="0%"
             y2="0%"
-            animatedProps={careerGradientProps}
+            animatedProps={cloudyGradientProps}
           >
-            <Stop offset="0%" stopColor={careerColor} stopOpacity="0" />
-            <Stop
-              offset="50%"
-              stopColor="rgba(255,255,255,0.8)"
-              stopOpacity="1"
-            />
-            <Stop offset="100%" stopColor={careerColor} stopOpacity="0" />
+            <Stop offset="0%" stopColor={momentColors.cloudy.background} stopOpacity="0" />
+            <Stop offset="50%" stopColor="rgba(255,255,255,0.85)" stopOpacity="1" />
+            <Stop offset="100%" stopColor={momentColors.cloudy.background} stopOpacity="0" />
           </AnimatedLinearGradient>
-
-          {/* Animated gradient for family slice */}
           <AnimatedLinearGradient
-            id="familyGradient"
+            id="lessonMomentLaser"
             y1="0%"
             y2="0%"
-            animatedProps={familyGradientProps}
+            animatedProps={lessonGradientProps}
           >
-            <Stop offset="0%" stopColor={familyColor} stopOpacity="0" />
-            <Stop
-              offset="50%"
-              stopColor="rgba(255,255,255,0.8)"
-              stopOpacity="1"
-            />
-            <Stop offset="100%" stopColor={familyColor} stopOpacity="0" />
-          </AnimatedLinearGradient>
-
-          {/* Animated gradient for friends slice */}
-          <AnimatedLinearGradient
-            id="friendsGradient"
-            y1="0%"
-            y2="0%"
-            animatedProps={friendsGradientProps}
-          >
-            <Stop offset="0%" stopColor={friendsColor} stopOpacity="0" />
-            <Stop
-              offset="50%"
-              stopColor="rgba(255,255,255,0.8)"
-              stopOpacity="1"
-            />
-            <Stop offset="100%" stopColor={friendsColor} stopOpacity="0" />
-          </AnimatedLinearGradient>
-
-          {/* Animated gradient for hobbies slice */}
-          <AnimatedLinearGradient
-            id="hobbiesGradient"
-            y1="0%"
-            y2="0%"
-            animatedProps={hobbiesGradientProps}
-          >
-            <Stop offset="0%" stopColor={hobbiesColor} stopOpacity="0" />
-            <Stop
-              offset="50%"
-              stopColor="rgba(255,255,255,0.8)"
-              stopOpacity="1"
-            />
-            <Stop offset="100%" stopColor={hobbiesColor} stopOpacity="0" />
+            <Stop offset="0%" stopColor={momentColors.lesson.background} stopOpacity="0" />
+            <Stop offset="50%" stopColor="rgba(255,255,255,0.85)" stopOpacity="1" />
+            <Stop offset="100%" stopColor={momentColors.lesson.background} stopOpacity="0" />
           </AnimatedLinearGradient>
         </Defs>
 
-        {/* Background circle */}
-        <Circle
-          cx={center}
-          cy={center}
-          r={radius}
-          fill="none"
-          stroke={
-            colorScheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"
-          }
-          strokeWidth={2}
-        />
-
-        {/* Relationships slice */}
-        {relationshipsPath && (
-          <AnimatedG
-            onPress={() => onSlicePress?.("relationships")}
-            animatedProps={relationshipsAnimatedStyle}
-          >
-            <Path
-              d={relationshipsPath}
-              fill="url(#relationshipsStaticGradient)"
-            />
-            {pulsingSlice === "relationships" && (
-              <Path
-                d={relationshipsPath}
-                fill="url(#relationshipsGradient)"
-                opacity={0.9}
-              />
+        {sunnyPath ? (
+          <AnimatedG onPress={() => onSlicePress?.("sunny")} animatedProps={sunnyAnimatedStyle}>
+            <Path d={sunnyPath} fill="url(#sunnyMomentSlice)" />
+            {pulsingSlice === "sunny" && (
+              <Path d={sunnyPath} fill="url(#sunnyMomentLaser)" opacity={0.9} />
             )}
-            {relSweepAngle > 5 && (
+            {sunnySweep > 8 && (
               <>
                 <ForeignObject
-                  x={relLabelPos.x - iconSize / 2}
-                  y={relLabelPos.y - iconSize - 8}
+                  x={sunnyLabel.x - iconSize / 2}
+                  y={sunnyLabel.y - iconSize - 8}
                   width={iconSize}
                   height={iconSize}
                 >
-                  <View
-                    style={{ alignItems: "center", justifyContent: "center" }}
-                  >
+                  <View style={{ alignItems: "center", justifyContent: "center" }}>
                     <MaterialIcons
-                      name={sphereIcons.relationships as any}
+                      name={iconFor.sunny}
                       size={iconSize}
-                      color={colors.text}
+                      color={momentColors.sunny.text}
                     />
                   </View>
                 </ForeignObject>
                 <SvgText
-                  x={relLabelPos.x}
-                  y={relLabelPos.y + 8}
+                  x={sunnyLabel.x}
+                  y={sunnyLabel.y + 8}
                   fontSize={14 * fontScale}
-                  fill={colors.text}
+                  fill={momentColors.sunny.text}
                   textAnchor="middle"
                   alignmentBaseline="middle"
                   fontWeight="bold"
                 >
-                  {Math.round(normalizedDist.relationships)}%
+                  {Math.round(normalized.sunny)}%
                 </SvgText>
               </>
             )}
           </AnimatedG>
-        )}
+        ) : null}
 
-        {/* Career slice */}
-        {careerPath && (
-          <AnimatedG
-            onPress={() => onSlicePress?.("career")}
-            animatedProps={careerAnimatedStyle}
-          >
-            <Path d={careerPath} fill="url(#careerStaticGradient)" />
-            {pulsingSlice === "career" && (
-              <Path d={careerPath} fill="url(#careerGradient)" opacity={0.9} />
+        {cloudyPath ? (
+          <AnimatedG onPress={() => onSlicePress?.("cloudy")} animatedProps={cloudyAnimatedStyle}>
+            <Path d={cloudyPath} fill="url(#cloudyMomentSlice)" />
+            {pulsingSlice === "cloudy" && (
+              <Path d={cloudyPath} fill="url(#cloudyMomentLaser)" opacity={0.9} />
             )}
-            {careerSweepAngle > 5 && (
+            {cloudySweep > 8 && (
               <>
                 <ForeignObject
-                  x={careerLabelPos.x - iconSize / 2}
-                  y={careerLabelPos.y - iconSize - 8}
+                  x={cloudyLabel.x - iconSize / 2}
+                  y={cloudyLabel.y - iconSize - 8}
                   width={iconSize}
                   height={iconSize}
                 >
-                  <View
-                    style={{ alignItems: "center", justifyContent: "center" }}
-                  >
+                  <View style={{ alignItems: "center", justifyContent: "center" }}>
                     <MaterialIcons
-                      name={sphereIcons.career as any}
+                      name={iconFor.cloudy}
                       size={iconSize}
-                      color={colors.text}
+                      color={momentColors.cloudy.text}
                     />
                   </View>
                 </ForeignObject>
                 <SvgText
-                  x={careerLabelPos.x}
-                  y={careerLabelPos.y + 8}
+                  x={cloudyLabel.x}
+                  y={cloudyLabel.y + 8}
                   fontSize={14 * fontScale}
-                  fill={colors.text}
+                  fill={momentColors.cloudy.text}
                   textAnchor="middle"
                   alignmentBaseline="middle"
                   fontWeight="bold"
                 >
-                  {Math.round(normalizedDist.career)}%
+                  {Math.round(normalized.cloudy)}%
                 </SvgText>
               </>
             )}
           </AnimatedG>
-        )}
+        ) : null}
 
-        {/* Family slice */}
-        {familyPath && (
-          <AnimatedG
-            onPress={() => onSlicePress?.("family")}
-            animatedProps={familyAnimatedStyle}
-          >
-            <Path d={familyPath} fill="url(#familyStaticGradient)" />
-            {pulsingSlice === "family" && (
-              <Path d={familyPath} fill="url(#familyGradient)" opacity={0.9} />
+        {lessonsPath ? (
+          <AnimatedG onPress={() => onSlicePress?.("lessons")} animatedProps={lessonAnimatedStyle}>
+            <Path d={lessonsPath} fill="url(#lessonMomentSlice)" />
+            {pulsingSlice === "lessons" && (
+              <Path d={lessonsPath} fill="url(#lessonMomentLaser)" opacity={0.9} />
             )}
-            {familySweepAngle > 5 && (
+            {lessonsSweep > 8 && (
               <>
                 <ForeignObject
-                  x={familyLabelPos.x - iconSize / 2}
-                  y={familyLabelPos.y - iconSize - 8}
+                  x={lessonsLabel.x - iconSize / 2}
+                  y={lessonsLabel.y - iconSize - 8}
                   width={iconSize}
                   height={iconSize}
                 >
-                  <View
-                    style={{ alignItems: "center", justifyContent: "center" }}
-                  >
+                  <View style={{ alignItems: "center", justifyContent: "center" }}>
                     <MaterialIcons
-                      name={sphereIcons.family as any}
+                      name={iconFor.lessons}
                       size={iconSize}
-                      color={colors.text}
+                      color={momentColors.lesson.text}
                     />
                   </View>
                 </ForeignObject>
                 <SvgText
-                  x={familyLabelPos.x}
-                  y={familyLabelPos.y + 8}
+                  x={lessonsLabel.x}
+                  y={lessonsLabel.y + 8}
                   fontSize={14 * fontScale}
-                  fill={colors.text}
+                  fill={momentColors.lesson.text}
                   textAnchor="middle"
                   alignmentBaseline="middle"
                   fontWeight="bold"
                 >
-                  {Math.round(normalizedDist.family)}%
+                  {Math.round(normalized.lessons)}%
                 </SvgText>
               </>
             )}
           </AnimatedG>
-        )}
-
-        {/* Friends slice */}
-        {friendsPath && (
-          <AnimatedG
-            onPress={() => onSlicePress?.("friends")}
-            animatedProps={friendsAnimatedStyle}
-          >
-            <Path d={friendsPath} fill="url(#friendsStaticGradient)" />
-            {pulsingSlice === "friends" && (
-              <Path
-                d={friendsPath}
-                fill="url(#friendsGradient)"
-                opacity={0.9}
-              />
-            )}
-            {friendsSweepAngle > 5 && (
-              <>
-                <ForeignObject
-                  x={friendsLabelPos.x - iconSize / 2}
-                  y={friendsLabelPos.y - iconSize - 8}
-                  width={iconSize}
-                  height={iconSize}
-                >
-                  <View
-                    style={{ alignItems: "center", justifyContent: "center" }}
-                  >
-                    <MaterialIcons
-                      name={sphereIcons.friends as any}
-                      size={iconSize}
-                      color={colors.text}
-                    />
-                  </View>
-                </ForeignObject>
-                <SvgText
-                  x={friendsLabelPos.x}
-                  y={friendsLabelPos.y + 8}
-                  fontSize={14 * fontScale}
-                  fill={colors.text}
-                  textAnchor="middle"
-                  alignmentBaseline="middle"
-                  fontWeight="bold"
-                >
-                  {Math.round(normalizedDist.friends)}%
-                </SvgText>
-              </>
-            )}
-          </AnimatedG>
-        )}
-
-        {/* Hobbies slice */}
-        {hobbiesPath && (
-          <AnimatedG
-            onPress={() => onSlicePress?.("hobbies")}
-            animatedProps={hobbiesAnimatedStyle}
-          >
-            <Path d={hobbiesPath} fill="url(#hobbiesStaticGradient)" />
-            {pulsingSlice === "hobbies" && (
-              <Path
-                d={hobbiesPath}
-                fill="url(#hobbiesGradient)"
-                opacity={0.9}
-              />
-            )}
-            {hobbiesSweepAngle > 5 && (
-              <>
-                <ForeignObject
-                  x={hobbiesLabelPos.x - iconSize / 2}
-                  y={hobbiesLabelPos.y - iconSize - 8}
-                  width={iconSize}
-                  height={iconSize}
-                >
-                  <View
-                    style={{ alignItems: "center", justifyContent: "center" }}
-                  >
-                    <MaterialIcons
-                      name={sphereIcons.hobbies as any}
-                      size={iconSize}
-                      color={colors.text}
-                    />
-                  </View>
-                </ForeignObject>
-                <SvgText
-                  x={hobbiesLabelPos.x}
-                  y={hobbiesLabelPos.y + 8}
-                  fontSize={14 * fontScale}
-                  fill={colors.text}
-                  textAnchor="middle"
-                  alignmentBaseline="middle"
-                  fontWeight="bold"
-                >
-                  {Math.round(normalizedDist.hobbies)}%
-                </SvgText>
-              </>
-            )}
-          </AnimatedG>
-        )}
+        ) : null}
       </Svg>
-    </AnimatedView>
+    </View>
   );
 }
 
@@ -881,48 +419,161 @@ export default function InsightsScreen() {
   } = useJourney();
   const { ensureSubscriptionResolved } = useSubscription();
   const t = useTranslate();
+  const { momentColors } = useMomentColors();
+  const [insightsMode, setInsightsMode] = useState<"sferas" | "moments">("sferas");
+  const chartModeTransition = useSharedValue(0);
+  const chartSize = Math.min(380 * fontScale, SCREEN_WIDTH - 40);
 
   // Temporary flag to hide the list view
   const HIDE_LIST_VIEW = true;
 
   // Handler for pie chart slice clicks - requires subscription
-  const handleSlicePress = async (sphere: LifeSphere) => {
-    const entities = getEntitiesBySphere(sphere);
-    const hasEntities = entities.length > 0;
+  const handleSlicePress = useCallback(
+    async (sphere: LifeSphere) => {
+      const entities = getEntitiesBySphere(sphere);
+      const hasEntities = entities.length > 0;
 
-    if (!hasEntities) return;
+      if (!hasEntities) return;
 
-    // Check subscription before navigating to comparison screens
-    const { hasEntityLimitEntitlement } = await ensureSubscriptionResolved();
-    if (!hasEntityLimitEntitlement) {
-      const subscribed = await showPaywallForAnySubscriptionAccess();
-      if (!subscribed) return;
-    }
+      if (!__DEV__) {
+        const { hasEntityLimitEntitlement } = await ensureSubscriptionResolved();
+        if (!hasEntityLimitEntitlement) {
+          const subscribed = await showPaywallForAnySubscriptionAccess();
+          if (!subscribed) return;
+        }
+      }
 
-    // Log analytics event
-    const { logInsightsSphereOpened } = require("@/utils/analytics");
-    logInsightsSphereOpened(sphere).catch(() => {
-      // Failed to log event
+      const { logInsightsSphereOpened } = require("@/utils/analytics");
+      logInsightsSphereOpened(sphere).catch(() => {
+        // Failed to log event
+      });
+
+      switch (sphere) {
+        case "relationships":
+          router.push("/relationships-comparison");
+          break;
+        case "career":
+          router.push("/career-comparison");
+          break;
+        case "family":
+          router.push("/family-comparison");
+          break;
+        case "friends":
+          router.push("/friends-comparison");
+          break;
+        case "hobbies":
+          router.push("/hobbies-comparison");
+          break;
+      }
+    },
+    [getEntitiesBySphere, ensureSubscriptionResolved],
+  );
+
+  /** Switch chart views freely; subscription applies when opening a slice (comparison). */
+  const handleInsightsModeToggle = useCallback(() => {
+    setInsightsMode((m) => (m === "sferas" ? "moments" : "sferas"));
+  }, []);
+
+  useEffect(() => {
+    chartModeTransition.value = withTiming(insightsMode === "moments" ? 1 : 0, {
+      duration: 700,
+      easing: Easing.inOut(Easing.cubic),
     });
+  }, [insightsMode, chartModeTransition]);
 
-    switch (sphere) {
-      case "relationships":
-        router.push("/relationships-comparison");
-        break;
-      case "career":
-        router.push("/career-comparison");
-        break;
-      case "family":
-        router.push("/family-comparison");
-        break;
-      case "friends":
-        router.push("/friends-comparison");
-        break;
-      case "hobbies":
-        router.push("/hobbies-comparison");
-        break;
+  const sferasChartAnimatedStyle = useAnimatedStyle(() => {
+    const modeFade = interpolate(
+      chartModeTransition.value,
+      [0, 1],
+      [1, 0],
+      Extrapolation.CLAMP,
+    );
+    return {
+      opacity: modeFade,
+      transform: [
+        {
+          scale: interpolate(
+            chartModeTransition.value,
+            [0, 1],
+            [1, 0.975],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  });
+  const momentsChartAnimatedStyle = useAnimatedStyle(() => {
+    const modeFade = interpolate(
+      chartModeTransition.value,
+      [0, 1],
+      [0, 1],
+      Extrapolation.CLAMP,
+    );
+    return {
+      opacity: modeFade,
+      transform: [
+        {
+          scale: interpolate(
+            chartModeTransition.value,
+            [0, 1],
+            [0.965, 1],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  });
+
+  const momentTotals = useMemo(() => {
+    const spheres: LifeSphere[] = [
+      "relationships",
+      "career",
+      "family",
+      "friends",
+      "hobbies",
+    ];
+    let sunny = 0;
+    let cloudy = 0;
+    let lessons = 0;
+
+    for (const sphere of spheres) {
+      const entities = getEntitiesBySphere(sphere);
+      for (const entity of entities) {
+        const memories =
+          sphere === "relationships" && "id" in entity
+            ? getIdealizedMemoriesByProfileId(entity.id)
+            : getIdealizedMemoriesByEntityId(entity.id, sphere);
+        for (const memory of memories) {
+          sunny += memory.goodFacts?.length ?? 0;
+          cloudy += memory.hardTruths?.length ?? 0;
+          lessons += memory.lessonsLearned?.length ?? 0;
+        }
+      }
     }
-  };
+
+    return { sunny, cloudy, lessons };
+  }, [
+    getEntitiesBySphere,
+    getIdealizedMemoriesByProfileId,
+    getIdealizedMemoriesByEntityId,
+  ]);
+
+  const handleMomentKindPress = useCallback(
+    async (kind: MomentKind) => {
+      if (!__DEV__) {
+        const { hasEntityLimitEntitlement } = await ensureSubscriptionResolved();
+        if (!hasEntityLimitEntitlement) {
+          const subscribed = await showPaywallForAnySubscriptionAccess();
+          if (!subscribed) return;
+        }
+      }
+      router.push({
+        pathname: "/insights-moment-distribution",
+        params: { type: kind },
+      });
+    },
+    [ensureSubscriptionResolved],
+  );
 
   // Calculate sphere data: total moments (for distribution) and sunny percentage (for quality)
   // IMPORTANT: Only count entities that actually have memories
@@ -1106,23 +757,24 @@ export default function InsightsScreen() {
               ? "rgba(255, 255, 255, 0.05)"
               : "rgba(0, 0, 0, 0.05)",
         },
-        wheelTitle: {
-          textAlign: "center",
-          marginBottom: 8 * fontScale,
-        },
-        wheelSubtitle: {
-          textAlign: "center",
-          opacity: 0.95,
-          marginBottom: 24 * fontScale,
-        },
         wheelWrapper: {
           alignItems: "center",
           justifyContent: "center",
           marginVertical: 20 * fontScale,
+          width: chartSize,
+          height: chartSize,
         },
-        distributionExplanation: {
-          marginTop: 16 * fontScale,
-          marginBottom: 8 * fontScale,
+        chartLayer: {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        chartDescription: {
+          marginTop: 8 * fontScale,
           paddingHorizontal: 20 * fontScale,
           paddingVertical: 12 * fontScale,
           backgroundColor:
@@ -1131,9 +783,9 @@ export default function InsightsScreen() {
               : "rgba(0, 0, 0, 0.05)",
           borderRadius: 8 * fontScale,
         },
-        distributionExplanationText: {
-          opacity: 0.9,
-          lineHeight: 18 * fontScale,
+        chartDescriptionText: {
+          opacity: 0.92,
+          lineHeight: 20 * fontScale,
           textAlign: "center",
         },
         scoresContainer: {
@@ -1192,7 +844,7 @@ export default function InsightsScreen() {
           textAlign: "center",
         },
       }),
-    [fontScale, colorScheme, colors],
+    [fontScale, colorScheme, colors, chartSize],
   );
 
   return (
@@ -1218,7 +870,23 @@ export default function InsightsScreen() {
         >
           {t("insights.wheelOfLife.title")}
         </ThemedText>
-        <View style={styles.headerButton} />
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={handleInsightsModeToggle}
+          accessibilityRole="button"
+          accessibilityLabel={
+            insightsMode === "sferas"
+              ? t("insights.viewToggle.a11yToMoments")
+              : t("insights.viewToggle.a11yToSferas")
+          }
+          hitSlop={12}
+        >
+          <MaterialIcons
+            name="swap-horiz"
+            size={26 * fontScale}
+            color={colors.text}
+          />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -1228,25 +896,39 @@ export default function InsightsScreen() {
       >
         {/* Wheel of Life Visualization */}
         <View style={styles.wheelContainer}>
-          <ThemedText size="sm" style={styles.wheelSubtitle}>
-            {t("insights.wheelOfLife.subtitle")}
-          </ThemedText>
-
           <View style={styles.wheelWrapper}>
-            <WheelOfLifeVisualization
-              distribution={sphereDistribution}
-              quality={sphereScores}
-              colors={colors}
-              colorScheme={colorScheme}
-              fontScale={fontScale}
-              onSlicePress={handleSlicePress}
-            />
+            <Animated.View
+              pointerEvents={insightsMode === "sferas" ? "auto" : "none"}
+              style={[styles.chartLayer, sferasChartAnimatedStyle]}
+            >
+              <WheelOfLifeVisualization
+                distribution={sphereDistribution}
+                quality={sphereScores}
+                colors={colors}
+                colorScheme={colorScheme}
+                fontScale={fontScale}
+                onSlicePress={handleSlicePress}
+              />
+            </Animated.View>
+            <Animated.View
+              pointerEvents={insightsMode === "moments" ? "auto" : "none"}
+              style={[styles.chartLayer, momentsChartAnimatedStyle]}
+            >
+              <MomentTypesPieVisualization
+                distribution={momentTotals}
+                colors={colors}
+                colorScheme={colorScheme}
+                fontScale={fontScale}
+                momentColors={momentColors}
+                onSlicePress={handleMomentKindPress}
+              />
+            </Animated.View>
           </View>
-
-          {/* Distribution Explanation */}
-          <View style={styles.distributionExplanation}>
-            <ThemedText size="xs" style={styles.distributionExplanationText}>
-              {t("insights.wheelOfLife.distributionExplanation")}
+          <View style={styles.chartDescription}>
+            <ThemedText size="sm" style={styles.chartDescriptionText}>
+              {insightsMode === "sferas"
+                ? t("insights.wheelOfLife.distributionExplanation")
+                : t("insights.momentsView.distributionExplanation")}
             </ThemedText>
           </View>
 
@@ -1310,11 +992,13 @@ export default function InsightsScreen() {
                     onPress={async () => {
                       if (!hasEntities) return;
 
-                      const { hasEntityLimitEntitlement } =
-                        await ensureSubscriptionResolved();
-                      if (!hasEntityLimitEntitlement) {
-                        const subscribed = await showPaywallForAnySubscriptionAccess();
-                        if (!subscribed) return;
+                      if (!__DEV__) {
+                        const { hasEntityLimitEntitlement } =
+                          await ensureSubscriptionResolved();
+                        if (!hasEntityLimitEntitlement) {
+                          const subscribed = await showPaywallForAnySubscriptionAccess();
+                          if (!subscribed) return;
+                        }
                       }
 
                       if (sphere.type === "relationships") {

@@ -14334,6 +14334,23 @@ export default function HomeScreen() {
   };
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const isInsightsDrillMemoryFlow =
+    (Array.isArray(params.insightsReturnPath)
+      ? params.insightsReturnPath[0]
+      : params.insightsReturnPath) === "/insights-moment-memories";
+  const insightsReturnPath = Array.isArray(params.insightsReturnPath)
+    ? params.insightsReturnPath[0]
+    : (params.insightsReturnPath as string | undefined);
+  const insightsReturnType = Array.isArray(params.insightsReturnType)
+    ? params.insightsReturnType[0]
+    : (params.insightsReturnType as string | undefined);
+  const insightsReturnSphere = Array.isArray(params.insightsReturnSphere)
+    ? params.insightsReturnSphere[0]
+    : (params.insightsReturnSphere as string | undefined);
+  const insightsReturnEntityId = Array.isArray(params.insightsReturnEntityId)
+    ? params.insightsReturnEntityId[0]
+    : (params.insightsReturnEntityId as string | undefined);
+
   const handledLessonNudgeKeyRef = useRef<string | null>(null);
   const [notificationLessonTarget, setNotificationLessonTarget] = useState<{
     key: string;
@@ -14528,6 +14545,11 @@ export default function HomeScreen() {
         return;
       }
 
+      if (isInsightsDrillMemoryFlow) {
+        setWalkthroughVisible(false);
+        return;
+      }
+
       // In focused view, wait for the sunny moments intro animation to finish
       // so the guide modal doesn't overlap the celebration animation.
       if (homeViewMode === "focused" && !focusedIntroComplete) {
@@ -14636,6 +14658,7 @@ export default function HomeScreen() {
     homeViewMode,
     guideRecheckTick,
     idealizedMemories.length,
+    isInsightsDrillMemoryFlow,
     profiles.length,
     jobs.length,
     familyMembers.length,
@@ -14995,6 +15018,16 @@ export default function HomeScreen() {
 
     const handleBackPress = () => {
       const hadFocusedMemory = !!focusedMemory;
+      if (
+        hadFocusedMemory &&
+        insightsReturnPath === "/insights-moment-memories" &&
+        insightsReturnType &&
+        insightsReturnSphere &&
+        insightsReturnEntityId
+      ) {
+        router.back();
+        return true;
+      }
       if (hadFocusedMemory) {
         startTransitionLoader();
       }
@@ -15029,6 +15062,10 @@ export default function HomeScreen() {
     homeViewMode,
     focusedSphereIndex,
     focusedMemory,
+    insightsReturnPath,
+    insightsReturnType,
+    insightsReturnSphere,
+    insightsReturnEntityId,
     startTransitionLoader,
     hideLoader,
   ]);
@@ -15242,6 +15279,15 @@ export default function HomeScreen() {
       hasAnyMoments &&
       !focusedSunMenuExpanded;
 
+    if (isInsightsDrillMemoryFlow) {
+      if (sferaSizeHintTimerRef.current) {
+        clearTimeout(sferaSizeHintTimerRef.current);
+        sferaSizeHintTimerRef.current = null;
+      }
+      setSferaSizeHintVisible(false);
+      return;
+    }
+
     if (sferaSizeHintNeverShow !== false) {
       if (leavingFocusedOverviewSurface) {
         prevCanShowFocusedOverviewRef.current = false;
@@ -15313,6 +15359,7 @@ export default function HomeScreen() {
     focusedIntroComplete,
     hasAnyMoments,
     scheduleSferaSizeHintShow,
+    isInsightsDrillMemoryFlow,
   ]);
 
   useEffect(() => {
@@ -15331,6 +15378,11 @@ export default function HomeScreen() {
       hasAnyMoments &&
       !focusedSunMenuExpanded &&
       isSunnyVsCloudyHintEligible;
+
+    if (isInsightsDrillMemoryFlow) {
+      setSunnyVsCloudyHintVisible(false);
+      return;
+    }
 
     if (sunnyVsCloudyHintNeverShow !== false) {
       if (leavingFocusedOverviewSurface) {
@@ -15373,6 +15425,7 @@ export default function HomeScreen() {
     focusedSunMenuExpanded,
     isSunnyVsCloudyHintEligible,
     sferaSizeHintVisible,
+    isInsightsDrillMemoryFlow,
   ]);
 
   useEffect(() => {
@@ -23020,6 +23073,16 @@ export default function HomeScreen() {
                 setSelectedSphere(null);
               }
               if (hadFocusedMemory) {
+                if (
+                  insightsReturnPath === "/insights-moment-memories" &&
+                  insightsReturnType &&
+                  insightsReturnSphere &&
+                  insightsReturnEntityId
+                ) {
+                  hideLoader();
+                  router.back();
+                  return;
+                }
                 hideLoader();
               }
             }}
@@ -23322,6 +23385,16 @@ export default function HomeScreen() {
                 setSelectedSphere(null);
               }
               if (hadFocusedMemory) {
+                if (
+                  insightsReturnPath === "/insights-moment-memories" &&
+                  insightsReturnType &&
+                  insightsReturnSphere &&
+                  insightsReturnEntityId
+                ) {
+                  hideLoader();
+                  router.back();
+                  return;
+                }
                 hideLoader();
               }
             }}
@@ -23640,6 +23713,16 @@ export default function HomeScreen() {
                 setSelectedSphere(null);
               }
               if (hadFocusedMemory) {
+                if (
+                  insightsReturnPath === "/insights-moment-memories" &&
+                  insightsReturnType &&
+                  insightsReturnSphere &&
+                  insightsReturnEntityId
+                ) {
+                  hideLoader();
+                  router.back();
+                  return;
+                }
                 hideLoader();
               }
             }}
@@ -23948,6 +24031,16 @@ export default function HomeScreen() {
                 setSelectedSphere(null);
               }
               if (hadFocusedMemory) {
+                if (
+                  insightsReturnPath === "/insights-moment-memories" &&
+                  insightsReturnType &&
+                  insightsReturnSphere &&
+                  insightsReturnEntityId
+                ) {
+                  hideLoader();
+                  router.back();
+                  return;
+                }
                 hideLoader();
               }
             }}
@@ -24256,6 +24349,16 @@ export default function HomeScreen() {
                 setSelectedSphere(null);
               }
               if (hadFocusedMemory) {
+                if (
+                  insightsReturnPath === "/insights-moment-memories" &&
+                  insightsReturnType &&
+                  insightsReturnSphere &&
+                  insightsReturnEntityId
+                ) {
+                  hideLoader();
+                  router.back();
+                  return;
+                }
                 hideLoader();
               }
             }}

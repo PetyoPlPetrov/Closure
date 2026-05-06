@@ -1,6 +1,6 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Tabs } from "expo-router";
+import { Tabs, useGlobalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -106,6 +106,11 @@ export default function TabLayout() {
   const t = useTranslate();
   const insets = useSafeAreaInsets();
   const { idealizedMemories } = useJourney();
+  const globalParams = useGlobalSearchParams<{ insightsReturnPath?: string | string[] }>();
+  const isInsightsDrillMemoryFlow =
+    (Array.isArray(globalParams.insightsReturnPath)
+      ? globalParams.insightsReturnPath[0]
+      : globalParams.insightsReturnPath) === "/insights-moment-memories";
   const memoriesBelowAISpotlightCap =
     idealizedMemories.length < POST_ONBOARDING_AI_SPOTLIGHT_MAX_MEMORIES;
 
@@ -119,6 +124,8 @@ export default function TabLayout() {
     useState(false);
   const [postOnboardingAIWelcomeDismissedThisSession, setPostOnboardingAIWelcomeDismissedThisSession] =
     useState(false);
+  const showPostOnboardingAIWelcomeUI =
+    showPostOnboardingAIWelcome && !isInsightsDrillMemoryFlow;
 
   const inactiveColor =
     colorScheme === "dark" ? "#ffffff" : colors.tabIconDefault;
@@ -265,24 +272,24 @@ export default function TabLayout() {
   ]);
 
   const handleAIButtonPressForWelcome = useCallback(() => {
-    if (!showPostOnboardingAIWelcome) return;
+    if (!showPostOnboardingAIWelcomeUI) return;
     setShowPostOnboardingAIWelcomeState(false);
     setPostOnboardingAIWelcomeDismissedThisSession(true);
     setPostOnboardingAIWelcomeDismissedThisSessionStorage(true);
-  }, [showPostOnboardingAIWelcome]);
+  }, [showPostOnboardingAIWelcomeUI]);
 
   const dismissPostOnboardingWelcome = useCallback(() => {
-    if (!showPostOnboardingAIWelcome) return;
+    if (!showPostOnboardingAIWelcomeUI) return;
     setShowPostOnboardingAIWelcomeState(false);
     setPostOnboardingAIWelcomeDismissedThisSession(true);
     setPostOnboardingAIWelcomeDismissedThisSessionStorage(true);
     void setShowWalkthroughAfterOnboarding(true);
     emitGuideRecheckAfterWelcomeDismiss(1000);
-  }, [showPostOnboardingAIWelcome]);
+  }, [showPostOnboardingAIWelcomeUI]);
 
   return (
     <View style={styles.container}>
-      {showPostOnboardingAIWelcome && (
+      {showPostOnboardingAIWelcomeUI && (
         <Pressable
           onPress={dismissPostOnboardingWelcome}
           style={{
@@ -408,7 +415,7 @@ export default function TabLayout() {
           zIndex: 100,
         }}
       >
-        {showPostOnboardingAIWelcome && (
+        {showPostOnboardingAIWelcomeUI && (
           <View
             pointerEvents="none"
             style={{
@@ -455,7 +462,7 @@ export default function TabLayout() {
         <View style={{ pointerEvents: "auto" }}>
           <AITabButton
             size={aiButtonSize}
-            spotlight={showPostOnboardingAIWelcome}
+            spotlight={showPostOnboardingAIWelcomeUI}
             onPressed={handleAIButtonPressForWelcome}
           />
         </View>

@@ -614,6 +614,9 @@ function AppContent() {
             options={{ headerShown: false }}
           />
           <Stack.Screen name="insights" options={{ headerShown: false }} />
+          <Stack.Screen name="insights-moment-distribution" options={{ headerShown: false }} />
+          <Stack.Screen name="insights-moment-sphere" options={{ headerShown: false }} />
+          <Stack.Screen name="insights-moment-memories" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
           <Stack.Screen
             name="notifications/[sphere]/[entityId]"
