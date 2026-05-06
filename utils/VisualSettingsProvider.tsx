@@ -85,6 +85,8 @@ export function VisualSettingsProvider({
   const [pulsingAnimations, setPulsingAnimationsState] = useState(true);
   const [splashAnimation, setSplashAnimationState] = useState(true);
   const [sphere3DEffect, setSphere3DEffectState] = useState(false);
+  const [hasSphere3DEffectPreference, setHasSphere3DEffectPreference] =
+    useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -164,6 +166,10 @@ export function VisualSettingsProvider({
         }
         if (sphere3d === "true") {
           setSphere3DEffectState(true);
+          setHasSphere3DEffectPreference(true);
+        } else if (sphere3d === "false") {
+          setSphere3DEffectState(false);
+          setHasSphere3DEffectPreference(true);
         }
         setLoaded(true);
       },
@@ -229,6 +235,7 @@ export function VisualSettingsProvider({
 
   const setSphere3DEffect = useCallback((value: boolean) => {
     setSphere3DEffectState(value);
+    setHasSphere3DEffectPreference(true);
     AsyncStorage.setItem(SPHERE_3D_EFFECT_KEY, String(value));
   }, []);
 
@@ -236,8 +243,14 @@ export function VisualSettingsProvider({
   useEffect(() => {
     if (!loaded) return;
     if (colorScheme !== "light") return;
+    if (hasSphere3DEffectPreference) return;
     setSphere3DEffect(true);
-  }, [loaded, colorScheme, setSphere3DEffect]);
+  }, [
+    loaded,
+    colorScheme,
+    hasSphere3DEffectPreference,
+    setSphere3DEffect,
+  ]);
 
   const value = useMemo<VisualSettingsContextValue>(
     () => ({

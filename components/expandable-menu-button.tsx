@@ -5,12 +5,14 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, InteractionManager, Platform, Pressable, TouchableOpacity, View } from 'react-native';
 import Animated, {
+  Easing,
   type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
   withSequence,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -36,6 +38,8 @@ const DARK_MENU_SHADOW = Colors.dark.primary;
 
 const SPRING_CONFIG = { damping: 15, stiffness: 120 };
 const STEP = 52; // vertical spacing between buttons
+const MENU_OPEN_DURATION_MS = 320;
+const MENU_CLOSE_DURATION_MS = 260;
 
 interface ChildButtonProps {
   iconName: 'edit' | 'settings' | 'palette';
@@ -171,18 +175,30 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
     logMenuOpen();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     expandProgress.value = withSpring(1, SPRING_CONFIG);
-    editProgress.value = withDelay(0, withSpring(1, SPRING_CONFIG));
-    personalizationProgress.value = withDelay(60, withSpring(1, SPRING_CONFIG));
-    settingsProgress.value = withDelay(120, withSpring(1, SPRING_CONFIG));
+    editProgress.value = withDelay(
+      0,
+      withTiming(1, { duration: MENU_OPEN_DURATION_MS, easing: Easing.out(Easing.quad) })
+    );
+    personalizationProgress.value = withDelay(
+      60,
+      withTiming(1, { duration: MENU_OPEN_DURATION_MS, easing: Easing.out(Easing.quad) })
+    );
+    settingsProgress.value = withDelay(
+      120,
+      withTiming(1, { duration: MENU_OPEN_DURATION_MS, easing: Easing.out(Easing.quad) })
+    );
   }, [expandProgress, editProgress, settingsProgress, personalizationProgress, isExpandedSV]);
 
   const collapse = useCallback(() => {
     log('collapse() called — starting animation');
     isExpandedSV.value = false;
     expandProgress.value = withSpring(0, SPRING_CONFIG);
-    editProgress.value = withSpring(0, SPRING_CONFIG);
-    settingsProgress.value = withSpring(0, SPRING_CONFIG);
-    personalizationProgress.value = withSpring(0, SPRING_CONFIG);
+    editProgress.value = withTiming(0, { duration: MENU_CLOSE_DURATION_MS, easing: Easing.in(Easing.quad) });
+    settingsProgress.value = withTiming(0, { duration: MENU_CLOSE_DURATION_MS, easing: Easing.in(Easing.quad) });
+    personalizationProgress.value = withTiming(0, {
+      duration: MENU_CLOSE_DURATION_MS,
+      easing: Easing.in(Easing.quad),
+    });
     setTimeout(() => setIsExpanded(false), 300);
   }, [expandProgress, editProgress, settingsProgress, personalizationProgress, isExpandedSV]);
 
