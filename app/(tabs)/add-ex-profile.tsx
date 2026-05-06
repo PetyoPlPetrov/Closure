@@ -119,6 +119,8 @@ export default function AddExProfileScreen() {
       initialImage.current = profileImage;
     } else {
       // Reset original values when not in edit mode
+      setName("");
+      setDescription("");
       setOriginalName("");
       setOriginalDescription("");
       setSelectedImage(null);

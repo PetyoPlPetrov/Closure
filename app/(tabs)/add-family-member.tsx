@@ -85,6 +85,12 @@ export default function AddFamilyMemberScreen() {
       initialRelationship.current = memberRel;
       initialImage.current = memberImg;
     } else {
+      // Also reset visible state to avoid stale values when this route is reused.
+      setName("");
+      setDescription("");
+      setRelationship("");
+      setSelectedImage(null);
+
       // Reset initial values
       initialName.current = "";
       initialDescription.current = "";
@@ -125,9 +131,6 @@ export default function AddFamilyMemberScreen() {
     setSelectedImage(null);
   };
 
-  const isSaveEnabled =
-    name.trim().length > 0 && relationship.trim().length > 0 && !isSaving;
-
   // Function to check if there are unsaved changes (for navigation interception)
   const hasUnsavedChanges = useCallback(() => {
     if (name.trim() !== initialName.current.trim()) return true;
@@ -136,6 +139,10 @@ export default function AddFamilyMemberScreen() {
     if (selectedImage !== initialImage.current) return true;
     return false;
   }, [name, description, relationship, selectedImage]);
+
+  const isFormValid = name.trim().length > 0 && relationship.trim().length > 0;
+  const isSaveEnabled =
+    !isSaving && isFormValid && (!isEditMode || hasUnsavedChanges());
 
   // Register this screen with unsaved changes context
   useEffect(() => {
@@ -200,6 +207,10 @@ export default function AddFamilyMemberScreen() {
   }, [navigation]);
 
   const handleSubmit = async () => {
+    if (!isSaveEnabled) {
+      return;
+    }
+
     if (!name.trim()) {
       Alert.alert(t("common.error"), t("profile.familyMember.name.required"));
       return;

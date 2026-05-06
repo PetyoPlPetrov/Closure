@@ -180,13 +180,14 @@ export default function InsightsMomentDistributionScreen() {
         legendMetrics: {
           flexDirection: "row",
           alignItems: "center",
-          width: 78 * fontScale,
-          justifyContent: "space-between",
+          width: 112 * fontScale,
+          justifyContent: "flex-end",
+          gap: 6 * fontScale,
           marginLeft: 8 * fontScale,
         },
         legendCount: {
-          opacity: 0.68,
-          minWidth: 20 * fontScale,
+          opacity: 0.6,
+          minWidth: 30 * fontScale,
           textAlign: "right",
         },
         pct: {
@@ -390,8 +391,8 @@ export default function InsightsMomentDistributionScreen() {
                         />
                       </View>
                       <View style={styles.legendMetrics}>
-                        <ThemedText size="sm" style={styles.legendCount}>
-                          {row.count}
+                        <ThemedText size="xs" style={styles.legendCount}>
+                          ({row.count})
                         </ThemedText>
                         <ThemedText
                           size="m"

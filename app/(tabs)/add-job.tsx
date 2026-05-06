@@ -111,6 +111,8 @@ export default function AddJobScreen() {
       initialIsCurrent.current = current;
     } else {
       // Reset values when not in edit mode
+      setName("");
+      setDescription("");
       setOriginalName("");
       setOriginalDescription("");
       setSelectedImage(null);

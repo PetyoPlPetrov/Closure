@@ -75,6 +75,11 @@ export default function AddHobbyScreen() {
       initialDescription.current = hobbyDesc;
       initialImage.current = hobbyImg;
     } else {
+      // Also reset visible state to avoid stale values when this route is reused.
+      setName("");
+      setDescription("");
+      setSelectedImage(null);
+
       // Reset initial values
       initialName.current = "";
       initialDescription.current = "";
@@ -114,8 +119,6 @@ export default function AddHobbyScreen() {
     setSelectedImage(null);
   };
 
-  const isSaveEnabled = name.trim().length > 0 && !isSaving;
-
   // Function to check if there are unsaved changes (for navigation interception)
   const hasUnsavedChanges = useCallback(() => {
     if (name.trim() !== initialName.current.trim()) return true;
@@ -123,6 +126,9 @@ export default function AddHobbyScreen() {
     if (selectedImage !== initialImage.current) return true;
     return false;
   }, [name, description, selectedImage]);
+
+  const isFormValid = name.trim().length > 0;
+  const isSaveEnabled = !isSaving && isFormValid && (!isEditMode || hasUnsavedChanges());
 
   // Register this screen with unsaved changes context
   useEffect(() => {
@@ -185,6 +191,10 @@ export default function AddHobbyScreen() {
   }, [navigation]);
 
   const handleSubmit = async () => {
+    if (!isSaveEnabled) {
+      return;
+    }
+
     if (!name.trim()) {
       Alert.alert(t("common.error"), t("profile.hobby.name.required"));
       return;
