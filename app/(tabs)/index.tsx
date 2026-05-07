@@ -14469,7 +14469,12 @@ export default function HomeScreen() {
       focusedIntroCompleteAtRef.current = Date.now();
     }
   }, [focusedIntroComplete]);
-  const { isAnimationComplete, isVisible: isSplashVisible } = useSplash();
+  const {
+    isAnimationComplete,
+    isVisible: isSplashVisible,
+    isStartupPreferenceResolved,
+    isSplashAnimationEnabled,
+  } = useSplash();
 
   // Home view mode — declared before guide walkthrough effect (that effect reads homeViewMode).
   const [homeViewMode, setHomeViewMode] = useState<"classic" | "focused">(
@@ -15728,12 +15733,6 @@ export default function HomeScreen() {
 
     return bestIndex;
   }, [memoriesPerEntityBySphere]);
-
-  useEffect(() => {
-    if (isLoading || hasAppliedDefaultFocusedSphereRef.current) return;
-    hasAppliedDefaultFocusedSphereRef.current = true;
-    setFocusedSphereIndex(focusedDefaultIndexBySunnyMemories);
-  }, [focusedDefaultIndexBySunnyMemories, isLoading]);
 
   /** Center sun: filled % vs "empty" + — true if user has memories OR at least one entity (onboarding save creates entities before any memory). */
   const centerSunHasLifeContent = useMemo(
@@ -19306,8 +19305,49 @@ export default function HomeScreen() {
 
   // Keep FocusedSferaView mounted when in entity detail so back press is instant (no remount).
   const showEntityDetail = !!selectedSphere;
+  // Apply default carousel index before the hub mounts so FocusedSferaView never paints index 0 then animates.
+  // React re-renders synchronously when setState runs during render; ref ensures this runs once after storage load.
+  if (!isLoading && !hasAppliedDefaultFocusedSphereRef.current) {
+    hasAppliedDefaultFocusedSphereRef.current = true;
+    if (focusedSphereIndex !== focusedDefaultIndexBySunnyMemories) {
+      setFocusedSphereIndex(focusedDefaultIndexBySunnyMemories);
+    }
+  }
   const keepFocusedSferaMounted =
     homeViewMode === "focused" || showEntityDetail;
+  // Warm-mount FocusedSferaView while splash overlay is still visible so it can
+  // hydrate persisted display mode and initial focused sphere before first reveal.
+  const mountFocusedSferaHub =
+    !isLoading || showEntityDetail || (isSplashVisible && keepFocusedSferaMounted);
+  // When splash animation is disabled, block first reveal behind a centered loader
+  // until home state (data + default focused sphere + heavy animations gate) is ready.
+  const startupRouteReady =
+    !isLoading && hasAppliedDefaultFocusedSphereRef.current && animationsReady;
+  const showStartupLoader =
+    isStartupPreferenceResolved &&
+    !isSplashAnimationEnabled &&
+    !startupRouteReady;
+  const startupLoaderOverlay = showStartupLoader ? (
+    <View
+      style={{
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 999,
+        backgroundColor:
+          colorScheme === "dark"
+            ? "rgba(5, 10, 18, 0.42)"
+            : "rgba(248, 249, 252, 0.45)",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      pointerEvents="auto"
+    >
+      <ActivityIndicator
+        color={colors.primary}
+        size="large"
+        style={{ transform: [{ scale: 1.35 }] }}
+      />
+    </View>
+  ) : null;
   const focusedSferaLayer = keepFocusedSferaMounted ? (
     <View
       key="focused-sfera-layer"
@@ -19327,6 +19367,7 @@ export default function HomeScreen() {
       collapsable={false}
     >
       <View style={{ flex: 1 }}>
+        {mountFocusedSferaHub ? (
         <FocusedSferaView
           overallSunnyPercentage={overallSunnyPercentage}
           hasMemories={centerSunHasLifeContent}
@@ -19441,6 +19482,7 @@ export default function HomeScreen() {
             ) : null
           }
         />
+        ) : null}
       </View>
     </View>
   ) : null;
@@ -19491,6 +19533,7 @@ export default function HomeScreen() {
 
           {guideWalkthroughModal}
           {editButton}
+          {startupLoaderOverlay}
         </TabScreenContainer>
       );
     }
@@ -22877,6 +22920,7 @@ export default function HomeScreen() {
 
         {guideWalkthroughModal}
         {editButton}
+        {startupLoaderOverlay}
       </TabScreenContainer>
     );
   }
@@ -23327,6 +23371,7 @@ export default function HomeScreen() {
         </View>
         {guideWalkthroughModal}
         {editButton}
+        {startupLoaderOverlay}
       </TabScreenContainer>
     );
   }
@@ -23640,6 +23685,7 @@ export default function HomeScreen() {
         </View>
         {guideWalkthroughModal}
         {editButton}
+        {startupLoaderOverlay}
       </TabScreenContainer>
     );
   }
@@ -23963,6 +24009,7 @@ export default function HomeScreen() {
         </View>
         {guideWalkthroughModal}
         {editButton}
+        {startupLoaderOverlay}
       </TabScreenContainer>
     );
   }
@@ -24281,6 +24328,7 @@ export default function HomeScreen() {
         </View>
         {guideWalkthroughModal}
         {editButton}
+        {startupLoaderOverlay}
       </TabScreenContainer>
     );
   }
@@ -24599,6 +24647,7 @@ export default function HomeScreen() {
         </View>
         {guideWalkthroughModal}
         {editButton}
+        {startupLoaderOverlay}
       </TabScreenContainer>
     );
   }

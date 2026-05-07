@@ -279,6 +279,8 @@ interface SplashContextType {
   replaySplashAnimation: () => void;
   isVisible: boolean;
   isAnimationComplete: boolean;
+  isStartupPreferenceResolved: boolean;
+  isSplashAnimationEnabled: boolean;
 }
 
 const SplashContext = createContext<SplashContextType | undefined>(undefined);
@@ -309,6 +311,8 @@ export function SplashAnimationProvider({
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
   const [isReplayPriming, setIsReplayPriming] = useState(false);
   const [animationRunId, setAnimationRunId] = useState(0);
+  const [isStartupPreferenceResolved, setIsStartupPreferenceResolved] = useState(false);
+  const [isSplashAnimationEnabled, setIsSplashAnimationEnabled] = useState(true);
   const replayStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { isTablet } = useLargeDevice();
   const splashOpacity = useSharedValue(1);
@@ -449,22 +453,29 @@ export function SplashAnimationProvider({
     return dots;
   }, [isTablet, avatarSize]);
 
-  // Hide native splash screen immediately
+  useEffect(() => {
+    // Resolve splash preference before mounting any splash content.
+    // This prevents showing a single animation frame when the setting is disabled.
+    AsyncStorage.getItem(SPLASH_ANIMATION_KEY).then((val) => {
+      if (val === "false") {
+        setIsSplashAnimationEnabled(false);
+        setIsAnimationComplete(true);
+        setIsVisible(false);
+      } else {
+        setIsSplashAnimationEnabled(true);
+        setIsVisible(true);
+      }
+      setIsStartupPreferenceResolved(true);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hide native splash only after startup preference is resolved.
   useLayoutEffect(() => {
+    if (!isStartupPreferenceResolved) return;
     SplashScreen.hideAsync().catch(() => {
       // Ignore errors if splash screen is already hidden
     });
-  }, []);
-
-  useEffect(() => {
-    // Check if splash animation is disabled by user setting — skip immediately if so
-    AsyncStorage.getItem(SPLASH_ANIMATION_KEY).then((val) => {
-      if (val === "false") {
-        setIsAnimationComplete(true);
-        setIsVisible(false);
-      }
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isStartupPreferenceResolved]);
 
   const resetAnimationState = () => {
     setIsVisible(true);
@@ -526,6 +537,13 @@ export function SplashAnimationProvider({
   }, []);
 
   useEffect(() => {
+    if (
+      !isVisible ||
+      !isStartupPreferenceResolved ||
+      !isSplashAnimationEnabled
+    ) {
+      return;
+    }
     // Animation sequence:
     // 1. Avatar appears (scale from 0, fade in)
     // 2. Floating elements pop out from avatar center
@@ -732,7 +750,12 @@ export function SplashAnimationProvider({
     return () => {
       clearTimeout(completeTimeout);
     };
-  }, [animationRunId]);
+  }, [
+    animationRunId,
+    isVisible,
+    isStartupPreferenceResolved,
+    isSplashAnimationEnabled,
+  ]);
 
   const finishHiding = () => {
     setIsVisible(false);
@@ -761,8 +784,22 @@ export function SplashAnimationProvider({
 
   const skipOpacity = useSharedValue(0);
   React.useEffect(() => {
+    if (
+      !isVisible ||
+      !isStartupPreferenceResolved ||
+      !isSplashAnimationEnabled
+    ) {
+      skipOpacity.value = 0;
+      return;
+    }
     skipOpacity.value = withDelay(800, withTiming(1, { duration: 400 }));
-  }, [animationRunId, skipOpacity]);
+  }, [
+    animationRunId,
+    isVisible,
+    isStartupPreferenceResolved,
+    isSplashAnimationEnabled,
+    skipOpacity,
+  ]);
   const skipStyle = useAnimatedStyle(() => ({ opacity: skipOpacity.value }));
 
   // Splash screen fade animation style
@@ -920,6 +957,8 @@ export function SplashAnimationProvider({
         replaySplashAnimation,
         isVisible,
         isAnimationComplete,
+        isStartupPreferenceResolved,
+        isSplashAnimationEnabled,
       }}
     >
       {children}
@@ -942,163 +981,167 @@ export function SplashAnimationProvider({
               ]}
             />
 
-            {/* Constellation background */}
-            {!isReplayPriming && !lightCosmicOff && (
-              <ConstellationBackground colorScheme={colorScheme} />
+            {isStartupPreferenceResolved && isSplashAnimationEnabled && (
+              <>
+                {/* Constellation background */}
+                {!isReplayPriming && !lightCosmicOff && (
+                  <ConstellationBackground colorScheme={colorScheme} />
+                )}
+
+                {/* Sparkled Dots */}
+                {!isReplayPriming &&
+                  !lightCosmicOff &&
+                  sparkledDots.map((dot) => (
+                    <SparkledDot
+                      key={dot.id}
+                      x={dot.x}
+                      y={dot.y}
+                      size={dot.size}
+                      delay={dot.delay}
+                      duration={dot.duration}
+                      glowColor={sparkleGlowColor}
+                    />
+                  ))}
+
+                {/* Content */}
+                <View style={[styles.content, isReplayPriming && { opacity: 0 }]}>
+                  {/* Avatar Container with Floating Elements */}
+                  <View
+                    style={[
+                      styles.avatarContainer,
+                      { width: avatarContainerSize, height: avatarContainerSize },
+                    ]}
+                  >
+                    {/* Center = Sfera Insights entry (purple), orbit = life spheres from sphere-styles */}
+                    <Animated.View
+                      style={[
+                        styles.avatarWrapper,
+                        avatarAnimatedStyle,
+                        { width: avatarSize, height: avatarSize },
+                      ]}
+                    >
+                      <SplashHubOrb
+                        size={avatarSize}
+                        colorScheme={colorScheme}
+                        iconSize={isTablet ? 60 : 40}
+                      />
+                    </Animated.View>
+
+                    {/* Floating Element 1 - Relationships */}
+                    <Animated.View
+                      style={[
+                        styles.floatingElement,
+                        floatingElement1Style,
+                        { width: sphereSize, height: sphereSize },
+                      ]}
+                    >
+                      <SplashOrbitOrb
+                        sphere="relationships"
+                        size={sphereSize}
+                        colorScheme={colorScheme}
+                        iconSize={isTablet ? 54 : 36}
+                      />
+                    </Animated.View>
+
+                    {/* Floating Element 2 - Career */}
+                    <Animated.View
+                      style={[
+                        styles.floatingElement,
+                        floatingElement2Style,
+                        { width: sphereSize, height: sphereSize },
+                      ]}
+                    >
+                      <SplashOrbitOrb
+                        sphere="career"
+                        size={sphereSize}
+                        colorScheme={colorScheme}
+                        iconSize={isTablet ? 54 : 36}
+                      />
+                    </Animated.View>
+
+                    {/* Floating Element 3 - Family */}
+                    <Animated.View
+                      style={[
+                        styles.floatingElement,
+                        floatingElement3Style,
+                        { width: sphereSize, height: sphereSize },
+                      ]}
+                    >
+                      <SplashOrbitOrb
+                        sphere="family"
+                        size={sphereSize}
+                        colorScheme={colorScheme}
+                        iconSize={isTablet ? 54 : 36}
+                      />
+                    </Animated.View>
+
+                    {/* Floating Element 4 - Friends */}
+                    <Animated.View
+                      style={[
+                        styles.floatingElement,
+                        floatingElement4Style,
+                        { width: sphereSize, height: sphereSize },
+                      ]}
+                    >
+                      <SplashOrbitOrb
+                        sphere="friends"
+                        size={sphereSize}
+                        colorScheme={colorScheme}
+                        iconSize={isTablet ? 54 : 36}
+                      />
+                    </Animated.View>
+
+                    {/* Floating Element 5 - Hobbies */}
+                    <Animated.View
+                      style={[
+                        styles.floatingElement,
+                        floatingElement5Style,
+                        { width: sphereSize, height: sphereSize },
+                      ]}
+                    >
+                      <SplashOrbitOrb
+                        sphere="hobbies"
+                        size={sphereSize}
+                        colorScheme={colorScheme}
+                        iconSize={isTablet ? 54 : 36}
+                      />
+                    </Animated.View>
+                  </View>
+
+                  {/* Quote Text */}
+                  <Animated.View style={[styles.textContainer, textAnimatedStyle]}>
+                    <Text style={quoteStyle}>
+                      LIVE SPHERICALLY,{"\n"}IN MANY DIRECTIONS!
+                    </Text>
+                  </Animated.View>
+                </View>
+
+                {/* Skip button — bottom right */}
+                <Animated.View
+                  style={[styles.skipButton, skipStyle]}
+                  pointerEvents="box-none"
+                >
+                  <Pressable
+                    onPress={handleSkip}
+                    style={[
+                      styles.skipPressable,
+                      colorScheme === "light"
+                        ? styles.skipPressableLight
+                        : styles.skipPressableDark,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.skipText,
+                        colorScheme === "light" && styles.skipTextLight,
+                      ]}
+                    >
+                      Skip
+                    </Text>
+                  </Pressable>
+                </Animated.View>
+              </>
             )}
-
-            {/* Sparkled Dots */}
-            {!isReplayPriming &&
-              !lightCosmicOff &&
-              sparkledDots.map((dot) => (
-                <SparkledDot
-                  key={dot.id}
-                  x={dot.x}
-                  y={dot.y}
-                  size={dot.size}
-                  delay={dot.delay}
-                  duration={dot.duration}
-                  glowColor={sparkleGlowColor}
-                />
-              ))}
-
-            {/* Content */}
-            <View style={[styles.content, isReplayPriming && { opacity: 0 }]}>
-              {/* Avatar Container with Floating Elements */}
-              <View
-                style={[
-                  styles.avatarContainer,
-                  { width: avatarContainerSize, height: avatarContainerSize },
-                ]}
-              >
-                {/* Center = Sfera Insights entry (purple), orbit = life spheres from sphere-styles */}
-                <Animated.View
-                  style={[
-                    styles.avatarWrapper,
-                    avatarAnimatedStyle,
-                    { width: avatarSize, height: avatarSize },
-                  ]}
-                >
-                  <SplashHubOrb
-                    size={avatarSize}
-                    colorScheme={colorScheme}
-                    iconSize={isTablet ? 60 : 40}
-                  />
-                </Animated.View>
-
-                {/* Floating Element 1 - Relationships */}
-                <Animated.View
-                  style={[
-                    styles.floatingElement,
-                    floatingElement1Style,
-                    { width: sphereSize, height: sphereSize },
-                  ]}
-                >
-                  <SplashOrbitOrb
-                    sphere="relationships"
-                    size={sphereSize}
-                    colorScheme={colorScheme}
-                    iconSize={isTablet ? 54 : 36}
-                  />
-                </Animated.View>
-
-                {/* Floating Element 2 - Career */}
-                <Animated.View
-                  style={[
-                    styles.floatingElement,
-                    floatingElement2Style,
-                    { width: sphereSize, height: sphereSize },
-                  ]}
-                >
-                  <SplashOrbitOrb
-                    sphere="career"
-                    size={sphereSize}
-                    colorScheme={colorScheme}
-                    iconSize={isTablet ? 54 : 36}
-                  />
-                </Animated.View>
-
-                {/* Floating Element 3 - Family */}
-                <Animated.View
-                  style={[
-                    styles.floatingElement,
-                    floatingElement3Style,
-                    { width: sphereSize, height: sphereSize },
-                  ]}
-                >
-                  <SplashOrbitOrb
-                    sphere="family"
-                    size={sphereSize}
-                    colorScheme={colorScheme}
-                    iconSize={isTablet ? 54 : 36}
-                  />
-                </Animated.View>
-
-                {/* Floating Element 4 - Friends */}
-                <Animated.View
-                  style={[
-                    styles.floatingElement,
-                    floatingElement4Style,
-                    { width: sphereSize, height: sphereSize },
-                  ]}
-                >
-                  <SplashOrbitOrb
-                    sphere="friends"
-                    size={sphereSize}
-                    colorScheme={colorScheme}
-                    iconSize={isTablet ? 54 : 36}
-                  />
-                </Animated.View>
-
-                {/* Floating Element 5 - Hobbies */}
-                <Animated.View
-                  style={[
-                    styles.floatingElement,
-                    floatingElement5Style,
-                    { width: sphereSize, height: sphereSize },
-                  ]}
-                >
-                  <SplashOrbitOrb
-                    sphere="hobbies"
-                    size={sphereSize}
-                    colorScheme={colorScheme}
-                    iconSize={isTablet ? 54 : 36}
-                  />
-                </Animated.View>
-              </View>
-
-              {/* Quote Text */}
-              <Animated.View style={[styles.textContainer, textAnimatedStyle]}>
-                <Text style={quoteStyle}>
-                  LIVE SPHERICALLY,{"\n"}IN MANY DIRECTIONS!
-                </Text>
-              </Animated.View>
-            </View>
-
-            {/* Skip button — bottom right */}
-            <Animated.View
-              style={[styles.skipButton, skipStyle]}
-              pointerEvents="box-none"
-            >
-              <Pressable
-                onPress={handleSkip}
-                style={[
-                  styles.skipPressable,
-                  colorScheme === "light"
-                    ? styles.skipPressableLight
-                    : styles.skipPressableDark,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.skipText,
-                    colorScheme === "light" && styles.skipTextLight,
-                  ]}
-                >
-                  Skip
-                </Text>
-              </Pressable>
-            </Animated.View>
           </View>
         </Animated.View>
       )}

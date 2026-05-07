@@ -3145,6 +3145,7 @@ export function FocusedSferaView({
   const modeTransition = useSharedValue(
     displayMode === "memoryBalanceRings" ? 1 : 0,
   );
+  const hasSyncedInitialDisplayModeRef = useRef(false);
   const [isSunExpanded, setIsSunExpanded] = useState(startSunExpanded);
   const handledNotificationLessonTargetKeyRef = useRef<string | null>(null);
 
@@ -3510,6 +3511,7 @@ export function FocusedSferaView({
     !isSunExpanded &&
     !isMemoryBalanceMode;
   useEffect(() => {
+    if (!displayModeHydrated) return;
     const target =
       selectedSphere === null && displayMode === "memoryBalanceRings" ? 1 : 0;
     cancelAnimation(modeTransition);
@@ -3517,7 +3519,7 @@ export function FocusedSferaView({
       duration: 700,
       easing: Easing.inOut(Easing.cubic),
     });
-  }, [selectedSphere, displayMode, modeTransition]);
+  }, [selectedSphere, displayMode, displayModeHydrated, modeTransition]);
   const individualModeScale =
     selectedSphere !== null ? IPAD_INDIVIDUAL_SFERA_SCALE : 1;
   const individualCardScale =
@@ -3911,6 +3913,17 @@ export function FocusedSferaView({
 
   if (hidden) {
     return null;
+  }
+
+  if (!displayModeHydrated) {
+    return null;
+  }
+
+  // First visible frame must match persisted mode (avoid defaultOrbit flash on startup).
+  if (!hasSyncedInitialDisplayModeRef.current) {
+    hasSyncedInitialDisplayModeRef.current = true;
+    cancelAnimation(modeTransition);
+    modeTransition.value = displayMode === "memoryBalanceRings" ? 1 : 0;
   }
 
   return (
