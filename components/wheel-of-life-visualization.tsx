@@ -1,11 +1,14 @@
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import type { LifeSphere } from "@/utils/JourneyProvider";
-import { getSphereAccentColor } from "@/utils/sphere-styles";
+import {
+  getSferaForegroundColor,
+  getSphereSferaColor,
+} from "@/utils/sphere-styles";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dimensions, View } from "react-native";
 import Animated, {
   Easing,
@@ -31,6 +34,8 @@ const AnimatedG = Animated.createAnimatedComponent(G);
 const AnimatedLinearGradient =
   Animated.createAnimatedComponent(SvgLinearGradient);
 const AnimatedView = Animated.View;
+const DARK_SLICE_HIGHLIGHT = "rgba(248,250,252,0.35)";
+const LIGHT_SLICE_HIGHLIGHT = "rgba(255,255,255,0.55)";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -172,24 +177,44 @@ export function WheelOfLifeVisualization({
     hobbiesSweepAngle,
   );
 
-  // Use the shared sphere accent palette so the wheel matches sferas everywhere.
-  const relationshipsColor = getSphereAccentColor(
+  // Use solid sfera colors so the pie matches the actual sphere colors.
+  const relationshipsColor = getSphereSferaColor(
     "relationships",
     (colorScheme ?? "dark") as "light" | "dark",
   );
-  const careerColor = getSphereAccentColor(
+  const careerColor = getSphereSferaColor(
     "career",
     (colorScheme ?? "dark") as "light" | "dark",
   );
-  const familyColor = getSphereAccentColor(
+  const familyColor = getSphereSferaColor(
     "family",
     (colorScheme ?? "dark") as "light" | "dark",
   );
-  const friendsColor = getSphereAccentColor(
+  const friendsColor = getSphereSferaColor(
     "friends",
     (colorScheme ?? "dark") as "light" | "dark",
   );
-  const hobbiesColor = getSphereAccentColor(
+  const hobbiesColor = getSphereSferaColor(
+    "hobbies",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
+  const relationshipsForeground = getSferaForegroundColor(
+    "relationships",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
+  const careerForeground = getSferaForegroundColor(
+    "career",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
+  const familyForeground = getSferaForegroundColor(
+    "family",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
+  const friendsForeground = getSferaForegroundColor(
+    "friends",
+    (colorScheme ?? "dark") as "light" | "dark",
+  );
+  const hobbiesForeground = getSferaForegroundColor(
     "hobbies",
     (colorScheme ?? "dark") as "light" | "dark",
   );
@@ -208,10 +233,14 @@ export function WheelOfLifeVisualization({
 
   // Pulsing animation state - randomly select which slice to pulse
   const [pulsingSlice, setPulsingSlice] = useState<LifeSphere>("relationships");
+  const [isPulseActive, setIsPulseActive] = useState(false);
   const pulseScale = useSharedValue(1);
   const pulseRotation = useSharedValue(0);
   const gradientOffset = useSharedValue(-1);
   const glowPulse = useSharedValue(1);
+  const pulseActiveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   useEffect(() => {
     // Pulse duration: 1200ms grow + 1200ms shrink = 2400ms total
@@ -228,6 +257,14 @@ export function WheelOfLifeVisualization({
     let currentIndex = 0;
 
     const runPulseAnimation = () => {
+      setIsPulseActive(true);
+      if (pulseActiveTimeoutRef.current) {
+        clearTimeout(pulseActiveTimeoutRef.current);
+      }
+      pulseActiveTimeoutRef.current = setTimeout(() => {
+        setIsPulseActive(false);
+      }, 2400);
+
       // Start scale animation - one pulse cycle
       pulseScale.value = withSequence(
         withTiming(1.12, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
@@ -247,20 +284,19 @@ export function WheelOfLifeVisualization({
         duration: 2400,
         easing: Easing.linear,
       });
+
+      // Glow now happens only during the active pulse window.
+      glowPulse.value = withSequence(
+        withTiming(1.2, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+      );
     };
 
     // Start first animation immediately
     runPulseAnimation();
 
-    // Start continuous glow pulsing animation
-    glowPulse.value = withRepeat(
-      withSequence(
-        withTiming(1.2, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      false,
-    );
+    // Keep glow flat during idle period between pulses.
+    glowPulse.value = withTiming(1, { duration: 200 });
 
     // Schedule slice changes: wait for animation to complete (2400ms) + pause (5000ms)
     const interval = setInterval(() => {
@@ -272,28 +308,13 @@ export function WheelOfLifeVisualization({
       runPulseAnimation();
     }, 7400); // 2400ms animation + 5000ms pause
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (pulseActiveTimeoutRef.current) {
+        clearTimeout(pulseActiveTimeoutRef.current);
+      }
+    };
   }, [pulseScale, pulseRotation, gradientOffset, glowPulse]);
-
-  // Helper to get gradient colors for pulsing effect
-  const getGradientColor = (baseColor: string, isPulsing: boolean) => {
-    if (!isPulsing) return baseColor;
-
-    // Lighten the color for pulsing effect
-    if (baseColor.startsWith("#")) {
-      const r = parseInt(baseColor.slice(1, 3), 16);
-      const g = parseInt(baseColor.slice(3, 5), 16);
-      const b = parseInt(baseColor.slice(5, 7), 16);
-
-      // Increase brightness by 20%
-      const newR = Math.min(255, Math.floor(r * 1.2));
-      const newG = Math.min(255, Math.floor(g * 1.2));
-      const newB = Math.min(255, Math.floor(b * 1.2));
-
-      return `rgb(${newR}, ${newG}, ${newB})`;
-    }
-    return baseColor;
-  };
 
   // Animated props for gradient sweep
   const relationshipsGradientProps = useAnimatedProps(() => ({
@@ -323,8 +344,8 @@ export function WheelOfLifeVisualization({
 
   // Animated style for glow pulsing
   const glowAnimatedStyle = useAnimatedStyle(() => ({
-    shadowOpacity: 0.2 * glowPulse.value,
-    shadowRadius: 15 * glowPulse.value,
+    shadowOpacity: (isPulseActive ? 0.18 : 0.04) * glowPulse.value,
+    shadowRadius: (isPulseActive ? 12 : 4) * glowPulse.value,
   }));
 
   // Animated style for each slice group - for scale and rotation transform
@@ -528,7 +549,11 @@ export function WheelOfLifeVisualization({
             <Stop offset="0%" stopColor={relationshipsColor} stopOpacity="0" />
             <Stop
               offset="50%"
-              stopColor="rgba(255,255,255,0.8)"
+              stopColor={
+                colorScheme === "dark"
+                  ? DARK_SLICE_HIGHLIGHT
+                  : LIGHT_SLICE_HIGHLIGHT
+              }
               stopOpacity="1"
             />
             <Stop
@@ -548,7 +573,11 @@ export function WheelOfLifeVisualization({
             <Stop offset="0%" stopColor={careerColor} stopOpacity="0" />
             <Stop
               offset="50%"
-              stopColor="rgba(255,255,255,0.8)"
+              stopColor={
+                colorScheme === "dark"
+                  ? DARK_SLICE_HIGHLIGHT
+                  : LIGHT_SLICE_HIGHLIGHT
+              }
               stopOpacity="1"
             />
             <Stop offset="100%" stopColor={careerColor} stopOpacity="0" />
@@ -564,7 +593,11 @@ export function WheelOfLifeVisualization({
             <Stop offset="0%" stopColor={familyColor} stopOpacity="0" />
             <Stop
               offset="50%"
-              stopColor="rgba(255,255,255,0.8)"
+              stopColor={
+                colorScheme === "dark"
+                  ? DARK_SLICE_HIGHLIGHT
+                  : LIGHT_SLICE_HIGHLIGHT
+              }
               stopOpacity="1"
             />
             <Stop offset="100%" stopColor={familyColor} stopOpacity="0" />
@@ -580,7 +613,11 @@ export function WheelOfLifeVisualization({
             <Stop offset="0%" stopColor={friendsColor} stopOpacity="0" />
             <Stop
               offset="50%"
-              stopColor="rgba(255,255,255,0.8)"
+              stopColor={
+                colorScheme === "dark"
+                  ? DARK_SLICE_HIGHLIGHT
+                  : LIGHT_SLICE_HIGHLIGHT
+              }
               stopOpacity="1"
             />
             <Stop offset="100%" stopColor={friendsColor} stopOpacity="0" />
@@ -596,7 +633,11 @@ export function WheelOfLifeVisualization({
             <Stop offset="0%" stopColor={hobbiesColor} stopOpacity="0" />
             <Stop
               offset="50%"
-              stopColor="rgba(255,255,255,0.8)"
+              stopColor={
+                colorScheme === "dark"
+                  ? DARK_SLICE_HIGHLIGHT
+                  : LIGHT_SLICE_HIGHLIGHT
+              }
               stopOpacity="1"
             />
             <Stop offset="100%" stopColor={hobbiesColor} stopOpacity="0" />
@@ -625,11 +666,11 @@ export function WheelOfLifeVisualization({
               d={relationshipsPath}
               fill="url(#relationshipsStaticGradient)"
             />
-            {pulsingSlice === "relationships" && (
+            {pulsingSlice === "relationships" && isPulseActive && (
               <Path
                 d={relationshipsPath}
                 fill="url(#relationshipsGradient)"
-                opacity={0.9}
+                opacity={colorScheme === "dark" ? 0.45 : 0.65}
               />
             )}
             {relSweepAngle > 5 && (
@@ -646,7 +687,7 @@ export function WheelOfLifeVisualization({
                     <MaterialIcons
                       name={sphereIcons.relationships as any}
                       size={iconSize}
-                      color={colors.text}
+                      color={relationshipsForeground}
                     />
                   </View>
                 </ForeignObject>
@@ -654,7 +695,7 @@ export function WheelOfLifeVisualization({
                   x={relLabelPos.x}
                   y={relLabelPos.y + 8}
                   fontSize={14 * fontScale}
-                  fill={colors.text}
+                  fill={relationshipsForeground}
                   textAnchor="middle"
                   alignmentBaseline="middle"
                   fontWeight="bold"
@@ -673,8 +714,12 @@ export function WheelOfLifeVisualization({
             animatedProps={careerAnimatedStyle}
           >
             <Path d={careerPath} fill="url(#careerStaticGradient)" />
-            {pulsingSlice === "career" && (
-              <Path d={careerPath} fill="url(#careerGradient)" opacity={0.9} />
+            {pulsingSlice === "career" && isPulseActive && (
+              <Path
+                d={careerPath}
+                fill="url(#careerGradient)"
+                opacity={colorScheme === "dark" ? 0.45 : 0.65}
+              />
             )}
             {careerSweepAngle > 5 && (
               <>
@@ -690,7 +735,7 @@ export function WheelOfLifeVisualization({
                     <MaterialIcons
                       name={sphereIcons.career as any}
                       size={iconSize}
-                      color={colors.text}
+                      color={careerForeground}
                     />
                   </View>
                 </ForeignObject>
@@ -698,7 +743,7 @@ export function WheelOfLifeVisualization({
                   x={careerLabelPos.x}
                   y={careerLabelPos.y + 8}
                   fontSize={14 * fontScale}
-                  fill={colors.text}
+                  fill={careerForeground}
                   textAnchor="middle"
                   alignmentBaseline="middle"
                   fontWeight="bold"
@@ -717,8 +762,12 @@ export function WheelOfLifeVisualization({
             animatedProps={familyAnimatedStyle}
           >
             <Path d={familyPath} fill="url(#familyStaticGradient)" />
-            {pulsingSlice === "family" && (
-              <Path d={familyPath} fill="url(#familyGradient)" opacity={0.9} />
+            {pulsingSlice === "family" && isPulseActive && (
+              <Path
+                d={familyPath}
+                fill="url(#familyGradient)"
+                opacity={colorScheme === "dark" ? 0.45 : 0.65}
+              />
             )}
             {familySweepAngle > 5 && (
               <>
@@ -734,7 +783,7 @@ export function WheelOfLifeVisualization({
                     <MaterialIcons
                       name={sphereIcons.family as any}
                       size={iconSize}
-                      color={colors.text}
+                      color={familyForeground}
                     />
                   </View>
                 </ForeignObject>
@@ -742,7 +791,7 @@ export function WheelOfLifeVisualization({
                   x={familyLabelPos.x}
                   y={familyLabelPos.y + 8}
                   fontSize={14 * fontScale}
-                  fill={colors.text}
+                  fill={familyForeground}
                   textAnchor="middle"
                   alignmentBaseline="middle"
                   fontWeight="bold"
@@ -761,11 +810,11 @@ export function WheelOfLifeVisualization({
             animatedProps={friendsAnimatedStyle}
           >
             <Path d={friendsPath} fill="url(#friendsStaticGradient)" />
-            {pulsingSlice === "friends" && (
+            {pulsingSlice === "friends" && isPulseActive && (
               <Path
                 d={friendsPath}
                 fill="url(#friendsGradient)"
-                opacity={0.9}
+                opacity={colorScheme === "dark" ? 0.45 : 0.65}
               />
             )}
             {friendsSweepAngle > 5 && (
@@ -782,7 +831,7 @@ export function WheelOfLifeVisualization({
                     <MaterialIcons
                       name={sphereIcons.friends as any}
                       size={iconSize}
-                      color={colors.text}
+                      color={friendsForeground}
                     />
                   </View>
                 </ForeignObject>
@@ -790,7 +839,7 @@ export function WheelOfLifeVisualization({
                   x={friendsLabelPos.x}
                   y={friendsLabelPos.y + 8}
                   fontSize={14 * fontScale}
-                  fill={colors.text}
+                  fill={friendsForeground}
                   textAnchor="middle"
                   alignmentBaseline="middle"
                   fontWeight="bold"
@@ -809,11 +858,11 @@ export function WheelOfLifeVisualization({
             animatedProps={hobbiesAnimatedStyle}
           >
             <Path d={hobbiesPath} fill="url(#hobbiesStaticGradient)" />
-            {pulsingSlice === "hobbies" && (
+            {pulsingSlice === "hobbies" && isPulseActive && (
               <Path
                 d={hobbiesPath}
                 fill="url(#hobbiesGradient)"
-                opacity={0.9}
+                opacity={colorScheme === "dark" ? 0.45 : 0.65}
               />
             )}
             {hobbiesSweepAngle > 5 && (
@@ -830,7 +879,7 @@ export function WheelOfLifeVisualization({
                     <MaterialIcons
                       name={sphereIcons.hobbies as any}
                       size={iconSize}
-                      color={colors.text}
+                      color={hobbiesForeground}
                     />
                   </View>
                 </ForeignObject>
@@ -838,7 +887,7 @@ export function WheelOfLifeVisualization({
                   x={hobbiesLabelPos.x}
                   y={hobbiesLabelPos.y + 8}
                   fontSize={14 * fontScale}
-                  fill={colors.text}
+                  fill={hobbiesForeground}
                   textAnchor="middle"
                   alignmentBaseline="middle"
                   fontWeight="bold"

@@ -775,7 +775,7 @@ export default function InsightsScreen() {
           borderRadius: 16 * fontScale,
           backgroundColor:
             colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.05)"
+              ? colors.surfaceElevated1
               : "rgba(0, 0, 0, 0.05)",
         },
         wheelWrapper: {
@@ -800,7 +800,7 @@ export default function InsightsScreen() {
           paddingVertical: 12 * fontScale,
           backgroundColor:
             colorScheme === "dark"
-              ? "rgba(255, 255, 255, 0.05)"
+              ? colors.surfaceElevated2
               : "rgba(0, 0, 0, 0.05)",
           borderRadius: 8 * fontScale,
         },

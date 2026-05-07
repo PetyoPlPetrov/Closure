@@ -32,34 +32,34 @@ Source of truth:
 
 ### Dark Theme (`Colors.dark`)
 
-- `text`: `#FFFFFF`
-- `background`: `#1A2332`
+- `text`: `#F8FAFC`
+- `background`: `#0B1120`
 - `textHighEmphasis`: `#FFFFFF`
-- `textMediumEmphasis`: `#E8EDF6`
-- `textDisabled`: `#E4EDF8`
-- `tint`: `#64B5F6`
-- `primary`: `#64B5F6`
-- `primaryLight`: `#90CAF9`
-- `primaryDark`: `#42A5F5`
-- `primaryDeep`: `#1E88E5`
-- `primaryText`: `#1A2332`
-- `icon`: `#E8EDF6`
-- `tabIconDefault`: `#E8EDF6`
-- `tabIconSelected`: `#64B5F6`
-- `error`: `#EF5350`
-- `surface`: `#1A2332`
-- `surfaceElevated1`: `#243041`
-- `surfaceElevated2`: `#2D3A4F`
-- `surfaceElevated4`: `#364557`
-- `surfaceElevated8`: `#424E62`
+- `textMediumEmphasis`: `#94A3B8`
+- `textDisabled`: `#475569`
+- `tint`: `#34D399`
+- `primary`: `#10B981`
+- `primaryLight`: `#34D399`
+- `primaryDark`: `#059669`
+- `primaryDeep`: `#047857`
+- `primaryText`: `#0B1120`
+- `icon`: `#F8FAFC`
+- `tabIconDefault`: `#475569`
+- `tabIconSelected`: `#34D399`
+- `error`: `#EF4444`
+- `surface`: `#0B1120`
+- `surfaceElevated1`: `#151E32`
+- `surfaceElevated2`: `#1D283E`
+- `surfaceElevated4`: `#2A3750`
+- `surfaceElevated8`: `#3A4C6A`
 
 ## Shared Accent/Gradient Tokens
 
 From `constants/theme.ts`:
 
-- `darkPrimaryGradient3`: [`#64B5F6`, `#42A5F5`, `#1E88E5`]
-- `darkPrimaryShareGradient`: [`#42A5F5`, `#64B5F6`]
-- `fabAccentBackground`: `#64B5F6`
+- `darkPrimaryGradient3`: [`#34D399`, `#10B981`, `#059669`]
+- `darkPrimaryShareGradient`: [`#10B981`, `#34D399`]
+- `fabAccentBackground`: `#10B981`
 
 ## Sphere Styles (All Spheres)
 
@@ -102,11 +102,11 @@ Spheres:
 
 Dark icon colors depend on sunny/cloudy state:
 
-- `relationships`: sunny `#CC3838`, cloudy `#F56868`
-- `career`: sunny `#1565C0`, cloudy `#90CAF9`
-- `family`: sunny `#5E35B1`, cloudy `#CE93D8`
-- `friends`: sunny `#512DA8`, cloudy `#B39DDB`
-- `hobbies`: sunny `#E65100`, cloudy `#FFCC80`
+- `relationships`: sunny `#FECACA`, cloudy `#FCA5A5`
+- `career`: sunny `#DBEAFE`, cloudy `#93C5FD`
+- `family`: sunny `#D1FAE5`, cloudy `#6EE7B7`
+- `friends`: sunny `#EDE9FE`, cloudy `#C4B5FD`
+- `hobbies`: sunny `#FFEDD5`, cloudy `#FDBA74`
 
 ### Sphere Solid "Sfera" Colors (`getSphereSferaColor`)
 
@@ -120,11 +120,11 @@ Dark icon colors depend on sunny/cloudy state:
 
 #### Dark
 
-- `relationships`: `#FF9696`
-- `career`: `#96C8FF`
-- `family`: `#C896FF`
+- `relationships`: `#EF4444`
+- `career`: `#3B82F6`
+- `family`: `#10B981`
 - `friends`: `#8B5CF6`
-- `hobbies`: `#F97B16`
+- `hobbies`: `#F97316`
 
 ### Sphere Shadow/Glow Colors (`getSphereShadowColor`)
 
@@ -134,11 +134,11 @@ Dark icon colors depend on sunny/cloudy state:
 
 #### Dark
 
-- `relationships`: `#FF9696`
-- `career`: `#96CAFF`
-- `family`: `#C89CFF`
-- `friends`: `#9B7AFF`
-- `hobbies`: `#FFAA5A`
+- `relationships`: `#EF4444`
+- `career`: `#3B82F6`
+- `family`: `#10B981`
+- `friends`: `#8B5CF6`
+- `hobbies`: `#F97316`
 
 ### Sphere Accent Colors (`getSphereAccentColor`)
 
@@ -152,18 +152,20 @@ Dark icon colors depend on sunny/cloudy state:
 
 #### Dark
 
-- `relationships`: `#E57373`
-- `career`: `#64B5F6`
-- `family`: `#81C784`
-- `friends`: `#BA68C8`
-- `hobbies`: `#FFB74D`
+- `relationships`: `#FCA5A5`
+- `career`: `#93C5FD`
+- `family`: `#6EE7B7`
+- `friends`: `#C4B5FD`
+- `hobbies`: `#FDBA74`
 
 ## Dynamic Sphere Gradient Logic in Dark Theme
 
-Dark sphere backgrounds are generated with dynamic RGBA values in `getSphereGradientColors(...)`, where opacity changes based on `sunnyPercentage`:
+Dark sphere backgrounds are generated in `getSphereGradientColors(...)` from each sphere's dark "sfera" solid color:
 
-- When `sunnyPercentage >= 50`: uses brighter "sunny" RGBA gradients.
-- When `sunnyPercentage < 50`: uses deeper "cloudy" RGBA gradients.
-- Opacity ramps are computed per sphere and per state, instead of static dark palette entries.
+- When `sunnyPercentage >= 50` (Sunny state):
+  - Gradient: transparent edge -> `rgba(sferaColor, 0.4)` center -> transparent edge
+- When `sunnyPercentage < 50` (Cloudy state):
+  - Center uses a softened mix of `rgba(sferaColor, 0.15)` with slate tint `#334155`
+  - Full gradient fades to transparent edges (`rgba(0,0,0,0)`)
 
-This means dark sphere gradients are style-defined formulas, not only fixed hex tokens.
+This keeps each sphere hue recognizable while giving the dark theme a softer nebula effect.

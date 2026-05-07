@@ -202,11 +202,11 @@ const SPHERE_MOON_TITLE_SHADOW: Record<LifeSphere, string> = {
 
 // Per-sphere: colors derived from getSphereSferaColor/getSphereShadowColor (dark mode)
 const SPHERE_RINGS: Record<LifeSphere, { core: string; ring1: string; ring2: string; glow: string }> = {
-  relationships: { core: "#FF9696", ring1: "#C05050", ring2: "#FFB8B8", glow: "#FF9696" },
-  career:        { core: "#96C8FF", ring1: "#3A70C0", ring2: "#C0E0FF", glow: "#96CAFF" },
-  family:        { core: "#C896FF", ring1: "#7A40C0", ring2: "#E0C0FF", glow: "#C89CFF" },
-  friends:       { core: "#8B5CF6", ring1: "#5530AA", ring2: "#B090FF", glow: "#9B7AFF" },
-  hobbies:       { core: "#F97B16", ring1: "#B84000", ring2: "#FFB060", glow: "#F97B16" },
+  relationships: { core: "#EF4444", ring1: "#B42323", ring2: "#FCA5A5", glow: "#EF4444" },
+  career:        { core: "#3B82F6", ring1: "#215FC4", ring2: "#93C5FD", glow: "#3B82F6" },
+  family:        { core: "#10B981", ring1: "#0E8D66", ring2: "#6EE7B7", glow: "#10B981" },
+  friends:       { core: "#8B5CF6", ring1: "#5530AA", ring2: "#C4B5FD", glow: "#8B5CF6" },
+  hobbies:       { core: "#F97316", ring1: "#B84C08", ring2: "#FDBA74", glow: "#F97316" },
 };
 
 // ─── Seeded random ────────────────────────────────────────────────────────────

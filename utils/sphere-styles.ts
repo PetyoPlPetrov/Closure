@@ -8,6 +8,41 @@ import { Colors } from "@/constants/theme";
 
 import type { LifeSphere } from "./JourneyProvider";
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const normalized = hex.replace("#", "");
+  const value =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((char) => `${char}${char}`)
+          .join("")
+      : normalized;
+  const int = parseInt(value, 16);
+  return {
+    r: (int >> 16) & 255,
+    g: (int >> 8) & 255,
+    b: int & 255,
+  };
+}
+
+function rgbaFromHex(hex: string, alpha: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function mixRgb(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+  weightOfB: number,
+): { r: number; g: number; b: number } {
+  const weightOfA = 1 - weightOfB;
+  return {
+    r: Math.round(a.r * weightOfA + b.r * weightOfB),
+    g: Math.round(a.g * weightOfA + b.g * weightOfB),
+    b: Math.round(a.b * weightOfA + b.b * weightOfB),
+  };
+}
+
 /** Soft chromatic surfaces (not flat grey). Paired with dark icon glyphs for AAA on light. */
 const LIGHT_SPHERE_GRADIENT: Record<
   LifeSphere,
@@ -59,35 +94,30 @@ export function getSphereIconColor(
   }
   switch (sphereType) {
     case "relationships":
-      // WCAG 2.0 AA: 3:1 contrast. Same pink-red shade as sfera, toned down but sufficient contrast.
       if (sunnyPercentage !== undefined && sunnyPercentage < 50) {
-        return "#F56868"; // Light red on dark-red cloudy gradient
+        return "#FCA5A5";
       }
-      return "#CC3838"; // Deep red, same hue as sfera (~3:1 on light-pink)
+      return "#FECACA";
     case "career":
-      // WCAG 2.0 AA: 3:1 contrast. Sunny = light blue → dark icon; Cloudy = dark blue → lighter icon.
       if (sunnyPercentage !== undefined && sunnyPercentage < 50) {
-        return "#90CAF9"; // Light blue on dark-blue cloudy gradient
+        return "#93C5FD";
       }
-      return "#1565C0"; // Deep blue on light-blue sunny gradient
+      return "#DBEAFE";
     case "family":
-      // WCAG 2.0 AA: 3:1 contrast.
       if (sunnyPercentage !== undefined && sunnyPercentage < 50) {
-        return "#CE93D8"; // Light purple on dark-purple cloudy gradient
+        return "#6EE7B7";
       }
-      return "#5E35B1"; // Deep purple on light-purple sunny gradient
+      return "#D1FAE5";
     case "friends":
-      // WCAG 2.0 AA: 3:1 contrast.
       if (sunnyPercentage !== undefined && sunnyPercentage < 50) {
-        return "#B39DDB"; // Light purple on dark-purple cloudy gradient
+        return "#C4B5FD";
       }
-      return "#512DA8"; // Deep purple on light-purple sunny gradient
+      return "#EDE9FE";
     case "hobbies":
-      // WCAG 2.0 AA: 3:1 contrast.
       if (sunnyPercentage !== undefined && sunnyPercentage < 50) {
-        return "#FFCC80"; // Light orange on dark-orange cloudy gradient
+        return "#FDBA74";
       }
-      return "#E65100"; // Deep orange on light-orange sunny gradient
+      return "#FFEDD5";
     default:
       return Colors.dark.primary;
   }
@@ -167,20 +197,20 @@ export function getSphereSferaColor(
         return "#1565C0";
     }
   }
-  // Dark: use RGB from the sfera gradient base (sunny) so it matches the floating orb
+  // Dark: new solid sphere palette.
   switch (sphereType) {
     case "relationships":
-      return "#FF9696"; // from rgba(255,150,150)
+      return "#EF4444";
     case "career":
-      return "#96C8FF"; // from rgba(150,200,255)
+      return "#3B82F6";
     case "family":
-      return "#C896FF"; // from rgba(200,150,255) — lavender, matches family sfera
+      return "#10B981";
     case "friends":
-      return "#8B5CF6"; // from rgba(139,92,246) — violet, matches friends sfera
+      return "#8B5CF6";
     case "hobbies":
-      return "#F97B16"; // from rgba(249,115,22)
+      return "#F97316";
     default:
-      return "#96C8FF";
+      return "#3B82F6";
   }
 }
 
@@ -197,17 +227,17 @@ export function getSphereShadowColor(
   }
   switch (sphere) {
     case "relationships":
-      return "#FF9696";
+      return "#EF4444";
     case "career":
-      return "#96CAFF";
+      return "#3B82F6";
     case "family":
-      return "#C89CFF";
+      return "#10B981";
     case "friends":
-      return "#9B7AFF";
+      return "#8B5CF6";
     case "hobbies":
-      return "#FFAA5A";
+      return "#F97316";
     default:
-      return "#96CAFF";
+      return "#3B82F6";
   }
 }
 
@@ -238,90 +268,21 @@ export function getSphereGradientColors(
     return isMoreSunny ? g.sunny : g.cloudy;
   }
 
-  // Dark mode: colorful gradients per sphere
-  if (sphere === "relationships") {
-    if (isMoreSunny) {
-      const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
-      return [
-        `rgba(255, 140, 140, ${baseOpacity - 0.05})`,
-        `rgba(255, 150, 150, ${baseOpacity})`,
-        `rgba(255, 160, 160, ${baseOpacity + 0.05})`,
-      ];
-    }
-    const cloudyPercentage = 100 - sunnyPercentage;
-    const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
-    return [
-      `rgba(170, 50, 50, ${baseOpacity - 0.05})`,
-      `rgba(180, 60, 60, ${baseOpacity})`,
-      `rgba(190, 70, 70, ${baseOpacity + 0.05})`,
-    ];
-  }
-  if (sphere === "career") {
-    if (isMoreSunny) {
-      const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
-      return [
-        `rgba(140, 190, 245, ${baseOpacity - 0.05})`,
-        `rgba(150, 200, 255, ${baseOpacity})`,
-        `rgba(160, 210, 255, ${baseOpacity + 0.05})`,
-      ];
-    }
-    const cloudyPercentage = 100 - sunnyPercentage;
-    const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
-    return [
-      `rgba(50, 90, 170, ${baseOpacity - 0.05})`,
-      `rgba(60, 100, 180, ${baseOpacity})`,
-      `rgba(70, 110, 190, ${baseOpacity + 0.05})`,
-    ];
-  }
-  if (sphere === "family") {
-    if (isMoreSunny) {
-      const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
-      return [
-        `rgba(190, 140, 245, ${baseOpacity - 0.05})`,
-        `rgba(200, 150, 255, ${baseOpacity})`,
-        `rgba(210, 160, 255, ${baseOpacity + 0.05})`,
-      ];
-    }
-    const cloudyPercentage = 100 - sunnyPercentage;
-    const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
-    return [
-      `rgba(110, 50, 170, ${baseOpacity - 0.05})`,
-      `rgba(120, 60, 180, ${baseOpacity})`,
-      `rgba(130, 70, 190, ${baseOpacity + 0.05})`,
-    ];
-  }
-  if (sphere === "friends") {
-    if (isMoreSunny) {
-      const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
-      return [
-        `rgba(129, 82, 236, ${baseOpacity - 0.05})`,
-        `rgba(139, 92, 246, ${baseOpacity})`,
-        `rgba(149, 102, 255, ${baseOpacity + 0.05})`,
-      ];
-    }
-    const cloudyPercentage = 100 - sunnyPercentage;
-    const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
-    return [
-      `rgba(78, 18, 125, ${baseOpacity - 0.05})`,
-      `rgba(88, 28, 135, ${baseOpacity})`,
-      `rgba(98, 38, 145, ${baseOpacity + 0.05})`,
-    ];
-  }
-  // Hobbies
+  const sferaHex = getSphereSferaColor(sphere, "dark");
   if (isMoreSunny) {
-    const baseOpacity = 0.4 + (sunnyPercentage / 100) * 0.3;
-    return [
-      `rgba(239, 105, 12, ${baseOpacity - 0.05})`,
-      `rgba(249, 115, 22, ${baseOpacity})`,
-      `rgba(255, 125, 32, ${baseOpacity + 0.05})`,
-    ];
+    // Sunny: centered glow from sphere color to transparent edges.
+    return [rgbaFromHex(sferaHex, 0), rgbaFromHex(sferaHex, 0.4), rgbaFromHex(sferaHex, 0)];
   }
-  const cloudyPercentage = 100 - sunnyPercentage;
-  const baseOpacity = 0.3 + (cloudyPercentage / 100) * 0.4;
+
+  // Cloudy: softer center (sphere color @ 0.15) mixed with slate tint, fading to transparent edges.
+  const sferaRgb = hexToRgb(sferaHex);
+  const slateRgb = hexToRgb("#334155");
+  const centerBase = mixRgb(sferaRgb, slateRgb, 0.35);
+  const mixed = mixRgb(centerBase, sferaRgb, 0.15);
   return [
-    `rgba(144, 42, 8, ${baseOpacity - 0.05})`,
-    `rgba(154, 52, 18, ${baseOpacity})`,
-    `rgba(164, 62, 28, ${baseOpacity + 0.05})`,
+    "rgba(0, 0, 0, 0)",
+    `rgba(${mixed.r}, ${mixed.g}, ${mixed.b}, 0.22)`,
+    "rgba(0, 0, 0, 0)",
   ];
 }
 
@@ -348,16 +309,36 @@ export function getSphereAccentColor(
   }
   switch (sphereType) {
     case "relationships":
-      return "#E57373";
+      return "#FCA5A5";
     case "career":
-      return Colors.dark.primary;
+      return "#93C5FD";
     case "family":
-      return "#81C784";
+      return "#6EE7B7";
     case "friends":
-      return "#BA68C8";
+      return "#C4B5FD";
     case "hobbies":
-      return "#FFB74D";
+      return "#FDBA74";
     default:
-      return Colors.dark.primary;
+      return Colors.dark.primaryLight;
+  }
+}
+
+/**
+ * Foreground color for glyph/text rendered on top of solid sfera fills.
+ * In dark mode, family + hobbies use dark ink to keep >=3:1 contrast.
+ */
+export function getSferaForegroundColor(
+  sphereType: LifeSphere,
+  colorScheme: "light" | "dark",
+): string {
+  if (colorScheme === "light") {
+    return "#FFFFFF";
+  }
+  switch (sphereType) {
+    case "family":
+    case "hobbies":
+      return Colors.dark.background;
+    default:
+      return "#FFFFFF";
   }
 }

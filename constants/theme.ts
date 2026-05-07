@@ -40,47 +40,47 @@ export const Colors = {
     surfaceElevated8: '#CBD5E1',
   },
   dark: {
-    text: '#FFFFFF',
-    background: '#1A2332',
+    text: '#F8FAFC',
+    background: '#0B1120',
 
     /** Opaque highs — translucent white loses AAA on brightest elevated cards (#424E62). */
     textHighEmphasis: '#FFFFFF',
-    textMediumEmphasis: '#E8EDF6',
-    textDisabled: '#E4EDF8',
+    textMediumEmphasis: '#94A3B8',
+    textDisabled: '#475569',
 
-    tint: '#64B5F6',
-    primary: '#64B5F6',
-    primaryLight: '#90CAF9',
-    primaryDark: '#42A5F5',
+    tint: '#34D399',
+    primary: '#10B981',
+    primaryLight: '#34D399',
+    primaryDark: '#059669',
     /** Third stop for 3-point glossy gradients (event cards, loaders). */
-    primaryDeep: '#1E88E5',
-    primaryText: '#1A2332',
+    primaryDeep: '#047857',
+    primaryText: '#0B1120',
 
-    icon: '#E8EDF6',
-    tabIconDefault: '#E8EDF6',
-    tabIconSelected: '#64B5F6',
+    icon: '#F8FAFC',
+    tabIconDefault: '#475569',
+    tabIconSelected: '#34D399',
 
-    error: '#EF5350',
+    error: '#EF4444',
 
-    surface: '#1A2332',
-    surfaceElevated1: '#243041',
-    surfaceElevated2: '#2D3A4F',
-    surfaceElevated4: '#364557',
-    surfaceElevated8: '#424E62',
+    surface: '#0B1120',
+    surfaceElevated1: '#151E32',
+    surfaceElevated2: '#1D283E',
+    surfaceElevated4: '#2A3750',
+    surfaceElevated8: '#3A4C6A',
   },
 };
 
 /** Dark accent blue gradient (primary → darker → deepest) — reuse instead of `#64B5F6` literals. */
 export const darkPrimaryGradient3: readonly [string, string, string] = [
+  Colors.dark.primaryLight,
   Colors.dark.primary,
   Colors.dark.primaryDark,
-  Colors.dark.primaryDeep,
 ];
 
 /** Two-stop gradient share / pill chrome (dark accent family). */
 export const darkPrimaryShareGradient: readonly [string, string] = [
-  Colors.dark.primaryDark,
   Colors.dark.primary,
+  Colors.dark.primaryLight,
 ];
 
 /** Floating + / FAB fill in both themes (`Colors.light.primary` is brand green). */
