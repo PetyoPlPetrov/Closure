@@ -4005,8 +4005,7 @@ export function FocusedSferaView({
           enabled={
             orbitViewAnimationsEnabled &&
             pulsingAnimations &&
-            !isMemoryBalanceMode &&
-            !lightCosmicOff
+            !isMemoryBalanceMode
           }
           visible={!isSphereTransitioning}
         />
