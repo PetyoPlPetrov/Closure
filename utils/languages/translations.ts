@@ -5639,7 +5639,7 @@ const translations: Record<Language, Translations> = {
     // AI
     "ai.title": "Create a memory with Sferas AI",
     "ai.subtitle":
-      "Use this for someone or something in your life—a person, a hobby, family, or work. A few honest lines are enough; Sfera AI will structure it into moments and lessons.",
+      "Sfera AI will structure your story into moments and lessons.",
     "ai.placeholder.input": "Share your memory or tell a story here…",
     "ai.placeholder.recording":
       "[Voice recording - speech-to-text integration needed]",
@@ -10743,7 +10743,7 @@ const translations: Record<Language, Translations> = {
     // AI
     "ai.title": "Създай спомен с AI",
     "ai.subtitle":
-      "Ползвайте го за някой или нещо от живота ви — човек, хоби, семейство или работа. Достатъчни са няколко честни реда; Sfera AI ще го подреди в моменти и уроци.",
+      "Sfera AI ще подреди историята ви в моменти и уроци.",
     "ai.placeholder.input": "Споделете спомен или разкажете история тук…",
     "ai.placeholder.recording":
       "[Гласов запис - необходима интеграция за реч към текст]",

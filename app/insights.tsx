@@ -57,6 +57,7 @@ function MomentTypesPieVisualization({
   colorScheme,
   fontScale,
   momentColors,
+  animationTrigger,
   onSlicePress,
 }: {
   distribution: { sunny: number; cloudy: number; lessons: number };
@@ -64,6 +65,7 @@ function MomentTypesPieVisualization({
   colorScheme: "light" | "dark" | null;
   fontScale: number;
   momentColors: MomentColors;
+  animationTrigger: number;
   onSlicePress?: (kind: MomentKind) => void;
 }) {
   const size = Math.min(380 * fontScale, SCREEN_WIDTH - 40);
@@ -136,6 +138,8 @@ function MomentTypesPieVisualization({
   const gradientOffset = useSharedValue(-1);
 
   useEffect(() => {
+    if (hasNoData) return;
+
     const slices: MomentKind[] = ["sunny", "cloudy", "lessons"];
     let currentIndex = 0;
 
@@ -156,6 +160,7 @@ function MomentTypesPieVisualization({
       });
     };
 
+    setPulsingSlice(slices[currentIndex]);
     runPulseAnimation();
 
     const interval = setInterval(() => {
@@ -165,7 +170,7 @@ function MomentTypesPieVisualization({
     }, 7400);
 
     return () => clearInterval(interval);
-  }, [gradientOffset, pulseRotation, pulseScale]);
+  }, [animationTrigger, gradientOffset, hasNoData, pulseRotation, pulseScale]);
 
   const sunnyGradientProps = useAnimatedProps(() => ({
     x1: `${(gradientOffset.value - 0.3) * 100}%`,
@@ -421,6 +426,7 @@ export default function InsightsScreen() {
   const t = useTranslate();
   const { momentColors } = useMomentColors();
   const [insightsMode, setInsightsMode] = useState<"sferas" | "moments">("sferas");
+  const [momentChartAnimationTrigger, setMomentChartAnimationTrigger] = useState(0);
   const chartModeTransition = useSharedValue(0);
   const chartSize = Math.min(380 * fontScale, SCREEN_WIDTH - 40);
 
@@ -471,8 +477,23 @@ export default function InsightsScreen() {
 
   /** Switch chart views freely; subscription applies when opening a slice (comparison). */
   const handleInsightsModeToggle = useCallback(() => {
-    setInsightsMode((m) => (m === "sferas" ? "moments" : "sferas"));
+    setInsightsMode((m) => {
+      const next = m === "sferas" ? "moments" : "sferas";
+      if (next === "moments") {
+        // Each time we enter the moments view, bump a trigger so the
+        // pie chart restarts its laser + growth animation immediately.
+        setMomentChartAnimationTrigger((v) => v + 1);
+      }
+      return next;
+    });
   }, []);
+
+  // Also fire once on initial mount if we start in "moments" (future‑proofing).
+  useEffect(() => {
+    if (insightsMode === "moments") {
+      setMomentChartAnimationTrigger((v) => v + 1);
+    }
+  }, [insightsMode]);
 
   useEffect(() => {
     chartModeTransition.value = withTiming(insightsMode === "moments" ? 1 : 0, {
@@ -920,6 +941,7 @@ export default function InsightsScreen() {
                 colorScheme={colorScheme}
                 fontScale={fontScale}
                 momentColors={momentColors}
+                animationTrigger={momentChartAnimationTrigger}
                 onSlicePress={handleMomentKindPress}
               />
             </Animated.View>

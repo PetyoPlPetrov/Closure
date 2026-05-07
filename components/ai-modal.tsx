@@ -2198,7 +2198,7 @@ export function AIModal({
                     </View>
                     <ThemedText size="sm" style={styles.headerSubtitle}>
                       {t("ai.subtitle") ||
-                        "Use this for someone or something in your life—a person, a hobby, family, or work. A few honest lines are enough; Sfera AI will structure it into moments and lessons."}
+                        "Sfera AI will structure your story into moments and lessons."}
                     </ThemedText>
                     {currentView !== "input" &&
                       !onboardingSferaAI &&
