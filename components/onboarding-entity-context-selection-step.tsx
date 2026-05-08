@@ -50,13 +50,13 @@ function BlurbEditor({
   const colorScheme = useColorScheme();
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? "dark"];
-  const { language } = useLanguage();
+  const { resolvedSpeechToTextLanguage } = useLanguage();
   const setLim = useCallback(
     (text: string) => onBlurb(entityId, text.length > MAX_BLURB ? text.slice(0, MAX_BLURB) : text),
     [entityId, onBlurb],
   );
   const speechToText = useSpeechToText({
-    language: language ?? "en",
+    language: resolvedSpeechToTextLanguage,
     getText: () => blurb,
     setText: setLim,
     disabled: false,

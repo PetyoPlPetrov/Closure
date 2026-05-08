@@ -97,7 +97,7 @@ export function AIEntityCreationModal({
   const { momentColors } = useMomentColors();
   const t = useTranslate();
   const { hasAIEntitlement } = useSubscription();
-  const { language } = useLanguage();
+  const { language, resolvedSpeechToTextLanguage } = useLanguage();
   const { addProfile, addJob, addFamilyMember, addFriend, addHobby } =
     useJourney();
 
@@ -377,7 +377,7 @@ export function AIEntityCreationModal({
   };
 
   const speechToText = useSpeechToText({
-    language,
+    language: resolvedSpeechToTextLanguage,
     getText: () => inputText,
     setText: setInputTextWithLimit,
     disabled: isProcessing,

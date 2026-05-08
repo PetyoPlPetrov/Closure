@@ -21,6 +21,7 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getSphereSferaColor } from "@/utils/sphere-styles";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Device from "expo-device";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -52,6 +53,7 @@ import {
 import Animated, {
   cancelAnimation,
   Easing,
+  interpolate,
   type SharedValue,
   useAnimatedStyle,
   useSharedValue,
@@ -82,6 +84,10 @@ const PLANET_C = PLANET_CANVAS / 2;
 
 // Moon avatar size (memory image orbiting the planet top)
 const MOON_SIZE = 72;
+const LESSON_INNER_IMAGE_SIZE = ATMO_R * 1.62;
+const LESSON_MOON_TOP = SW / 2 - ATMO_R - MOON_SIZE / 2 + 4;
+const LESSON_INNER_IMAGE_TOP = SW / 2 - LESSON_INNER_IMAGE_SIZE / 2 + 6;
+const LESSON_MOON_TAP_HINT_SEEN_KEY = "@sferas:lessons_moon_tap_hint_seen";
 
 /** Words shown in the sphere before "Learn more" (one short sentence). */
 const LESSON_TEXT_PREVIEW_MAX_WORDS = 8;
@@ -716,6 +722,7 @@ const LessonSfera = React.memo(function LessonSfera({
   onAvatarPress,
   onToggleFavorite,
   pageHeight = SH,
+  showTapHint = false,
 }: {
   card: LessonCard;
   isVisible: boolean;
@@ -723,6 +730,8 @@ const LessonSfera = React.memo(function LessonSfera({
   onToggleFavorite?: () => void;
   /** Pager page height (full screen or tab content area). */
   pageHeight?: number;
+  /** One-time affordance shown on first lesson only. */
+  showTapHint?: boolean;
 }) {
   const t = useTranslate();
   const colorScheme = useColorScheme();
@@ -733,6 +742,7 @@ const LessonSfera = React.memo(function LessonSfera({
   const accentColor = getSphereSferaColor(card.sphere, scheme);
 
   const [fullLessonModalVisible, setFullLessonModalVisible] = useState(false);
+  const [avatarExpanded, setAvatarExpanded] = useState(false);
 
   const { preview: lessonPreviewText, needsLearnMore } = useMemo(
     () => lessonTextPreviewParts(card.text, LESSON_TEXT_PREVIEW_MAX_WORDS),
@@ -751,6 +761,8 @@ const LessonSfera = React.memo(function LessonSfera({
   const moonScale = useSharedValue(1);
   const moonGlow = useSharedValue(0);
   const moonAmbient = useSharedValue(1);
+  const moonHintPulse = useSharedValue(0);
+  const moonExpand = useSharedValue(0);
 
   const fireMoonPulse = useCallback(() => {
     moonScale.value = withSequence(
@@ -790,7 +802,21 @@ const LessonSfera = React.memo(function LessonSfera({
     moonGlow.value = 0;
   }, [isVisible, moonScale, moonGlow]);
 
+  useEffect(() => {
+    if (!isVisible) {
+      cancelAnimation(moonExpand);
+      moonExpand.value = 0;
+      setAvatarExpanded(false);
+      return;
+    }
+    moonExpand.value = withTiming(avatarExpanded ? 1 : 0, {
+      duration: avatarExpanded ? 420 : 320,
+      easing: Easing.inOut(Easing.cubic),
+    });
+  }, [avatarExpanded, isVisible, moonExpand]);
+
   const handleMoonPress = useCallback(() => {
+    if (avatarExpanded) return;
     moonScale.value = withSequence(
       withSpring(1.22, { damping: 6, stiffness: 300 }),
       withSpring(0.92, { damping: 8, stiffness: 260 }),
@@ -802,8 +828,8 @@ const LessonSfera = React.memo(function LessonSfera({
       withTiming(1, { duration: 150 }),
       withTiming(0, { duration: 400 }),
     );
-    onAvatarPress?.();
-  }, [moonScale, moonGlow, onAvatarPress]);
+    setAvatarExpanded(true);
+  }, [moonScale, moonGlow, avatarExpanded]);
   useEffect(() => {
     if (isVisible) {
       moonAmbient.value = withDelay(600, withRepeat(
@@ -822,6 +848,45 @@ const LessonSfera = React.memo(function LessonSfera({
 
   const moonStyle = useAnimatedStyle(() => ({ transform: [{ scale: moonScale.value * moonAmbient.value }] }));
   const moonGlowStyle = useAnimatedStyle(() => ({ opacity: moonGlow.value }));
+  const moonHintStyle = useAnimatedStyle(() => ({
+    opacity: avatarExpanded ? 0 : moonHintPulse.value,
+    transform: [{ translateY: interpolate(moonHintPulse.value, [0.25, 0.95], [-2, 2]) }],
+  }));
+  const moonOrbitStyle = useAnimatedStyle(() => ({
+    opacity: 1 - moonExpand.value,
+    transform: [{ translateY: interpolate(moonExpand.value, [0, 1], [0, -10]) }],
+  }));
+  const innerImageStyle = useAnimatedStyle(() => {
+    const size = interpolate(moonExpand.value, [0, 1], [MOON_SIZE, LESSON_INNER_IMAGE_SIZE]);
+    return {
+      top: interpolate(moonExpand.value, [0, 1], [LESSON_MOON_TOP, LESSON_INNER_IMAGE_TOP]),
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      opacity: moonExpand.value,
+      transform: [{ scale: interpolate(moonExpand.value, [0, 1], [1, 1.03]) }],
+    };
+  });
+  const expandedActionStyle = useAnimatedStyle(() => ({
+    opacity: moonExpand.value,
+    transform: [{ scale: interpolate(moonExpand.value, [0, 1], [0.88, 1]) }],
+  }));
+
+  useEffect(() => {
+    if (!isVisible || avatarExpanded || !card.memoryId || !showTapHint) {
+      cancelAnimation(moonHintPulse);
+      moonHintPulse.value = 0;
+      return;
+    }
+    moonHintPulse.value = withRepeat(
+      withSequence(
+        withTiming(0.95, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.25, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+  }, [isVisible, avatarExpanded, card.memoryId, showTapHint, moonHintPulse]);
 
   useEffect(() => {
     if (isVisible) {
@@ -897,6 +962,39 @@ const LessonSfera = React.memo(function LessonSfera({
         <RingPlanetSvg id={card.id} colors={colors} ringRotation={rot} isLight={isLight} />
 
         {/* Lesson content — floats in the transparent center */}
+        {moonUri && !moonImageFailed ? (
+          <Animated.View pointerEvents="none" style={[styles.innerLessonImageWrap, innerImageStyle]}>
+            <Image
+              source={{ uri: moonUri }}
+              style={styles.innerLessonImage}
+              contentFit="cover"
+              recyclingKey={`${card.id}-inner-lesson`}
+            />
+            <View style={styles.innerLessonImageShade} />
+          </Animated.View>
+        ) : null}
+        {card.memoryId ? (
+          <>
+            <Animated.View style={[styles.expandedActionTop, expandedActionStyle]}>
+              <Pressable
+                onPress={() => setAvatarExpanded(false)}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel={t("universe.lessons.accessibility.collapseImage")}
+                style={[
+                  styles.expandedActionBtn,
+                  {
+                    borderColor: accentColor + "99",
+                    backgroundColor: isLight ? "rgba(255, 255, 255, 0.95)" : "rgba(8,14,28,0.86)",
+                  },
+                ]}
+              >
+                <MaterialIcons name="keyboard-arrow-up" size={20} color={accentColor} />
+              </Pressable>
+            </Animated.View>
+          </>
+        ) : null}
+
         <View style={styles.contentOverlay}>
           {/* Favorite — top-right of lesson text area (away from sphere heart badge below) */}
           <View
@@ -932,45 +1030,70 @@ const LessonSfera = React.memo(function LessonSfera({
               />
             </Pressable>
           </View>
-          {/* Thin divider */}
-          <View style={styles.divRow}>
-            <View style={[styles.divLine, { backgroundColor: accentColor + "35" }]} />
-            <View style={[styles.divDot, { backgroundColor: accentColor + "80" }]} />
-            <View style={[styles.divLine, { backgroundColor: accentColor + "35" }]} />
-          </View>
+          <Pressable
+            onPress={!avatarExpanded ? () => setFullLessonModalVisible(true) : undefined}
+            disabled={avatarExpanded}
+            accessibilityRole="button"
+            accessibilityLabel={t("universe.lessons.accessibility.learnMore")}
+            style={styles.innerContentPressable}
+          >
+            {/* Thin divider */}
+            <View style={styles.divRow}>
+              <View style={[styles.divLine, { backgroundColor: accentColor + "35" }]} />
+              <View style={[styles.divDot, { backgroundColor: accentColor + "80" }]} />
+              <View style={[styles.divLine, { backgroundColor: accentColor + "35" }]} />
+            </View>
 
-          {/* Full width so text wraps to multiple lines (center parent would otherwise shrink to one line) */}
-          <View style={styles.lessonTextWrap}>
-            <ThemedText
-              style={[
-                styles.lessonText,
-                isLight && {
-                  color: Colors.light.text,
-                  textShadowColor: "rgba(255, 255, 255, 0.75)",
-                  textShadowRadius: 6,
-                },
-              ]}
-            >
-              {lessonPreviewText}
-            </ThemedText>
-            {needsLearnMore ? (
-              <Pressable
-                onPress={() => setFullLessonModalVisible(true)}
-                accessibilityRole="button"
-                accessibilityLabel={t("universe.lessons.accessibility.learnMore")}
-                hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
-                style={styles.learnMorePressable}
+            {/* Full width so text wraps to multiple lines (center parent would otherwise shrink to one line) */}
+            <View style={styles.lessonTextWrap}>
+              <ThemedText
+                style={[
+                  styles.lessonText,
+                  isLight && {
+                    color: Colors.light.text,
+                    textShadowColor: "rgba(255, 255, 255, 0.75)",
+                    textShadowRadius: 6,
+                  },
+                ]}
               >
-                <ThemedText
-                  style={[
-                    styles.learnMoreText,
-                    { color: accentColor },
-                    isLight && { textDecorationColor: `${Colors.light.textMediumEmphasis}99` },
-                  ]}
-                >
-                  {t("universe.lessons.learnMore")}
-                </ThemedText>
-              </Pressable>
+                {lessonPreviewText}
+              </ThemedText>
+            </View>
+          </Pressable>
+          <View>
+            {needsLearnMore || card.memoryId ? (
+              <View style={styles.lessonActionsRow}>
+                {needsLearnMore ? (
+                  <Pressable
+                    onPress={() => setFullLessonModalVisible(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("universe.lessons.accessibility.learnMore")}
+                    hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+                    style={styles.learnMorePressable}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.learnMoreText,
+                        { color: accentColor },
+                        isLight && { textDecorationColor: `${Colors.light.textMediumEmphasis}99` },
+                      ]}
+                    >
+                      {t("universe.lessons.learnMore")}
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+                {card.memoryId && avatarExpanded ? (
+                  <Pressable
+                    onPress={() => onAvatarPress?.()}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("universe.lessons.accessibility.openMemory")}
+                    hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+                    style={styles.openMorePressable}
+                  >
+                    <MaterialIcons name="open-in-new" size={16} color={accentColor} />
+                  </Pressable>
+                ) : null}
+              </View>
             ) : null}
           </View>
         </View>
@@ -978,13 +1101,14 @@ const LessonSfera = React.memo(function LessonSfera({
         {/* Moon avatar — memory image as a glowing satellite at the top rim of the planet.
             Positioned so its center sits exactly on the atmospheric circle edge (ATMO_R from planet center). */}
         <View
-          style={[styles.moonOrbit, {
-            top: SW / 2 - ATMO_R - MOON_SIZE / 2 + 4,
-          }]}
+          style={[styles.moonOrbit, { top: LESSON_MOON_TOP }]}
         >
           {/* Moon image or fallback icon — tappable when linked to a real memory */}
-          <Pressable onPress={card.memoryId ? handleMoonPress : undefined} hitSlop={12}>
-            <View>
+          <Pressable
+            onPress={card.memoryId && !avatarExpanded ? handleMoonPress : undefined}
+            hitSlop={12}
+          >
+            <Animated.View style={moonOrbitStyle}>
               {/* Pulse glow ring behind avatar */}
               <Animated.View
                 pointerEvents="none"
@@ -1031,7 +1155,12 @@ const LessonSfera = React.memo(function LessonSfera({
                   </View>
                 )}
               </Animated.View>
-            </View>
+              {card.memoryId && !avatarExpanded && showTapHint ? (
+                <Animated.View pointerEvents="none" style={[styles.moonTapHint, moonHintStyle]}>
+                  <MaterialIcons name="keyboard-arrow-down" size={16} color={accentColor} />
+                </Animated.View>
+              ) : null}
+            </Animated.View>
           </Pressable>
           {/* Memory title below the moon — high contrast on bright orb core */}
           <ThemedText
@@ -1124,6 +1253,11 @@ const LessonSfera = React.memo(function LessonSfera({
               showsVerticalScrollIndicator
               keyboardShouldPersistTaps="handled"
             >
+              {moonUri && !moonImageFailed ? (
+                <View style={styles.lessonFullModalImageWrap}>
+                  <Image source={{ uri: moonUri }} style={styles.lessonFullModalImage} contentFit="cover" />
+                </View>
+              ) : null}
               <ThemedText style={[styles.lessonFullModalBody, { color: themeColors.text }]}>
                 {card.text}
               </ThemedText>
@@ -1237,6 +1371,8 @@ export function UniverseLessonsScreen({
 
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const handledInitialTargetKeyRef = useRef<string | null>(null);
+  const [showOneTimeMoonHint, setShowOneTimeMoonHint] = useState(false);
+  const hasMarkedMoonHintSeenRef = useRef(false);
 
   const sphereFilterKey = useMemo(
     () =>
@@ -1482,6 +1618,38 @@ export function UniverseLessonsScreen({
   }, [visible, filteredCards.length]);
 
   useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(LESSON_MOON_TAP_HINT_SEEN_KEY)
+      .then((seen) => {
+        if (cancelled) return;
+        setShowOneTimeMoonHint(seen !== "true");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setShowOneTimeMoonHint(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showOneTimeMoonHint || hasMarkedMoonHintSeenRef.current) return;
+    if (!visible || !appUsabilityHints) return;
+    const activeCardForHint = filteredCards[activeIndex];
+    if (!activeCardForHint?.memoryId) return;
+
+    // "Once" means first time opening Lessons tab: show briefly, then persist as seen.
+    const timer = setTimeout(() => {
+      hasMarkedMoonHintSeenRef.current = true;
+      setShowOneTimeMoonHint(false);
+      AsyncStorage.setItem(LESSON_MOON_TAP_HINT_SEEN_KEY, "true").catch(() => {});
+    }, 2200);
+
+    return () => clearTimeout(timer);
+  }, [showOneTimeMoonHint, visible, appUsabilityHints, activeIndex, filteredCards]);
+
+  useEffect(() => {
     if (!visible) {
       setShowDecorLayers(false);
       return;
@@ -1711,6 +1879,7 @@ export function UniverseLessonsScreen({
           item.memoryId ? () => handleToggleFavorite(item) : undefined
         }
         pageHeight={listPageHeight}
+        showTapHint={showOneTimeMoonHint && appUsabilityHints && index === activeIndex}
       />
     ),
     [activeIndex, runLessonAnimations, handleAvatarPress, handleToggleFavorite, listPageHeight],
@@ -2412,6 +2581,7 @@ const styles = StyleSheet.create({
     paddingTop: MOON_SIZE + 16,
     marginTop: -30,
     gap: 14,
+    zIndex: 9,
   },
   /** Below moon + memory title; right side of the lesson text block */
   favoriteInOverlay: {
@@ -2436,6 +2606,53 @@ const styles = StyleSheet.create({
   moonImage: {
     width: "100%",
     height: "100%",
+  },
+  moonTapHint: {
+    position: "absolute",
+    bottom: -8,
+    alignSelf: "center",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(8,14,28,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
+  },
+  innerLessonImageWrap: {
+    position: "absolute",
+    alignSelf: "center",
+    overflow: "hidden",
+    zIndex: 3,
+    borderWidth: 1.2,
+    borderColor: "rgba(255,255,255,0.22)",
+  },
+  innerLessonImage: {
+    width: "100%",
+    height: "100%",
+  },
+  innerLessonImageShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(8, 14, 28, 0.28)",
+  },
+  expandedActionTop: {
+    position: "absolute",
+    top: LESSON_INNER_IMAGE_TOP - 20,
+    alignSelf: "center",
+    zIndex: 14,
+  },
+  expandedActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 6,
+    elevation: 5,
   },
   moonLabel: {
     fontSize: 15,
@@ -2463,6 +2680,12 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 2,
   },
+  innerContentPressable: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    borderRadius: 16,
+    paddingVertical: 4,
+  },
   lessonTextWrap: {
     alignSelf: "stretch",
     width: "100%",
@@ -2471,6 +2694,24 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginTop: 6,
     paddingVertical: 4,
+  },
+  lessonActionsRow: {
+    marginTop: 2,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  openMorePressable: {
+    marginTop: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(8,14,28,0.2)",
   },
   learnMoreText: {
     fontSize: 15,
@@ -2519,6 +2760,19 @@ const styles = StyleSheet.create({
   },
   lessonFullModalScrollContent: {
     paddingBottom: 8,
+  },
+  lessonFullModalImageWrap: {
+    width: "100%",
+    height: 168,
+    borderRadius: 14,
+    overflow: "hidden",
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+  },
+  lessonFullModalImage: {
+    width: "100%",
+    height: "100%",
   },
   lessonFullModalBody: {
     fontSize: 17,

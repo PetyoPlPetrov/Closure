@@ -25,6 +25,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { type Language } from "@/utils/languages/translations";
+import { type SpeechToTextLanguage } from "@/utils/languages/language-manager";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -37,8 +38,15 @@ export default function PersonalizationScreen() {
   const t = useTranslate();
   const { constellationAmount, constellationOpacity } = useVisualSettings();
   const aiConsent = useAIInsightsConsent();
-  const { language, setLanguage } = useLanguage();
+  const {
+    language,
+    setLanguage,
+    speechToTextLanguage,
+    resolvedSpeechToTextLanguage,
+    setSpeechToTextLanguage,
+  } = useLanguage();
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
+  const [speechLanguageDropdownVisible, setSpeechLanguageDropdownVisible] = useState(false);
   const [infoPopupKey, setInfoPopupKey] = useState<"aiInsights" | null>(null);
 
   const handleLanguageChange = async (lang: Language) => {
@@ -50,6 +58,20 @@ export default function PersonalizationScreen() {
     return lang === "en"
       ? t("settings.language.english")
       : t("settings.language.bulgarian");
+  };
+
+  const handleSpeechLanguageChange = async (lang: SpeechToTextLanguage) => {
+    await setSpeechToTextLanguage(lang);
+    setSpeechLanguageDropdownVisible(false);
+  };
+
+  const getSpeechLanguageLabel = (lang: SpeechToTextLanguage) => {
+    if (lang === "auto") {
+      return language === "bg"
+        ? `Автоматично (${getLanguageLabel(resolvedSpeechToTextLanguage)})`
+        : `Auto (${getLanguageLabel(resolvedSpeechToTextLanguage)})`;
+    }
+    return getLanguageLabel(lang);
   };
 
   const handleToggleAIInsights = useCallback(
@@ -266,6 +288,29 @@ export default function PersonalizationScreen() {
                 />
                 <ThemedText size="l" weight="medium" style={styles.dropdownText}>
                   {getLanguageLabel(language)}
+                </ThemedText>
+              </View>
+              <MaterialIcons
+                name="arrow-drop-down"
+                size={24 * fontScale}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => setSpeechLanguageDropdownVisible(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dropdownContent}>
+                <MaterialIcons
+                  name="keyboard-voice"
+                  size={24 * fontScale}
+                  color={colors.icon}
+                />
+                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                  {language === "bg" ? "Реч към текст" : "Speech to text"}:{" "}
+                  {getSpeechLanguageLabel(speechToTextLanguage)}
                 </ThemedText>
               </View>
               <MaterialIcons
@@ -492,6 +537,111 @@ export default function PersonalizationScreen() {
                   </ThemedText>
                 </View>
                 {language === "bg" && (
+                  <MaterialIcons
+                    name="check-circle"
+                    size={24 * fontScale}
+                    color={colors.text}
+                  />
+                )}
+              </TouchableOpacity>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={speechLanguageDropdownVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSpeechLanguageDropdownVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setSpeechLanguageDropdownVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText size="l" weight="bold">
+                  {language === "bg" ? "Реч към текст" : "Speech to text"}
+                </ThemedText>
+              </View>
+
+              <TouchableOpacity
+                style={styles.dropdownOption}
+                onPress={() => handleSpeechLanguageChange("auto")}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownOptionContent}>
+                  <MaterialIcons
+                    name="tune"
+                    size={24 * fontScale}
+                    color={colors.icon}
+                  />
+                  <ThemedText
+                    size="l"
+                    weight={speechToTextLanguage === "auto" ? "bold" : "medium"}
+                  >
+                    {language === "bg"
+                      ? `Автоматично (${getLanguageLabel(resolvedSpeechToTextLanguage)})`
+                      : `Auto (${getLanguageLabel(resolvedSpeechToTextLanguage)})`}
+                  </ThemedText>
+                </View>
+                {speechToTextLanguage === "auto" && (
+                  <MaterialIcons
+                    name="check-circle"
+                    size={24 * fontScale}
+                    color={colors.text}
+                  />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dropdownOption}
+                onPress={() => handleSpeechLanguageChange("en")}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownOptionContent}>
+                  <MaterialIcons
+                    name="language"
+                    size={24 * fontScale}
+                    color={colors.icon}
+                  />
+                  <ThemedText
+                    size="l"
+                    weight={speechToTextLanguage === "en" ? "bold" : "medium"}
+                  >
+                    {t("settings.language.english")}
+                  </ThemedText>
+                </View>
+                {speechToTextLanguage === "en" && (
+                  <MaterialIcons
+                    name="check-circle"
+                    size={24 * fontScale}
+                    color={colors.text}
+                  />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dropdownOption}
+                onPress={() => handleSpeechLanguageChange("bg")}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownOptionContent}>
+                  <MaterialIcons
+                    name="language"
+                    size={24 * fontScale}
+                    color={colors.icon}
+                  />
+                  <ThemedText
+                    size="l"
+                    weight={speechToTextLanguage === "bg" ? "bold" : "medium"}
+                  >
+                    {t("settings.language.bulgarian")}
+                  </ThemedText>
+                </View>
+                {speechToTextLanguage === "bg" && (
                   <MaterialIcons
                     name="check-circle"
                     size={24 * fontScale}

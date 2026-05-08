@@ -667,7 +667,7 @@ export function OnboardingWizard({
   const fontScale = useFontScale();
   const colors = Colors[colorScheme ?? "dark"];
   const t = useTranslate();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, resolvedSpeechToTextLanguage } = useLanguage();
   const {
     addProfile,
     addJob,
@@ -790,7 +790,7 @@ export function OnboardingWizard({
   }, []);
 
   const speechToText = useSpeechToText({
-    language: language ?? "en",
+    language: resolvedSpeechToTextLanguage,
     getText: () => inputText,
     setText: setInputTextWithLimit,
     disabled: isProcessing,

@@ -1237,12 +1237,15 @@ export interface Translations {
   "universe.lessons.filters.reset": string;
   "universe.lessons.emptyFiltered": string;
   "universe.lessons.clearFilters": string;
+  "universe.lessons.openMore": string;
   "universe.lessons.accessibility.back": string;
   "universe.lessons.accessibility.openFilters": string;
   "universe.lessons.accessibility.filterActive": string;
   "universe.lessons.accessibility.toggleFavorite": string;
   "universe.lessons.accessibility.learnMore": string;
   "universe.lessons.accessibility.dismissSheet": string;
+  "universe.lessons.accessibility.collapseImage": string;
+  "universe.lessons.accessibility.openMemory": string;
 
   // Settings - Moments Colors
   "settings.momentColors.title": string;
@@ -4097,7 +4100,8 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.sunnyMomentsOne": "1 sunny moment",
     "sferaInsight.sunnyMomentsMany": "{count} sunny moments",
     "sferaInsight.lessonsCardTitle": "Your lessons",
-    "sferaInsight.lessonsCardSubtitle": "Open the Lessons tab to browse everything you've saved",
+    "sferaInsight.lessonsCardSubtitle":
+      "Open the Lessons tab to browse everything you've saved",
     "sferaInsight.emptyEntities.relationships": "No relationships added.",
     "sferaInsight.emptyEntities.career": "No careers added.",
     "sferaInsight.emptyEntities.family": "No family members added.",
@@ -4105,13 +4109,17 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.emptyEntities.hobbies": "No hobbies added.",
     "sferaInsight.emptyStateGuide.beforeLink.relationships":
       "Learn how to create relationships ",
-    "sferaInsight.emptyStateGuide.beforeLink.career": "Learn how to add careers ",
-    "sferaInsight.emptyStateGuide.beforeLink.family": "Learn how to create family members ",
+    "sferaInsight.emptyStateGuide.beforeLink.career":
+      "Learn how to add careers ",
+    "sferaInsight.emptyStateGuide.beforeLink.family":
+      "Learn how to create family members ",
     "sferaInsight.emptyStateGuide.beforeLink.friends":
       "Learn how to create Sfera friends ",
-    "sferaInsight.emptyStateGuide.beforeLink.hobbies": "Learn how to add hobbies ",
+    "sferaInsight.emptyStateGuide.beforeLink.hobbies":
+      "Learn how to add hobbies ",
     "sferaInsight.emptyStateGuide.linkHere": "here",
-    "sferaInsight.emptyStateGuide.a11yHint": "Opens the Recording Memories guide section.",
+    "sferaInsight.emptyStateGuide.a11yHint":
+      "Opens the Recording Memories guide section.",
     "sferaInsight.addHobbies": "Add hobbies",
     "sferaInsight.mostRecentHobby": "Most recently done",
     "sferaInsight.lastPracticed": "Longest not done",
@@ -4149,7 +4157,8 @@ const translations: Record<Language, Translations> = {
       "Without location, from now on you'll only see global events (no country filter). Tap Enable to allow location and see events in your region.",
     "events.locationModalEnable": "Enable",
     "events.locationModalClose": "Close",
-    "events.globalEventsOnly": "Showing global events only • Tap to enable location",
+    "events.globalEventsOnly":
+      "Showing global events only • Tap to enable location",
     "events.locationOpenSettingsMessage":
       "Location was denied. To see events in your region, enable location for Sferas in Settings.",
     "events.locationOpenSettingsButton": "Open Settings",
@@ -4236,7 +4245,7 @@ const translations: Record<Language, Translations> = {
     "ai.insights.manualTip.body":
       "You can still add memories manually. Open the top-left menu and choose Manual edit mode to write or edit memories directly.",
     "settings.subscriptions.title": "Subscriptions",
-    "settings.subscriptions.premium": "Sfera plans",
+    "settings.subscriptions.premium": "Sferas plans",
     "settings.yourData.title": "Your Data",
     "settings.devTools.title": "Development Tools",
     "settings.devTools.generateData.button":
@@ -4273,9 +4282,9 @@ const translations: Record<Language, Translations> = {
     "wheel.spinForRandom": "Spin the wheel",
     "wheel.exam.lessonOnly":
       "Select Lessons to spin the wheel and take the exam",
-    "wheel.exam.paywallPrompt": "Wheel exam requires Sfera AI",
+    "wheel.exam.paywallPrompt": "Wheel exam requires Sferas AI",
     "wheel.exam.freeLimitReached":
-      "You've used your free exam today. Upgrade to Sfera AI for unlimited exams.",
+      "You've used your free exam today. Upgrade to Sferas AI for unlimited exams.",
     "wheel.exam.questionPrompt": "Type your answer",
     "wheel.exam.submitAnswer": "Submit",
     "wheel.exam.analyzing": "Analyzing your answer…",
@@ -4314,7 +4323,8 @@ const translations: Record<Language, Translations> = {
     "streakRules.badge.immortal.description": "1 year champion",
     "streakRules.badge.ignite.name": "Ignite",
     "streakRules.badge.ignite.description": "Your first spark in the cosmos",
-    "streakRules.badge.ignite.reward": "Reward: starts your streak progression.",
+    "streakRules.badge.ignite.reward":
+      "Reward: starts your streak progression.",
     "streakRules.badge.pulse.name": "Pulse",
     "streakRules.badge.pulse.description": "Your rhythm is steady and alive",
     "streakRules.badge.pulse.reward":
@@ -4397,7 +4407,8 @@ const translations: Record<Language, Translations> = {
     "guide.introVideoComingSoonTitle": "Video coming soon",
     "guide.introVideoComingSoonBody":
       "This walkthrough will appear here after we publish it—open the guide again once your app updates.",
-    "guide.unknownSection": "This guide section could not be opened. Go back and try again.",
+    "guide.unknownSection":
+      "This guide section could not be opened. Go back and try again.",
     "guide.section.overview.title": "Missions",
     "guide.section.overview.shortTitle": "Missions",
     "guide.section.overview.description":
@@ -4446,7 +4457,7 @@ const translations: Record<Language, Translations> = {
       "/ Personalization / Manage notifications / People reminders",
     "guide.bullet.recordMemoryAi.title": "With the AI button",
     "guide.bullet.recordMemoryAi.description":
-      "Tap the glowing AI button in the center of the tab bar. If prompted, enable AI insights once — then describe what you want to remember. Sfera AI helps you turn it into a proper memory tied to the right entity and memory type. You can refine the result before saving.",
+      "Tap the glowing AI button in the center of the tab bar. If prompted, enable AI insights once — then describe what you want to remember. Sferas AI helps you turn it into a proper memory tied to the right entity and memory type. You can refine the result before saving.",
     "guide.bullet.recordMemoryAi.menuPath":
       "/ Tab bar / AI button (center) · Create Memory",
     "guide.bullet.recordMemoryManual.title": "With Manual edit mode",
@@ -4457,16 +4468,17 @@ const translations: Record<Language, Translations> = {
     "guide.bullet.universeLessons.title": "Universe Lessons",
     "guide.bullet.universeLessons.description":
       "All the lessons you've recorded across your spheres live in one place — Universe Lessons. Scroll through them at any time to revisit your hard-earned wisdom, spot patterns, and make sure none of it gets forgotten.",
-    "guide.bullet.universeLessons.menuPath":
-      "/ Tab bar / Lessons",
+    "guide.bullet.universeLessons.menuPath": "/ Tab bar / Lessons",
     "guide.bullet.dailyExam.title": "Daily Exam",
     "guide.bullet.dailyExam.description":
-      "Each day, Sfera AI picks one of your past lessons and presents a real-life situation connected to it. You respond, and the AI assesses your answer — giving you honest feedback on whether you've truly internalized the lesson or still have work to do. Learning isn't just recording. It's being tested when it counts.",
-    "guide.bullet.dailyExam.menuPath": "/ Tab bar / Lessons · checklist icon (next to filters)",
+      "Each day, Sferas AI picks one of your past lessons and presents a real-life situation connected to it. You respond, and the AI assesses your answer — giving you honest feedback on whether you've truly internalized the lesson or still have work to do. Learning isn't just recording. It's being tested when it counts.",
+    "guide.bullet.dailyExam.menuPath":
+      "/ Tab bar / Lessons · checklist icon (next to filters)",
     "guide.bullet.insightsWheel.title": "Sfera Insights",
     "guide.bullet.insightsWheel.description":
       "A visual snapshot of how your life is balanced right now. Sfera Insights shows you the distribution of moments across your spheres — revealing where you're investing your time and energy, and where the gaps are. Sometimes seeing it laid out is all it takes to understand what needs attention.",
-    "guide.bullet.insightsWheel.menuPath": "/ Sferas / Tap center avatar (overview)",
+    "guide.bullet.insightsWheel.menuPath":
+      "/ Sferas / Tap center avatar (overview)",
     "guide.bullet.sferasBalance.title": "Sferas Balance",
     "guide.bullet.sferasBalance.description":
       "A quick overview of your total moments across all spheres. It helps you see when one sphere starts taking too much of your life and creating imbalance, so you can rebalance early.",
@@ -4474,7 +4486,8 @@ const translations: Record<Language, Translations> = {
     "guide.bullet.entityWheel.title": "Entity Wheel",
     "guide.bullet.entityWheel.description":
       "Every entity has its own wheel — a compact visual of all the moments and lessons tied to that person, job, or experience. Tap any item to dive into the memory behind it. Or spin the wheel to let Sferas draw a random lesson from that entity and turn it into an exam — a focused test of whether that specific relationship or experience has truly taught you what it had to.",
-    "guide.bullet.entityWheel.menuPath": "/ Sferas / Focus a sphere / Entity wheel",
+    "guide.bullet.entityWheel.menuPath":
+      "/ Sferas / Focus a sphere / Entity wheel",
     "guide.bullet.entityReminders.title": "Entity Reminders",
     "guide.bullet.entityReminders.description":
       "Some connections quietly fade not because we stopped caring, but because we stopped paying attention. Entity Reminders nudge you when you haven't logged moments with someone in a while, or when a particular entity has fewer memories than the rest of your sphere. It's Sferas keeping the balance — making sure no person or experience gets neglected without you realizing it.",
@@ -4525,14 +4538,14 @@ const translations: Record<Language, Translations> = {
     "onboarding.language.subtitle": "You can change this later in Settings.",
     "onboarding.title": "Set up your Sferas",
     "onboarding.subtitle":
-      "Describe the most important Sfera Objects in your life with a few words about each one.",
+      "Describe the most important Sferas Objects in your life with a few words about each one.",
     "onboarding.placeholder":
       "My family has ... people. My brother is called .... He is ... years old, and he is very kind and supportive.\nMy best friend is ... and has always been there for me...\nI've been working at ... for 2 years. Before that I worked at ... for 3 years.\nI like hiking and the gym. In my free time I also do cooking classes and podcasts.\nI've been dating ... for 2 months. Before that I was single for 1 year after a ...-year relationship with my ex.",
     "onboarding.analyze": "Set up all my Sferas",
     "onboarding.geminiConsent": "I agree Sferas AI to process it using AI.",
     "onboarding.continueManualMode": "Continue to Sferas on manual mode",
     "onboarding.analyzing": "Setting up your Sferas...",
-    "onboarding.sferaAnalyzing": "Sfera AI is analyzing...",
+    "onboarding.sferaAnalyzing": "Sferas AI is analyzing...",
     "onboarding.review": "Review & edit your entities",
     "onboarding.reviewSubtitle":
       "These are initial suggestions—edit what you like and add more anytime later.",
@@ -4559,22 +4572,25 @@ const translations: Record<Language, Translations> = {
       "Life moves fast — and it's easy to lose sight of the lessons you've earned, or to forget the sunny moments that matter just as much as the hard ones.\n\nSferas helps you reflect and recap what each chapter taught you. It also gently nudges you to stay in touch with the people you care about, so no friendship quietly drifts away.\n\nLets introduce you Sferas.",
     "onboarding.postEntity.minSpheres":
       "Friends, Family, and Hobbies each need at least 2 entities before the next step.",
-    "onboarding.postEntity.sferaAi.title": "Sfera AI — included during onboarding",
+    "onboarding.postEntity.sferaAi.title":
+      "Sferas AI — included during onboarding",
     "onboarding.postEntity.sferaAi.body":
-      "Choose up to 5 entities (at least 3) to create one AI-guided memory each — this bundle is included while you finish onboarding. After onboarding, usual Sfera AI limits apply and you can add more entities and memories anytime.",
+      "Choose up to 5 entities (at least 2) to create one AI-guided memory each — this bundle is included while you finish onboarding. After onboarding, usual Sferas AI limits apply and you can add more entities and memories anytime.",
     "onboarding.postEntity.status.pickMore": "Pick {count} more to continue",
     "onboarding.postEntity.status.slotsLeft": "{count} more optional slots",
-    "onboarding.postEntity.status.readyRange": "You can pick up to {count} more — or continue",
-    "onboarding.postEntity.status.maxSelected": "Maximum selections for this onboarding step (5)",
+    "onboarding.postEntity.status.readyRange":
+      "You can pick up to {count} more — or continue",
+    "onboarding.postEntity.status.maxSelected":
+      "Maximum selections for this onboarding step (5)",
     "onboarding.postEntity.entityContextPlaceholder":
-      "A few sentences about them for Sfera AI…",
+      "A few sentences about them for Sferas AI…",
     "onboarding.postEntity.continue": "Continue",
     "onboarding.postEntity.startSferas": "Start Sferas",
     "onboarding.postEntity.blurbRequired":
       "Add text for each selected entity before continuing.",
     "onboarding.postEntity.memoryWizard.subtitle":
-      "Included Sfera AI — one starter memory here; add more anytime in the app.",
-    "onboarding.postEntity.memoryWizard.createAi": "Create with Sfera AI",
+      "Included Sferas AI — one starter memory here; add more anytime in the app.",
+    "onboarding.postEntity.memoryWizard.createAi": "Create with Sferas AI",
     "onboarding.postEntity.memoryWizard.tapAiCircleForName":
       "Tap the Sparkle button to create the first memory with {name} to proceed.",
     "onboarding.postEntity.memoryWizard.aiMemorySavedShort": "AI memory saved",
@@ -4586,9 +4602,9 @@ const translations: Record<Language, Translations> = {
       "Keep adding memories to earn more badges and unlock paid perks for free.",
     "onboarding.postEntity.memoryPick.title": "Grow your sferas",
     "onboarding.postEntity.memoryPick.body":
-      "Pick at least 2 sfera objects (up to 5). We will create a memory for each using Sfera AI for free.",
+      "Pick at least 2 sferas objects (up to 5). We will create a memory for each using Sferas AI for free.",
     "onboarding.postEntity.memoryPick.bodyHint":
-      "You can add more later in the app using the free tier of Sfera AI or manually.",
+      "You can add more later in the app using the free tier of Sferas AI or manually.",
     "onboarding.postEntity.memoryPick.pickCountHint":
       "{current} selected (min {min}, max {max})",
     "onboarding.postEntity.memoryPick.confirm": "Continue",
@@ -4598,8 +4614,7 @@ const translations: Record<Language, Translations> = {
       "Add at least {min} entities in each of these spheres — quick placeholders are fine; you can edit them anytime.",
     "onboarding.postEntity.mandatoryFill.countStatus":
       "{current} / {min} ({label})",
-    "onboarding.postEntity.mandatoryFill.empty":
-      "Nothing here yet.",
+    "onboarding.postEntity.mandatoryFill.empty": "Nothing here yet.",
     "onboarding.postEntity.mandatoryFill.add": "Add",
     "onboarding.postEntity.mandatoryFill.nameFriends": "Name",
     "onboarding.postEntity.mandatoryFill.nameFamily": "Name",
@@ -4613,14 +4628,13 @@ const translations: Record<Language, Translations> = {
     "onboarding.postEntity.unifiedWizard.subtitle":
       "Friends, Family, and Hobbies each need at least one object here first. Relationships and Career appear here only if someone or a role showed up from your story.",
     "onboarding.postEntity.unifiedWizard.body":
-      "Take a moment to grow each Sfera with the people and roles that really belong there—you'll add one object per area here first. Tap Continue when they're all set for the next step: starter memories with Sfera AI—free during this onboarding—for each entity. That small setup upfront means clearer, more personal support as you continue.",
+      "Take a moment to grow each Sfera with the people and roles that really belong there—you'll add one object per area here first. Tap Continue when they're all set for the next step: starter memories with Sferas AI—free during this onboarding—for each entity. That small setup upfront means clearer, more personal support as you continue.",
     "onboarding.postEntity.unifiedWizard.progress":
       "{current} / {memoryGoal} objects with an AI memory · Round {step} of up to {memoryGoal}",
     "onboarding.postEntity.unifiedWizard.chooseSphere": "Pick a Sfera",
     "onboarding.postEntity.unifiedWizard.mandatoryFfIncompleteA11y":
       "This area still needs at least one person or hobby—tap to add.",
-    "onboarding.postEntity.unifiedWizard.saveOpenAi":
-      "Continue",
+    "onboarding.postEntity.unifiedWizard.saveOpenAi": "Continue",
     "onboarding.postEntity.unifiedWizard.continueHintMandatoryIncomplete":
       "Friends, Family, and Hobbies each need at least one object before you can Continue.",
     "onboarding.postEntity.unifiedWizard.continueHintNeedSelection":
@@ -4649,23 +4663,20 @@ const translations: Record<Language, Translations> = {
     "onboarding.postEntity.unifiedWizard.addNewObjectCareer":
       "Add a new job or role",
     "onboarding.postEntity.unifiedWizard.footerHint":
-      "After onboarding, normal Sfera AI limits apply. You can keep adding anytime.",
+      "After onboarding, normal Sferas AI limits apply. You can keep adding anytime.",
     "onboarding.postEntity.unifiedWizard.pickerSectionSubtitle":
       "In {sphere} · tap someone below",
     "onboarding.postEntity.unifiedWizard.optionalNewEntityHint":
       "Need another object here? Fill in below.",
     "onboarding.postEntity.unifiedWizard.everyoneHasAiUseForm":
       "Everything in this sphere already has an AI memory—add another object below to continue.",
-    "onboarding.postEntity.unifiedWizard.sphereCoveredBadge":
-      "From story",
+    "onboarding.postEntity.unifiedWizard.sphereCoveredBadge": "From story",
     "onboarding.postEntity.unifiedWizard.nameRelationships":
       "Partner or relationship name",
-    "onboarding.postEntity.unifiedWizard.nameCareer":
-      "Job, role or workplace",
+    "onboarding.postEntity.unifiedWizard.nameCareer": "Job, role or workplace",
     "onboarding.postEntity.unifiedWizard.placeholderHobby":
       "Writing down thoughts from books / Gym / Hiking",
-    "onboarding.postEntity.unifiedWizard.removeChipA11y":
-      "Remove {name}",
+    "onboarding.postEntity.unifiedWizard.removeChipA11y": "Remove {name}",
     // Profile screens
     "profile.add": "Add Partner",
     "profile.edit": "Edit Profile",
@@ -4854,8 +4865,7 @@ const translations: Record<Language, Translations> = {
       "Distribution of sunny moments, cloudy moments, and lessons across sferas.",
     "insights.momentsView.distributionExplanation":
       "This chart shows moment quality distribution. It highlights where most sunny, cloudy, and lesson moments come from by sfera, and then by sferas objects.",
-    "insights.momentsView.emptyState":
-      "Add moments to see this distribution.",
+    "insights.momentsView.emptyState": "Add moments to see this distribution.",
     "insights.momentsView.topSunny": "Most sunny moments: {sphere}",
     "insights.momentsView.topCloudy": "Most cloudy moments: {sphere}",
     "insights.momentsView.topLessons": "Most lessons: {sphere}",
@@ -4866,7 +4876,8 @@ const translations: Record<Language, Translations> = {
     "insights.momentDistribution.titleLessons": "Lessons",
     "insights.momentDistribution.subtitleSunny": "Distribution across sferas.",
     "insights.momentDistribution.subtitleCloudy": "Distribution across sferas.",
-    "insights.momentDistribution.subtitleLessons": "Distribution across sferas.",
+    "insights.momentDistribution.subtitleLessons":
+      "Distribution across sferas.",
     "insights.momentDistribution.totalCountMoments": "{count} moments",
     "insights.momentDistribution.totalCountLessons": "{count} lessons",
     "insights.momentDistribution.allSferas": "All",
@@ -5333,15 +5344,15 @@ const translations: Record<Language, Translations> = {
     "subscription.limit.hobby":
       "You can create one hobby for free. Subscribe to create more hobbies.",
     "premium.activeBadge": "You're an active Premium member",
-    "premium.activeBadge.plus": "You're an active Sfera Plus member",
-    "premium.activeBadge.ai": "You're an active Sfera AI member",
-    "premium.activeBadge.both": "You're an active Sfera AI & Plus member",
-    "premium.plan.sferaPlus": "Sfera Plus",
-    "premium.plan.sferaAI": "Sfera AI",
-    "premium.upgrade": "Upgrade to Sfera AI",
+    "premium.activeBadge.plus": "You're an active Sferas Plus member",
+    "premium.activeBadge.ai": "You're an active Sferas AI member",
+    "premium.activeBadge.both": "You're an active Sferas AI & Plus member",
+    "premium.plan.sferaPlus": "Sferas Plus",
+    "premium.plan.sferaAI": "Sferas AI",
+    "premium.upgrade": "Upgrade to Sferas AI",
     "premium.whatsIncluded": "WHAT'S INCLUDED",
     "premium.feature.ai":
-      "Access to Sfera AI to turn your notes or voice stories into memories and moments",
+      "Access to Sferas AI to turn your notes or voice stories into memories and moments",
     "premium.feature.unlimited":
       "Unlimited creation of partners, jobs, friends, family members and hobbies",
     "premium.feature.notifications":
@@ -5360,10 +5371,12 @@ const translations: Record<Language, Translations> = {
     "notifications.sferaSizesHint.description":
       "Show the brief tip about how sfera sizes reflect your moment mix on Memory Balance.",
     "notifications.entityReminders.title": "People reminders",
-    "notifications.entityReminders.description": "Custom reminders for friends, family & relationships",
+    "notifications.entityReminders.description":
+      "Custom reminders for friends, family & relationships",
     "notifications.entityReminders.none": "No reminders set yet",
     "notifications.entityReminders.count": "{count} reminder(s) active",
-    "notifications.entityReminders.empty": "No entities added to your spheres yet",
+    "notifications.entityReminders.empty":
+      "No entities added to your spheres yet",
     "notifications.sphere.friends": "Friends",
     "notifications.sphere.family": "Family",
     "notifications.sphere.relationships": "Relationships",
@@ -5384,7 +5397,8 @@ const translations: Record<Language, Translations> = {
     "notifications.eventReminders.cancelMessage":
       "Are you sure you want to stop all reminders for '{eventName}'?",
     "notifications.eventReminders.cancelError": "Failed to cancel reminders",
-    "notifications.eventReminders.noScheduled": "Reminders to capture memories after events you've attended. No reminders scheduled yet.",
+    "notifications.eventReminders.noScheduled":
+      "Reminders to capture memories after events you've attended. No reminders scheduled yet.",
     "notifications.eventReminders.count": "{count} event reminder(s) scheduled",
     "notifications.eventReminders.reminderNumber": "Reminder {number}",
     "notifications.settings.title": "Notification settings",
@@ -5442,7 +5456,8 @@ const translations: Record<Language, Translations> = {
 
     // Moment notifications (nudges)
     "momentNotifications.title": "Moment nudges",
-    "momentNotifications.addSchedule": "Sends your lessons & sunny moments as reminders to stay present and grateful",
+    "momentNotifications.addSchedule":
+      "Sends your lessons & sunny moments as reminders to stay present and grateful",
     "momentNotifications.generateForManual":
       "Generate AI suggestions for manual lessons",
     "momentNotifications.sphere.career": "Career",
@@ -5512,11 +5527,12 @@ const translations: Record<Language, Translations> = {
       "No manual lessons without AI suggestions found.",
     "momentNotifications.scheduleCreated": "Schedule created successfully!",
     "momentNotifications.scheduleUpdated": "Schedule updated successfully!",
-    "momentNotifications.noMomentsWarning": "No moments available · notifications paused",
+    "momentNotifications.noMomentsWarning":
+      "No moments available · notifications paused",
     "momentNotifications.refresh.button": "Refresh",
     "momentNotifications.refresh.infoButton": "Refresh info",
     "momentNotifications.refresh.requiresSubscription":
-      "Refresh requires Sfera AI subscription.",
+      "Refresh requires Sferas AI subscription.",
     "momentNotifications.refresh.caughtUpTitle": "AI summaries are caught up",
     "momentNotifications.refresh.caughtUpMessage":
       "All available items for this nudge already have AI summaries.",
@@ -5604,12 +5620,15 @@ const translations: Record<Language, Translations> = {
     "universe.lessons.filters.reset": "Reset",
     "universe.lessons.emptyFiltered": "No lessons match these filters.",
     "universe.lessons.clearFilters": "Clear filters",
+    "universe.lessons.openMore": "Open more",
     "universe.lessons.accessibility.back": "Go back",
     "universe.lessons.accessibility.openFilters": "Open filters",
     "universe.lessons.accessibility.filterActive": "Filters active",
     "universe.lessons.accessibility.toggleFavorite": "Toggle favorite lesson",
     "universe.lessons.accessibility.learnMore": "Read full lesson text",
     "universe.lessons.accessibility.dismissSheet": "Close",
+    "universe.lessons.accessibility.collapseImage": "Return image to top",
+    "universe.lessons.accessibility.openMemory": "Open memory",
 
     // Settings - Moments Colors
     "settings.momentColors.title": "Moments Colors",
@@ -5648,7 +5667,7 @@ const translations: Record<Language, Translations> = {
     // AI
     "ai.title": "Create a memory with Sferas AI",
     "ai.subtitle":
-      "Sfera AI will structure your story into moments and lessons.",
+      "Sferas AI will structure your story into moments and lessons.",
     "ai.placeholder.input": "Share your memory or tell a story here…",
     "ai.placeholder.recording":
       "[Voice recording - speech-to-text integration needed]",
@@ -5717,7 +5736,8 @@ const translations: Record<Language, Translations> = {
     "ai.rateLimit.premiumMessage":
       "You've reached the daily limit. Try again tomorrow.",
     "ai.rateLimit.upgrade": "Upgrade to Premium",
-    "ai.remainingCreations": "{count} of {limit} free AI memory creations left today",
+    "ai.remainingCreations":
+      "{count} of {limit} free AI memory creations left today",
     "ai.error.title": "AI Processing Failed",
     "ai.error.message":
       "Failed to process your request: {error}. Please try again.",
@@ -5725,12 +5745,12 @@ const translations: Record<Language, Translations> = {
       "Permission to access camera roll is required to add photos.",
     "ai.action.title": "Accelerate your journey",
     "ai.action.message.withEntities":
-      "Let Sfera AI help you create memories and add Sfera entities faster—relationships, family members, friends, jobs, and hobbies.",
+      "Let Sferas AI help you create memories and add Sferas entities faster—relationships, family members, friends, jobs, and hobbies.",
     "ai.action.message.noEntities":
-      "Let Sfera AI help you get started quickly. Share your story and we'll add Sfera entities like relationships, family members, friends, jobs, and hobbies to your life spheres.",
+      "Let Sferas AI help you get started quickly. Share your story and we'll add Sferas entities like relationships, family members, friends, jobs, and hobbies to your life spheres.",
     "ai.action.createMemory": "Create Memory",
-    "ai.action.createMemoryHint": "First create Sfera entities to use this",
-    "ai.action.createEntity": "Create Sfera Entity",
+    "ai.action.createMemoryHint": "First create Sferas entities to use this",
+    "ai.action.createEntity": "Create Sferas Entity",
     "ai.entity.title": "Create Entity with AI",
     "ai.entity.subtitle": "Select a Sfera and tell us about the entity",
     "ai.entity.selectSphere": "Select Sfera",
@@ -6177,18 +6197,15 @@ const translations: Record<Language, Translations> = {
       "They seemed elsewhere even when our cups were full",
     "suggestions.tea.hardTruths.2":
       "Slow moments over tea lost their warmth between us",
-    "suggestions.tea.goodFacts.0":
-      "I enjoy tea as a calm ritual on my own",
+    "suggestions.tea.goodFacts.0": "I enjoy tea as a calm ritual on my own",
     "suggestions.tea.goodFacts.1":
       "A warm cup helps me pause and breathe again",
     "suggestions.tea.goodFacts.2":
       "I can share tea with people who show up fully",
-    "suggestions.tea.lessons.0":
-      "Gentle rituals deserve real presence",
+    "suggestions.tea.lessons.0": "Gentle rituals deserve real presence",
     "suggestions.tea.lessons.1":
       "The warmth is about connection, not the drink",
-    "suggestions.tea.lessons.2":
-      "I deserve someone who can be still with me",
+    "suggestions.tea.lessons.2": "I deserve someone who can be still with me",
     "suggestions.text.hardTruths.0": "They left my messages on read for days",
     "suggestions.text.hardTruths.1":
       "One-word replies showed their disinterest",
@@ -6536,8 +6553,7 @@ const translations: Record<Language, Translations> = {
       "I'm allowed pleasure in simple, everyday moments",
     "suggestions.snack.lessons.0":
       "Little comforts support emotional regulation",
-    "suggestions.snack.lessons.1":
-      "I don't need permission to enjoy food",
+    "suggestions.snack.lessons.1": "I don't need permission to enjoy food",
     "suggestions.snack.lessons.2":
       "Small kindnesses to myself add up over time",
     "suggestions.snow.hardTruths.0": "Snowy days we planned never happened",
@@ -6832,8 +6848,7 @@ const translations: Record<Language, Translations> = {
       "I'm learning to nourish myself with intention",
     "suggestions.lunch.lessons.0":
       "Sharing food reflects the quality of connection",
-    "suggestions.lunch.lessons.1":
-      "I deserve ease and warmth at the table",
+    "suggestions.lunch.lessons.1": "I deserve ease and warmth at the table",
     "suggestions.lunch.lessons.2":
       "A simple meal can feel sacred when there's mutual care",
     "suggestions.interview.hardTruths.0":
@@ -8143,8 +8158,7 @@ const translations: Record<Language, Translations> = {
       "I faced challenges that revealed deeper truths about this situation",
     "suggestions.tea.hardTruths.4":
       "The reality was harder than I wanted to admit",
-    "suggestions.tea.goodFacts.3":
-      "I discovered strength I didn't know I had",
+    "suggestions.tea.goodFacts.3": "I discovered strength I didn't know I had",
     "suggestions.tea.goodFacts.4":
       "This experience taught me valuable lessons about myself",
     "suggestions.tea.lessons.3": "Growth comes from facing difficult truths",
@@ -9147,7 +9161,8 @@ const translations: Record<Language, Translations> = {
     "tab.settings": "Настройки",
     "tab.events": "Събития",
     "tab.lessons": "Уроци",
-    "tab.postOnboardingAiWelcome.title": "🎉 Добре дошъл/дошла в своето пътешествие. 🎉",
+    "tab.postOnboardingAiWelcome.title":
+      "🎉 Добре дошъл/дошла в своето пътешествие. 🎉",
     "tab.postOnboardingAiWelcome.cta": "✨ Започни оттук ✨",
     "home.emptyState":
       "Няма профили все още. Добавете първи партньор, за да започнете.",
@@ -9196,20 +9211,24 @@ const translations: Record<Language, Translations> = {
     "sferaInsight.sunnyMomentsOne": "1 слънчев момент",
     "sferaInsight.sunnyMomentsMany": "{count} слънчеви момента",
     "sferaInsight.lessonsCardTitle": "Вашите уроци",
-    "sferaInsight.lessonsCardSubtitle": "Отвори раздел Уроци, за да прегледаш всичко записано",
+    "sferaInsight.lessonsCardSubtitle":
+      "Отвори раздел Уроци, за да прегледаш всичко записано",
     "sferaInsight.emptyEntities.relationships": "Няма добавени връзки.",
     "sferaInsight.emptyEntities.career": "Няма добавени записи по кариера.",
-    "sferaInsight.emptyEntities.family": "Няма добавени членове на семейството.",
+    "sferaInsight.emptyEntities.family":
+      "Няма добавени членове на семейството.",
     "sferaInsight.emptyEntities.friends": "Няма добавени приятели в Sfera.",
     "sferaInsight.emptyEntities.hobbies": "Няма добавени хобита.",
-    "sferaInsight.emptyStateGuide.beforeLink.relationships": "Научи как да добавяш отношения ",
+    "sferaInsight.emptyStateGuide.beforeLink.relationships":
+      "Научи как да добавяш отношения ",
     "sferaInsight.emptyStateGuide.beforeLink.career":
       "Научи как да добавяш записи по кариера ",
     "sferaInsight.emptyStateGuide.beforeLink.family":
       "Научи как да добавяш членове на семейството ",
     "sferaInsight.emptyStateGuide.beforeLink.friends":
       "Научи как да добавяш приятели в Sfera ",
-    "sferaInsight.emptyStateGuide.beforeLink.hobbies": "Научи как да добавяш хобита ",
+    "sferaInsight.emptyStateGuide.beforeLink.hobbies":
+      "Научи как да добавяш хобита ",
     "sferaInsight.emptyStateGuide.linkHere": "тук",
     "sferaInsight.emptyStateGuide.a11yHint":
       "Отваря раздела „Запис на спомени“ в упътването на приложението.",
@@ -9239,7 +9258,8 @@ const translations: Record<Language, Translations> = {
     "events.showLess": "Покажи по-малко",
     "events.newEventsTitle": "Нови събития",
     "events.newEventsMessage": "Нови събития в Sferas Community",
-    "events.newEventInCommunity": "Ново събитие в Sferas Community: {community}",
+    "events.newEventInCommunity":
+      "Ново събитие в Sferas Community: {community}",
     "events.noUpcomingEvents": "Няма предстоящи събития",
     "events.sferaCommunities": "Sferas общности",
     "events.locationDeclinedAlertTitle": "Местоположението е изключено",
@@ -9250,7 +9270,8 @@ const translations: Record<Language, Translations> = {
       "Без местоположение от сега нататък ще виждате само глобални събития. Натиснете Включи за да разрешите местоположение и да виждате събития във вашия регион.",
     "events.locationModalEnable": "Включи",
     "events.locationModalClose": "Затвори",
-    "events.globalEventsOnly": "Показване само на глобални събития • Докоснете за активиране на местоположението",
+    "events.globalEventsOnly":
+      "Показване само на глобални събития • Докоснете за активиране на местоположението",
     "events.locationOpenSettingsMessage":
       "Местоположението е отказано. За да виждате събития във вашия регион, включете местоположението за Sferas в Настройки.",
     "events.locationOpenSettingsButton": "Отвори Настройки",
@@ -9308,7 +9329,8 @@ const translations: Record<Language, Translations> = {
     "settings.notifications.manage": "Sferas известия",
     "settings.feedback.title": "Обратна връзка",
     "settings.feedback.addFeedback": "Добави обратна връзка",
-    "settings.eventInAppNotifications.title": "Вътреприложни известия за събития",
+    "settings.eventInAppNotifications.title":
+      "Вътреприложни известия за събития",
     "settings.eventInAppNotifications.description":
       "Когато е включено, приложението може да показва вътреприложни напомняния за Sferas събития (напр. създаване на спомен за посещено събитие или нови събития в общността ви).",
     "settings.appUsabilityHints.title": "Подсказки за използване",
@@ -9338,7 +9360,7 @@ const translations: Record<Language, Translations> = {
     "ai.insights.manualTip.body":
       "Можеш да добавяш спомени и ръчно. Отвори менюто горе вляво и избери Manual edit mode, за да пишеш или редактираш спомени директно.",
     "settings.subscriptions.title": "Абонаменти",
-    "settings.subscriptions.premium": "Sfera plans",
+    "settings.subscriptions.premium": "Sferas plans",
     "settings.yourData.title": "Твоите данни",
     "settings.devTools.title": "Инструменти за Разработка",
     "settings.devTools.generateData.button":
@@ -9375,9 +9397,9 @@ const translations: Record<Language, Translations> = {
     "wheel.spinForRandom": "Завъртете колелото",
     "wheel.exam.lessonOnly":
       "Изберете Уроци, за да завъртите колелото и да направите изпита",
-    "wheel.exam.paywallPrompt": "Изпитът на колелото изисква Sfera AI",
+    "wheel.exam.paywallPrompt": "Изпитът на колелото изисква Sferas AI",
     "wheel.exam.freeLimitReached":
-      "Използвахте безплатния си изпит днес. Надградете до Sfera AI за неограничени изпити.",
+      "Използвахте безплатния си изпит днес. Надградете до Sferas AI за неограничени изпити.",
     "wheel.exam.questionPrompt": "Напишете отговора си",
     "wheel.exam.submitAnswer": "Изпрати",
     "wheel.exam.analyzing": "Анализираме отговора ви…",
@@ -9485,7 +9507,7 @@ const translations: Record<Language, Translations> = {
       "Създайте записи във всяка сфера, за да проследявате облачните и слънчевите моменти от живота си. Започнете като добавите партньор, работа, член на семейството, приятел или хоби!",
     "walkthrough.button": "Разбрах!",
 
-    "guide.title": "Ръководство",
+    "guide.title": "Sferas ръководство",
     "guide.markDone": "Маркирай като прочетено",
     "guide.markedDone": "Прочетено",
     "guide.watchVideo": "Гледай видеото",
@@ -9511,8 +9533,8 @@ const translations: Record<Language, Translations> = {
     "guide.section.notifications.shortTitle": "Известия",
     "guide.section.notifications.description":
       "Леки напомняния преди някой да се отдалечи, подкани да се върнат хубавите моменти и съобщения след вечери или пътувания, които сте записали—за да не потънат грижата и благодарността под задачите.",
-    "guide.section.badges.title": "Бейджове за поредица",
-    "guide.section.badges.shortTitle": "Бейджове",
+    "guide.section.badges.title": "Баджове за поредица",
+    "guide.section.badges.shortTitle": "Баджове",
     "guide.section.badges.description":
       "Бейджовете превръщат постоянството във видим напредък. Записвай поне един спомен на ден, за да пазиш поредицата си, да отключваш по-силни нива и да запазиш временните награди, докато поредицата е активна.",
     "guide.section.customizations.title": "Персонализация",
@@ -9543,7 +9565,7 @@ const translations: Record<Language, Translations> = {
       "/ Персонализация / Управление на известия / Напомняния за хора",
     "guide.bullet.recordMemoryAi.title": "С AI бутона",
     "guide.bullet.recordMemoryAi.description":
-      "Докоснете светещия AI бутон в центъра на лентата с раздели. Ако се появи подкана, активирайте AI прозренията веднъж — след това опишете какво искате да запомните. Sfera AI помага да го превърне в подходящ спомен, вързан за правилния обект и тип спомен. Можете да доизчистите резултата преди запазване.",
+      "Докоснете светещия AI бутон в центъра на лентата с раздели. Ако се появи подкана, активирайте AI прозренията веднъж — след това опишете какво искате да запомните. Sferas AI помага да го превърне в подходящ спомен, вързан за правилния обект и тип спомен. Можете да доизчистите резултата преди запазване.",
     "guide.bullet.recordMemoryAi.menuPath":
       "/ Лента с раздели / AI бутон (център) · Създай спомен",
     "guide.bullet.recordMemoryManual.title": "С ръчен режим на редактиране",
@@ -9554,16 +9576,17 @@ const translations: Record<Language, Translations> = {
     "guide.bullet.universeLessons.title": "Уроци от вселената",
     "guide.bullet.universeLessons.description":
       "Всички уроци, които сте записали в сферите си, живеят на едно място — Уроци от вселената. Превъртете ги по всяко време, за да преговорите трудно извоюваната си мъдрост, да забележите модели и да се уверите, че нищо не е забравено.",
-    "guide.bullet.universeLessons.menuPath":
-      "/ Лента с раздели / Уроци",
+    "guide.bullet.universeLessons.menuPath": "/ Лента с раздели / Уроци",
     "guide.bullet.dailyExam.title": "Дневен изпит",
     "guide.bullet.dailyExam.description":
-      "Всеки ден Sfera AI избира един от миналите ви уроци и представя реална житейска ситуация, свързана с него. Вие отговаряте, а AI оценява отговора ви — давайки ви честна обратна връзка дали наистина сте усвоили урока или все още имате работа. Ученето не е само записване. То е да бъдеш изпитан когато има значение.",
-    "guide.bullet.dailyExam.menuPath": "/ Лента с раздели / Уроци · икона преговор (до филтрите)",
+      "Всеки ден Sferas AI избира един от миналите ви уроци и представя реална житейска ситуация, свързана с него. Вие отговаряте, а AI оценява отговора ви — давайки ви честна обратна връзка дали наистина сте усвоили урока или все още имате работа. Ученето не е само записване. То е да бъдеш изпитан когато има значение.",
+    "guide.bullet.dailyExam.menuPath":
+      "/ Лента с раздели / Уроци · икона преговор (до филтрите)",
     "guide.bullet.insightsWheel.title": "Sfera Прозрения",
     "guide.bullet.insightsWheel.description":
       "Визуална снимка на баланса в живота ви в момента. Sfera Прозрения показва разпределението на моментите в сферите ви — разкривайки къде инвестирате времето и енергията си и къде има празнини. Понякога е достатъчно да го видите нагледно, за да разберете какво изисква внимание.",
-    "guide.bullet.insightsWheel.menuPath": "/ Sferas / Докосни централния аватар (преглед)",
+    "guide.bullet.insightsWheel.menuPath":
+      "/ Sferas / Докосни централния аватар (преглед)",
     "guide.bullet.sferasBalance.title": "Баланс на сферите",
     "guide.bullet.sferasBalance.description":
       "Бърз преглед на общия брой моменти във всички ваши сфери. Помага ви да видите кога една сфера започва да заема твърде голяма част от живота ви и създава дисбаланс, за да върнете баланса навреме.",
@@ -9571,7 +9594,8 @@ const translations: Record<Language, Translations> = {
     "guide.bullet.entityWheel.title": "Колело на сферата",
     "guide.bullet.entityWheel.description":
       "Всеки обект има своето собствено колело — компактна визуализация на всички моменти и уроци, свързани с този човек, работа или преживяване. Докоснете елемент, за да се потопите в спомена зад него. Или завъртете колелото, за да позволите на Sferas да извлече случаен урок от този обект и да го превърне в изпит — целенасочена проверка дали конкретната връзка или преживяване наистина са ви научили на това, което е трябвало.",
-    "guide.bullet.entityWheel.menuPath": "/ Sferas / Фокусирай сфера / Колело на обекта",
+    "guide.bullet.entityWheel.menuPath":
+      "/ Sferas / Фокусирай сфера / Колело на обекта",
     "guide.bullet.entityReminders.title": "Напомняния за сфери",
     "guide.bullet.entityReminders.description":
       "Някои връзки тихо избледняват — не защото сме спрели да ни е грижа, а защото сме спрели да обръщаме внимание. Напомнянията за обекти ви известяват, когато не сте записвали моменти с някого от известно време, или когато даден обект има по-малко спомени от останалите в сферата. Sferas поддържа баланса — като се грижи нито един човек или преживяване да не бъде пренебрегнато без да осъзнаете.",
@@ -9594,7 +9618,8 @@ const translations: Record<Language, Translations> = {
     "guide.bullet.momentColors.title": "Цветове на моментите",
     "guide.bullet.momentColors.description":
       "Персонализирайте цветовата палитра на плаващите балончета с моменти на началния екран.",
-    "guide.bullet.momentColors.menuPath": "/ Персонализация / Цветове на моменти",
+    "guide.bullet.momentColors.menuPath":
+      "/ Персонализация / Цветове на моменти",
     "guide.bullet.animationSettings.title": "Настройки на анимацията",
     "guide.bullet.animationSettings.description":
       "Фино настройте анимациите при прехвърляне и визуалните ефекти в приложението.",
@@ -9610,7 +9635,7 @@ const translations: Record<Language, Translations> = {
       "/ Молив / Животни сфери / Ръчен режим на редактиране",
     "guidePrompt.title": "Ръководство",
     "guidePrompt.message": "Научете как да извлечете максимума от Sferas.",
-    "guidePrompt.openGuide": "Отвори ръководството",
+    "guidePrompt.openGuide": "Отвори",
     "guidePrompt.dismiss": "Не показвай отново",
     "guidePrompt.sunnyMomentsCta": "Пусни слънцата",
     "guidePrompt.showSunnyMoments": "Покажи слънчевите моменти",
@@ -9630,7 +9655,7 @@ const translations: Record<Language, Translations> = {
     "onboarding.geminiConsent": "Съгласявам се Sferas AI да го обработи с AI.",
     "onboarding.continueManualMode": "Продължи към Sferas в ръчен режим",
     "onboarding.analyzing": "Настройваме вашите Sferas...",
-    "onboarding.sferaAnalyzing": "Sfera AI анализира...",
+    "onboarding.sferaAnalyzing": "Sferas AI анализира...",
     "onboarding.review": "Преглед и редакция на записите",
     "onboarding.reviewSubtitle":
       "Това са първоначални предложения—редактирайте каквото искате и добавяйте още по-късно по всяко време.",
@@ -9651,31 +9676,35 @@ const translations: Record<Language, Translations> = {
       "Всяка Сфера съдържа свои Обекти. Сферата Семейство — членовете на семейството ви, Приятели — близките ви приятели, Кариера — работните ви места, и т.н.",
     "onboarding.hierarchy.memories.title": "Спомени и Моменти",
     "onboarding.hierarchy.memories.body":
-      "Всеки Обект съдържа Спомени. Всеки спомен има Моменти — слънчеви, облачни и уроци, които сте научили. Колкото повече слънчеви моменти, толкова по-ярко светят споменът и аватарът на обекта.",
+      "Всеки Sferas Обект съдържа Спомени. Всеки Sпомен има Моменти — слънчеви, облачни и уроци, които сте научили. Колкото повече слънчеви моменти, толкова по-ярко светят споменът и аватарът на обекта.",
     "onboarding.hierarchy.whysferas.title": "Защо Sferas?",
     "onboarding.hierarchy.whysferas.body":
-      "Животът минава бързо — и лесно се губят уроците, които сте извлекли, или слънчевите моменти, важни колкото и трудните.\n\nSferas ви помага да си припомните какво е научил всеки жизнен етап. А също така ненатрапчиво ви напомня да поддържате връзка с хората, до които ви е грижа.\n\nНека Ви запознаем със Sferas.",
+      "Животът минава бързо — и лесно се губят уроците, които сте извлекли, или слънчевите моменти, важни колкото и трудните.\n\nSferas ви помага да си припомните какво сте научили от всеки етап на живота си. А също така ненатрапчиво Ви напомня да поддържате връзка с хората, за които ви е грижа.\n\nНека Ви запознаем със Sferas.",
     "onboarding.postEntity.minSpheres":
       "Преди следващата стъпка са нужни поне по 2 обекта в Приятели, Семейство и Хобита.",
-    "onboarding.postEntity.sferaAi.title": "Sfera AI — включено при онбординг",
+    "onboarding.postEntity.sferaAi.title": "Sferas AI — включено при онбординг",
     "onboarding.postEntity.sferaAi.body":
-      "Изберете до 5 обекта (минимум 3), за които да създадете по един AI-подсказан спомен — това е включено, докато довършите онбординга. След това важат обичайните лимити на Sfera AI и можете да добавяте колкото искате обекти и спомени.",
-    "onboarding.postEntity.status.pickMore": "Изберете още {count}, за да продължите",
+      "Изберете до 5 обекта (минимум 2), за които да създадете по един AI-подсказан спомен — това е включено, докато довършите онбординга. След това важат обичайните лимити на Sferas AI и можете да добавяте колкото искате обекти и спомени.",
+    "onboarding.postEntity.status.pickMore":
+      "Изберете още {count}, за да продължите",
     "onboarding.postEntity.status.slotsLeft": "Още {count} места по избор",
-    "onboarding.postEntity.status.readyRange": "Можете да изберете до още {count} — или да продължите",
-    "onboarding.postEntity.status.maxSelected": "Максимум избори за тази стъпка (5)",
+    "onboarding.postEntity.status.readyRange":
+      "Можете да изберете до още {count} — или да продължите",
+    "onboarding.postEntity.status.maxSelected":
+      "Максимум избори за тази стъпка (5)",
     "onboarding.postEntity.entityContextPlaceholder":
-      "Няколко изречения за тях/него за Sfera AI…",
+      "Няколко изречения за тях/него за Sferas AI…",
     "onboarding.postEntity.continue": "Напред",
     "onboarding.postEntity.startSferas": "Започни Sferas",
     "onboarding.postEntity.blurbRequired":
       "Добавете текст за всеки избран обект, преди да продължите.",
     "onboarding.postEntity.memoryWizard.subtitle":
-      "Включено Sfera AI — един начален спомен тук; след това можете да добавяте колкото желаете.",
-    "onboarding.postEntity.memoryWizard.createAi": "Създай с Sfera AI",
+      "Включено Sferas AI — един начален спомен тук; след това можете да добавяте колкото желаете.",
+    "onboarding.postEntity.memoryWizard.createAi": "Създай с Sferas AI",
     "onboarding.postEntity.memoryWizard.tapAiCircleForName":
       "Докоснете бутона Sparkle, за да създадете първия спомен с {name}, за да продължите.",
-    "onboarding.postEntity.memoryWizard.aiMemorySavedShort": "AI споменът е записан",
+    "onboarding.postEntity.memoryWizard.aiMemorySavedShort":
+      "AI споменът е записан",
     "onboarding.postEntity.memoryWizard.onboardingCompleteTitle":
       "Готово - справихте се!",
     "onboarding.postEntity.memoryWizard.onboardingCompleteMessage":
@@ -9684,9 +9713,9 @@ const translations: Record<Language, Translations> = {
       "Добавяйте още спомени, за да печелите значки и да отключвате платени предимства безплатно.",
     "onboarding.postEntity.memoryPick.title": "Развийте вашите сфери",
     "onboarding.postEntity.memoryPick.body":
-      "Изберете поне 2 обекта от сферите (до 5). За всеки ще създадем спомен с Sfera AI безплатно.",
+      "Изберете поне 2 обекта от сферите (до 5). За всеки ще създадем спомен с Sferas AI безплатно.",
     "onboarding.postEntity.memoryPick.bodyHint":
-      "По-късно можете да добавяте още в приложението чрез безплатното ниво на Sfera AI или ръчно.",
+      "По-късно можете да добавяте още в приложението чрез безплатното ниво на Sferas AI или ръчно.",
     "onboarding.postEntity.memoryPick.pickCountHint":
       "{current} избрани (мин {min}, макс {max})",
     "onboarding.postEntity.memoryPick.confirm": "Напред",
@@ -9696,8 +9725,7 @@ const translations: Record<Language, Translations> = {
       "Добавете поне {min} обекта в всяка от тези сфери — можете да са временни имена и да ги редактирате по всяко време.",
     "onboarding.postEntity.mandatoryFill.countStatus":
       "{current} / {min} ({label})",
-    "onboarding.postEntity.mandatoryFill.empty":
-      "Още нищо няма тук.",
+    "onboarding.postEntity.mandatoryFill.empty": "Още нищо няма тук.",
     "onboarding.postEntity.mandatoryFill.add": "Добави",
     "onboarding.postEntity.mandatoryFill.nameFriends": "Име",
     "onboarding.postEntity.mandatoryFill.nameFamily": "Име",
@@ -9711,14 +9739,13 @@ const translations: Record<Language, Translations> = {
     "onboarding.postEntity.unifiedWizard.subtitle":
       "Първо са нужни поне по един обект за Приятели, Семейство и Хобита. Отношения и Кариера се появяват тук само ако вече има някой или роля от разказа.",
     "onboarding.postEntity.unifiedWizard.body":
-      "Отделете време за всяка сфера с хората и ролите, които й принадлежат — първо добавете поне по един обект тук за всяко място. След като всичко е попълнено, натиснете „Напред“ за следваща стъпка: начални спомени със Sfera AI — безплатно по време на този онбординг — за всеки обект. Малко подготовка сега дава по-ясна подкрепа напред.",
+      "Отделете време за всяка сфера с хората и ролите, които й принадлежат — първо добавете поне по един обект тук за всяко място. След като всичко е попълнено, натиснете „Напред“ за следваща стъпка: начални спомени със Sferas AI — безплатно по време на този онбординг — за всеки обект. Малко подготовка сега дава по-ясна подкрепа напред.",
     "onboarding.postEntity.unifiedWizard.progress":
       "{current} / {memoryGoal} обекта с AI спомен · Кръг {step} от до {memoryGoal}",
     "onboarding.postEntity.unifiedWizard.chooseSphere": "Изберете сфера",
     "onboarding.postEntity.unifiedWizard.mandatoryFfIncompleteA11y":
       "Тази сфера още има нужда поне от един човек или хоби — допълнете я.",
-    "onboarding.postEntity.unifiedWizard.saveOpenAi":
-      "Напред",
+    "onboarding.postEntity.unifiedWizard.saveOpenAi": "Напред",
     "onboarding.postEntity.unifiedWizard.continueHintMandatoryIncomplete":
       "За Приятели, Семейство и Хобита са нужни поне по един обект, преди ще можете да натиснете „Напред“.",
     "onboarding.postEntity.unifiedWizard.continueHintNeedSelection":
@@ -9747,15 +9774,14 @@ const translations: Record<Language, Translations> = {
     "onboarding.postEntity.unifiedWizard.addNewObjectCareer":
       "Добавете нова роля или работно място",
     "onboarding.postEntity.unifiedWizard.footerHint":
-      "След онбординга важат обичайните лимити на Sfera AI. Още можете да добавяте по всяко време.",
+      "След онбординга важат обичайните лимити на Sferas AI. Още можете да добавяте по всяко време.",
     "onboarding.postEntity.unifiedWizard.pickerSectionSubtitle":
       "В {sphere} · изберете някой по-долу",
     "onboarding.postEntity.unifiedWizard.optionalNewEntityHint":
       "Искате друг обект тук? Попълнете по-долу.",
     "onboarding.postEntity.unifiedWizard.everyoneHasAiUseForm":
       "Всеки обект тук вече има AI спомен — добавете нов отдолу, за да продължите.",
-    "onboarding.postEntity.unifiedWizard.sphereCoveredBadge":
-      "От разказа",
+    "onboarding.postEntity.unifiedWizard.sphereCoveredBadge": "От разказа",
     "onboarding.postEntity.unifiedWizard.nameRelationships":
       "Име на партньор или връзка",
     "onboarding.postEntity.unifiedWizard.nameCareer":
@@ -9963,7 +9989,8 @@ const translations: Record<Language, Translations> = {
     "insights.momentsView.topCloudy": "Най-много облачни моменти: {sphere}",
     "insights.momentsView.topLessons": "Най-много уроци: {sphere}",
     "insights.viewToggle.a11yToMoments": "Превключване към разбивка по моменти",
-    "insights.viewToggle.a11yToSferas": "Превключване към изглед баланс по сфери",
+    "insights.viewToggle.a11yToSferas":
+      "Превключване към изглед баланс по сфери",
     "insights.momentDistribution.titleSunny": "Слънчеви моменти",
     "insights.momentDistribution.titleCloudy": "Облачни моменти",
     "insights.momentDistribution.titleLessons": "Уроци",
@@ -9979,8 +10006,10 @@ const translations: Record<Language, Translations> = {
       "Най-много облачни моменти в живота ви идват от сферата {sphere}.",
     "insights.momentDistribution.explainerLessons":
       "Най-много уроци в живота ви идват от сферата {sphere}.",
-    "insights.momentDrill.screenSphereTitleSunny": "Слънчеви моменти — {sphere}",
-    "insights.momentDrill.screenSphereTitleCloudy": "Облачни моменти — {sphere}",
+    "insights.momentDrill.screenSphereTitleSunny":
+      "Слънчеви моменти — {sphere}",
+    "insights.momentDrill.screenSphereTitleCloudy":
+      "Облачни моменти — {sphere}",
     "insights.momentDrill.screenSphereTitleLessons": "Уроци — {sphere}",
     "insights.momentDrill.screenMemoryTitleSunny": "Слънчеви моменти — {name}",
     "insights.momentDrill.screenMemoryTitleCloudy": "Облачни моменти — {name}",
@@ -10442,15 +10471,15 @@ const translations: Record<Language, Translations> = {
     "subscription.limit.hobby":
       "Можете да създадете едно хоби безплатно. Абонирайте се, за да създавате повече хобита.",
     "premium.activeBadge": "Активен премиум член сте",
-    "premium.activeBadge.plus": "Активен член на Sfera Plus сте",
-    "premium.activeBadge.ai": "Активен член на Sfera AI сте",
-    "premium.activeBadge.both": "Активен член на Sfera AI и Plus сте",
-    "premium.plan.sferaPlus": "Sfera Plus",
-    "premium.plan.sferaAI": "Sfera AI",
-    "premium.upgrade": "Надградете до Sfera AI",
+    "premium.activeBadge.plus": "Активен член на Sferas Plus сте",
+    "premium.activeBadge.ai": "Активен член на Sferas AI сте",
+    "premium.activeBadge.both": "Активен член на Sferas AI и Plus сте",
+    "premium.plan.sferaPlus": "Sferas Plus",
+    "premium.plan.sferaAI": "Sferas AI",
+    "premium.upgrade": "Надградете до Sferas AI",
     "premium.whatsIncluded": "КАКВО Е ВКЛЮЧЕНО",
     "premium.feature.ai":
-      "Достъп до Sfera AI за превръщане на бележките или гласовите си истории в спомени и моменти",
+      "Достъп до Sferas AI за превръщане на бележките или гласовите си истории в спомени и моменти",
     "premium.feature.unlimited":
       "Неограничено създаване на партньори, работни места, приятели, членове на семейството и хобита",
     "premium.feature.notifications":
@@ -10469,10 +10498,12 @@ const translations: Record<Language, Translations> = {
     "notifications.sferaSizesHint.description":
       "Показвай краткото обяснение как размерът на сферите отразява микса от моменти в Баланс на спомените.",
     "notifications.entityReminders.title": "Напомняния за хора",
-    "notifications.entityReminders.description": "Персонални напомняния за приятели, семейство и връзки",
+    "notifications.entityReminders.description":
+      "Персонални напомняния за приятели, семейство и връзки",
     "notifications.entityReminders.none": "Все още няма зададени напомняния",
     "notifications.entityReminders.count": "{count} активни напомняния",
-    "notifications.entityReminders.empty": "Все още няма добавени хора в сферите ти",
+    "notifications.entityReminders.empty":
+      "Все още няма добавени хора в сферите ти",
     "notifications.sphere.friends": "Приятели",
     "notifications.sphere.family": "Семейство",
     "notifications.sphere.relationships": "Връзки",
@@ -10492,9 +10523,12 @@ const translations: Record<Language, Translations> = {
     "notifications.eventReminders.cancelTitle": "Отмяна на напомняния",
     "notifications.eventReminders.cancelMessage":
       "Сигурни ли сте, че искате да спрете всички напомняния за '{eventName}'?",
-    "notifications.eventReminders.cancelError": "Грешка при отмяна на напомнянията",
-    "notifications.eventReminders.noScheduled": "Напомняния да запишеш спомени след събитие. Все още няма планирани.",
-    "notifications.eventReminders.count": "{count} планирани напомняния за събития",
+    "notifications.eventReminders.cancelError":
+      "Грешка при отмяна на напомнянията",
+    "notifications.eventReminders.noScheduled":
+      "Напомняния да запишеш спомени след събитие. Все още няма планирани.",
+    "notifications.eventReminders.count":
+      "{count} планирани напомняния за събития",
     "notifications.eventReminders.reminderNumber": "Напомняне {number}",
     "notifications.settings.title": "Настройки за известия",
     "notifications.settings.turnOn": "Включи",
@@ -10551,7 +10585,8 @@ const translations: Record<Language, Translations> = {
 
     // Moment notifications (nudges)
     "momentNotifications.title": "Напомняния за моменти",
-    "momentNotifications.addSchedule": "Получавай напомняния от уроците и хубавите си моменти",
+    "momentNotifications.addSchedule":
+      "Получавай напомняния от уроците и хубавите си моменти",
     "momentNotifications.generateForManual":
       "Генерирай AI предложения за ръчни уроци",
     "momentNotifications.sphere.career": "Кариера",
@@ -10621,11 +10656,12 @@ const translations: Record<Language, Translations> = {
       "Няма ръчни уроци без AI предложения.",
     "momentNotifications.scheduleCreated": "Разписанието е създадено успешно!",
     "momentNotifications.scheduleUpdated": "Разписанието е обновено успешно!",
-    "momentNotifications.noMomentsWarning": "Няма налични моменти · известията са спрени",
+    "momentNotifications.noMomentsWarning":
+      "Няма налични моменти · известията са спрени",
     "momentNotifications.refresh.button": "Обнови",
     "momentNotifications.refresh.infoButton": "Информация за обновяване",
     "momentNotifications.refresh.requiresSubscription":
-      "Обновяването изисква абонамент Sfera AI.",
+      "Обновяването изисква абонамент Sferas AI.",
     "momentNotifications.refresh.caughtUpTitle": "AI обобщенията са актуални",
     "momentNotifications.refresh.caughtUpMessage":
       "Всички налични елементи за това напомняне вече имат AI обобщения.",
@@ -10696,7 +10732,8 @@ const translations: Record<Language, Translations> = {
     "universe.exam.title": "Преговор",
     "universe.exam.next": "Следващ въпрос",
     "universe.exam.done": "Готово",
-    "universe.exam.triesRemainingFree": "Остават {count} безплатни опита за днес",
+    "universe.exam.triesRemainingFree":
+      "Остават {count} безплатни опита за днес",
     "universe.exam.triesRemainingUnlimited": "Неограничени опити за днес",
     "universe.lessons.noneAvailable": "Няма налични уроци",
     "universe.lessons.lessonCheckCta": "Случаен преговор",
@@ -10713,12 +10750,15 @@ const translations: Record<Language, Translations> = {
     "universe.lessons.filters.reset": "Нулирай",
     "universe.lessons.emptyFiltered": "Няма уроци за тези филтри.",
     "universe.lessons.clearFilters": "Изчисти филтрите",
+    "universe.lessons.openMore": "Отвори още",
     "universe.lessons.accessibility.back": "Назад",
     "universe.lessons.accessibility.openFilters": "Отвори филтри",
     "universe.lessons.accessibility.filterActive": "Активни филтри",
     "universe.lessons.accessibility.toggleFavorite": "Превключи любим урок",
     "universe.lessons.accessibility.learnMore": "Прочети целия текст на урока",
     "universe.lessons.accessibility.dismissSheet": "Затвори",
+    "universe.lessons.accessibility.collapseImage": "Върни снимката горе",
+    "universe.lessons.accessibility.openMemory": "Отвори спомена",
 
     // Settings - Moments Colors
     "settings.momentColors.title": "Цветове на моменти",
@@ -10757,8 +10797,7 @@ const translations: Record<Language, Translations> = {
 
     // AI
     "ai.title": "Създай спомен с AI",
-    "ai.subtitle":
-      "Sfera AI ще подреди историята ви в моменти и уроци.",
+    "ai.subtitle": "Sferas AI ще подреди историята ви в моменти и уроци.",
     "ai.placeholder.input": "Споделете спомен или разкажете история тук…",
     "ai.placeholder.recording":
       "[Гласов запис - необходима интеграция за реч към текст]",
@@ -10830,19 +10869,20 @@ const translations: Record<Language, Translations> = {
     "ai.rateLimit.premiumMessage":
       "Достигнахте дневния лимит. Опитайте отново утре.",
     "ai.rateLimit.upgrade": "Надграждане до Premium",
-    "ai.remainingCreations": "{count} от {limit} безплатни AI създавания на спомени остават днес",
+    "ai.remainingCreations":
+      "{count} от {limit} безплатни AI създавания на спомени остават днес",
     "ai.error.title": "AI обработката неуспешна",
     "ai.error.message":
       "Неуспешно обработване на заявката: {error}. Моля, опитайте отново.",
     "ai.action.title": "Ускорете пътешествието си",
     "ai.action.message.withEntities":
-      "Нека Sfera AI ви помогне да създавате спомени и да добавяте обекти на Сфера по-бързо—връзки, членове на семейството, приятели, работа и хобита.",
+      "Нека Sferas AI ви помогне да създавате спомени и да добавяте обекти на Sferas по-бързо—връзки, членове на семейството, приятели, работа и хобита.",
     "ai.action.message.noEntities":
-      "Нека Sfera AI ви помогне да започнете бързо. Споделете своята история и ще добавим обекти на Сфера като връзки, членове на семейството, приятели, работа и хобита към житейските ви сфери.",
+      "Нека Sferas AI ви помогне да започнете бързо. Споделете своята история и ще добавим обекти на Sferas като връзки, членове на семейството, приятели, работа и хобита към житейските ви сфери.",
     "ai.action.createMemory": "Създай спомен",
     "ai.action.createMemoryHint":
-      "Първо създай Sfera обекти, за да го използваш",
-    "ai.action.createEntity": "Създай Sfera обект",
+      "Първо създай Sferas обекти, за да го използваш",
+    "ai.action.createEntity": "Създай Sferas обект",
     "ai.entity.title": "Създай обект с AI",
     "ai.entity.subtitle": "Изберете Сфера и разкажете ни за обекта",
     "ai.entity.selectSphere": "Избери Сфера",
@@ -11330,8 +11370,7 @@ const translations: Record<Language, Translations> = {
       "Заслужавам някой, който влага усилия да ме направи щастлив",
     "suggestions.gift.lessons.2":
       "Материалните неща имат по-малко значение от жеста",
-    "suggestions.tea.hardTruths.0":
-      "Чаят заедно стана неловко мълчалив",
+    "suggestions.tea.hardTruths.0": "Чаят заедно стана неловко мълчалив",
     "suggestions.tea.hardTruths.1":
       "Изглеждаха далечни дори когато чашите бяха пълни",
     "suggestions.tea.hardTruths.2":
@@ -11344,8 +11383,7 @@ const translations: Record<Language, Translations> = {
       "Мога да споделя чай с хора, които наистина присъстват",
     "suggestions.tea.lessons.0":
       "Нежните ритуали заслужават истинско присъствие",
-    "suggestions.tea.lessons.1":
-      "Топлината е за връзката, а не за напитъка",
+    "suggestions.tea.lessons.1": "Топлината е за връзката, а не за напитъка",
     "suggestions.tea.lessons.2":
       "Заслужавам някой, който може да бъде спокоен до мен",
     "suggestions.text.hardTruths.0":
@@ -12062,8 +12100,7 @@ const translations: Record<Language, Translations> = {
       "Уча се да се храня с намерение и грижа към себе си",
     "suggestions.lunch.lessons.0":
       "Споделянето на храна отразява качеството на връзката",
-    "suggestions.lunch.lessons.1":
-      "Заслужавам лекота и топлина на масата",
+    "suggestions.lunch.lessons.1": "Заслужавам лекота и топлина на масата",
     "suggestions.lunch.lessons.2":
       "Простото хранене може да е свещено, когато има взаимна грижа",
     "suggestions.interview.hardTruths.0":

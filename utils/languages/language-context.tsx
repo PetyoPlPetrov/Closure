@@ -1,10 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { languageManager } from './language-manager';
+import { languageManager, type SpeechToTextLanguage } from './language-manager';
 import { Language } from './translations';
 
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => Promise<void>;
+  speechToTextLanguage: SpeechToTextLanguage;
+  resolvedSpeechToTextLanguage: Language;
+  setSpeechToTextLanguage: (lang: SpeechToTextLanguage) => Promise<void>;
   isDetecting: boolean;
 }
 
@@ -12,17 +15,22 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>('en');
+  const [speechToTextLanguage, setSpeechToTextLanguageState] = useState<SpeechToTextLanguage>('auto');
   const [isDetecting, setIsDetecting] = useState(true);
 
   // Detect language on mount
   useEffect(() => {
     const detectLanguage = async () => {
       try {
-        // Try to get saved preference first
-        const savedLanguage = await languageManager.getLanguage();
+        // Try to get saved preferences first
+        const [savedLanguage, savedSpeechToTextLanguage] = await Promise.all([
+          languageManager.getLanguage(),
+          languageManager.getSpeechToTextLanguage(),
+        ]);
+        setSpeechToTextLanguageState(savedSpeechToTextLanguage);
+
         if (savedLanguage) {
           setLanguageState(savedLanguage);
-          setIsDetecting(false);
           return;
         }
 
@@ -30,6 +38,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         setLanguageState('en');
       } catch (error) {
         setLanguageState('en');
+        setSpeechToTextLanguageState('auto');
       } finally {
         setIsDetecting(false);
       }
@@ -43,8 +52,25 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     await languageManager.setLanguage(lang);
   }, []);
 
+  const setSpeechToTextLanguage = useCallback(async (lang: SpeechToTextLanguage) => {
+    setSpeechToTextLanguageState(lang);
+    await languageManager.setSpeechToTextLanguage(lang);
+  }, []);
+
+  const resolvedSpeechToTextLanguage: Language =
+    speechToTextLanguage === 'auto' ? language : speechToTextLanguage;
+
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, isDetecting }}>
+    <LanguageContext.Provider
+      value={{
+        language,
+        setLanguage,
+        speechToTextLanguage,
+        resolvedSpeechToTextLanguage,
+        setSpeechToTextLanguage,
+        isDetecting,
+      }}
+    >
       {children}
     </LanguageContext.Provider>
   );

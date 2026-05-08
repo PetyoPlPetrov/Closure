@@ -132,7 +132,7 @@ export function AIModal({
   const { momentColors } = useMomentColors();
   const fontScale = useFontScale();
   const t = useTranslate();
-  const { language } = useLanguage();
+  const { language, resolvedSpeechToTextLanguage } = useLanguage();
   const { showNotification, hideNotification } = useInAppNotification();
   const { hasAIEntitlement } = useSubscription();
   const {
@@ -218,7 +218,7 @@ export function AIModal({
   };
 
   const speechToText = useSpeechToText({
-    language,
+    language: resolvedSpeechToTextLanguage,
     getText: () => inputText,
     setText: setInputTextWithLimit,
     disabled: isProcessing,

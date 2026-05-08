@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language } from './translations';
 
 const LANGUAGE_STORAGE_KEY = '@sferas:language';
+const SPEECH_TO_TEXT_LANGUAGE_STORAGE_KEY = '@sferas:speech_to_text_language';
+export type SpeechToTextLanguage = 'auto' | 'en' | 'bg';
 
 export const languageManager = {
   async getLanguage(): Promise<Language | null> {
@@ -21,6 +23,26 @@ export const languageManager = {
       await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, language);
     } catch (error) {
       // Error setting language
+    }
+  },
+
+  async getSpeechToTextLanguage(): Promise<SpeechToTextLanguage> {
+    try {
+      const saved = await AsyncStorage.getItem(SPEECH_TO_TEXT_LANGUAGE_STORAGE_KEY);
+      if (saved === 'auto' || saved === 'en' || saved === 'bg') {
+        return saved as SpeechToTextLanguage;
+      }
+      return 'auto';
+    } catch (error) {
+      return 'auto';
+    }
+  },
+
+  async setSpeechToTextLanguage(language: SpeechToTextLanguage): Promise<void> {
+    try {
+      await AsyncStorage.setItem(SPEECH_TO_TEXT_LANGUAGE_STORAGE_KEY, language);
+    } catch (error) {
+      // Error setting speech-to-text language
     }
   },
 };

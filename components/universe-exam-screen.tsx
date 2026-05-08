@@ -287,7 +287,7 @@ const TwinkleDot = React.memo(function TwinkleDot({
 
 export function UniverseExamScreen({ visible, onClose }: Props) {
   const t = useTranslate();
-  const { language } = useLanguage();
+  const { language, resolvedSpeechToTextLanguage } = useLanguage();
   const { idealizedMemories } = useJourney();
   const { hasAIEntitlement } = useSubscription();
   const insets = useSafeAreaInsets();
@@ -393,7 +393,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
   }, [answerInput]);
 
   const speechToText = useSpeechToText({
-    language,
+    language: resolvedSpeechToTextLanguage,
     getText: () => answerInputRef.current,
     setText: setAnswerInput,
     disabled: step !== "question",

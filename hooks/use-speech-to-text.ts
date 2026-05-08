@@ -44,6 +44,39 @@ type UseSpeechToTextReturn = {
   abort: () => Promise<void>;
 };
 
+function pickFallbackLocaleFromError(
+  message: string | undefined,
+  preferredLocale: string,
+  appLanguage: 'en' | 'bg'
+): string | null {
+  if (!message) return null;
+
+  const match = message.match(/Available locales:\s*(.+)$/i);
+  if (!match?.[1]) return null;
+
+  const availableLocales = match[1]
+    .split(',')
+    .map(locale => locale.trim())
+    .filter(Boolean);
+
+  if (!availableLocales.length) return null;
+  if (availableLocales.includes(preferredLocale)) return preferredLocale;
+
+  const languagePrefix = `${appLanguage.toLowerCase()}-`;
+  const sameLanguageLocale = availableLocales.find(locale => locale.toLowerCase().startsWith(languagePrefix));
+  if (sameLanguageLocale) return sameLanguageLocale;
+
+  const englishLocale = ['en-US', 'en-GB', 'en-AU', 'en-CA'].find(locale => availableLocales.includes(locale));
+  if (englishLocale) return englishLocale;
+
+  return availableLocales[0] ?? null;
+}
+
+function isUnsupportedLocaleError(message: string | undefined): boolean {
+  if (!message) return false;
+  return /Locale\s+[a-z]{2}-[A-Z]{2}\s+is not supported/i.test(message) || /Available locales:/i.test(message);
+}
+
 export function useSpeechToText({
   language,
   getText,
@@ -59,8 +92,35 @@ export function useSpeechToText({
   const baseTextRef = useRef<string>('');
   const lastFinalTranscriptRef = useRef<string>('');
   const startSeqRef = useRef(0);
+  const fallbackNoticeShownRef = useRef(false);
+  const localeRetryInProgressRef = useRef(false);
 
   const lang = useMemo(() => (language === 'bg' ? 'bg-BG' : 'en-US'), [language]);
+
+  const buildSpeechOptions = useCallback(
+    (locale: string): ExpoSpeechRecognitionOptions => ({
+      lang: locale,
+      interimResults: true,
+      // iOS-only app: keep non-continuous to match native behavior best.
+      continuous: false,
+      maxAlternatives: 1,
+      addsPunctuation: true,
+      // iOS dictation: hint the recognizer for best results
+      iosTaskHint: Platform.OS === 'ios' ? 'dictation' : undefined,
+      // Bias toward offline if available on device
+      requiresOnDeviceRecognition: false,
+      androidIntentOptions:
+        Platform.OS === 'android'
+          ? {
+              EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 5000,
+              EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+              EXTRA_LANGUAGE_MODEL: 'free_form',
+              EXTRA_CALLING_PACKAGE: 'com.petyoplpetrov.Sphere',
+            }
+          : undefined,
+    }),
+    []
+  );
 
   const getOrLoadModule = useCallback(() => {
     if (moduleRef.current) return moduleRef.current;
@@ -115,13 +175,51 @@ export function useSpeechToText({
 
         // Ignore benign/expected errors (no alert)
         if (e?.error === 'no-speech' || e?.error === 'speech-timeout' || e?.error === 'aborted') return;
-        const message = e?.message || t('ai.error.recording') || 'Speech recognition failed';
+        const rawMessage = e?.message;
+        const message = rawMessage || t('ai.error.recording') || 'Speech recognition failed';
+
+        if (isUnsupportedLocaleError(rawMessage)) {
+          const fallbackLocale = pickFallbackLocaleFromError(rawMessage, lang, language);
+          if (
+            fallbackLocale &&
+            fallbackLocale !== lang &&
+            !localeRetryInProgressRef.current
+          ) {
+            localeRetryInProgressRef.current = true;
+            try {
+              module.start(buildSpeechOptions(fallbackLocale));
+              if (!fallbackNoticeShownRef.current) {
+                fallbackNoticeShownRef.current = true;
+                const title = language === 'bg' ? 'Информация' : 'Info';
+                const localizedMessage =
+                  language === 'bg'
+                    ? 'Гласовото разпознаване на български не е налично на това устройство. Използваме поддържан език.'
+                    : 'Bulgarian speech recognition is not available on this device. Using a supported language.';
+                Alert.alert(title, localizedMessage);
+              }
+              return;
+            } catch {
+              // Fall through to friendly error below.
+            } finally {
+              localeRetryInProgressRef.current = false;
+            }
+          }
+
+          const title = language === 'bg' ? 'Грешка' : 'Error';
+          const localizedMessage =
+            language === 'bg'
+              ? 'Гласовото разпознаване на български не е налично на това устройство.'
+              : 'Bulgarian speech recognition is not available on this device.';
+          Alert.alert(title, localizedMessage);
+          return;
+        }
+
         Alert.alert(t('common.error') || 'Error', message);
       }),
     ];
 
     return () => subs.forEach(s => s.remove());
-  }, [module, getText, setText, t]);
+  }, [module, getText, setText, t, buildSpeechOptions, lang, language]);
 
   // IMPORTANT:
   // Do not abort() on unmount. The underlying recognizer is effectively global, and aborting here can
@@ -177,29 +275,38 @@ export function useSpeechToText({
       if (startSeqRef.current !== seq) return;
     }
 
-    const options: ExpoSpeechRecognitionOptions = {
-      lang,
-      interimResults: true,
-      // iOS-only app: keep non-continuous to match native behavior best.
-      continuous: false,
-      maxAlternatives: 1,
-      addsPunctuation: true,
-      // iOS dictation: hint the recognizer for best results
-      iosTaskHint: Platform.OS === 'ios' ? 'dictation' : undefined,
-      // Bias toward offline if available on device
-      requiresOnDeviceRecognition: false,
-      androidIntentOptions: Platform.OS === 'android'
-        ? {
-            EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 5000,
-            EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
-            EXTRA_LANGUAGE_MODEL: 'free_form',
-            EXTRA_CALLING_PACKAGE: 'com.petyoplpetrov.Sphere',
-          }
-        : undefined,
-    };
+    const options = buildSpeechOptions(lang);
 
-    m.start(options);
-  }, [disabled, ensureAvailableAndPermitted, getOrLoadModule, lang]);
+    try {
+      m.start(options);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const fallbackLocale = pickFallbackLocaleFromError(message, lang, language);
+
+      if (fallbackLocale && fallbackLocale !== lang) {
+        try {
+          m.start({
+            ...options,
+            lang: fallbackLocale,
+          });
+          if (!fallbackNoticeShownRef.current) {
+            fallbackNoticeShownRef.current = true;
+            const title = language === 'bg' ? 'Информация' : 'Info';
+            const localizedMessage =
+              language === 'bg'
+                ? 'Гласовото разпознаване на български не е налично на това устройство. Използваме поддържан език.'
+                : 'Bulgarian speech recognition is not available on this device. Using a supported language.';
+            Alert.alert(title, localizedMessage);
+          }
+          return;
+        } catch {
+          // If fallback start also fails, surface the original error below.
+        }
+      }
+
+      throw error;
+    }
+  }, [disabled, ensureAvailableAndPermitted, getOrLoadModule, lang, language, buildSpeechOptions]);
 
   const stop = useCallback(async () => {
     if (disabled) return;
