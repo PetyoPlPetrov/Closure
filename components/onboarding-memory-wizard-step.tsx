@@ -9,11 +9,14 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
+import { getCurrentBadge } from "@/utils/streak-manager";
+import type { StreakBadge } from "@/utils/streak-types";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
   orderedEntityIds: string[];
@@ -84,7 +87,9 @@ export function OnboardingMemoryWizardStep({
   onAllComplete,
 }: Props) {
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
   const fontScale = useFontScale();
+  const insets = useSafeAreaInsets();
   const colors = Colors[colorScheme ?? "dark"];
   const t = useTranslate();
   const { idealizedMemories, friends, familyMembers, hobbies, profiles, jobs, reloadAll } =
@@ -97,6 +102,7 @@ export function OnboardingMemoryWizardStep({
   const [stepIndex, setStepIndex] = useState(clampedStart);
   const [aimodalVisible, setAimodalVisible] = useState(false);
   const [continueBusy, setContinueBusy] = useState(false);
+  const [currentBadge, setCurrentBadge] = useState<StreakBadge | null>(null);
 
   useEffect(() => {
     const s =
@@ -105,6 +111,21 @@ export function OnboardingMemoryWizardStep({
         : Math.min(Math.max(0, initialStepIndex), orderedEntityIds.length - 1);
     setStepIndex(s);
   }, [initialStepIndex, orderedEntityIds.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const badge = await getCurrentBadge();
+        if (!cancelled) setCurrentBadge(badge);
+      } catch {
+        if (!cancelled) setCurrentBadge(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const currentId =
     orderedEntityIds.length === 0 ? null : orderedEntityIds[stepIndex] ?? null;
@@ -260,6 +281,7 @@ export function OnboardingMemoryWizardStep({
         },
         footer: {
           padding: 16 * fontScale,
+          paddingBottom: Math.max(insets.bottom, 10 * fontScale) + 8 * fontScale,
           borderTopWidth: 1,
           borderTopColor:
             colorScheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
@@ -270,14 +292,26 @@ export function OnboardingMemoryWizardStep({
           borderRadius: 18 * fontScale,
           borderWidth: 1,
           borderColor:
-            colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
-          backgroundColor:
-            colorScheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
+            colorScheme === "dark" ? "rgba(255, 255, 255, 0.24)" : "rgba(15, 23, 42, 0.16)",
+          backgroundColor: colorScheme === "dark" ? "#1D2736" : "#FFFFFF",
           marginBottom: 20 * fontScale,
           alignItems: "stretch",
         },
+        celebrationBadge: {
+          width: 74 * fontScale,
+          height: 74 * fontScale,
+          borderRadius: 37 * fontScale,
+          alignSelf: "center",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 14 * fontScale,
+          overflow: "hidden",
+          borderWidth: 2,
+          borderColor:
+            colorScheme === "dark" ? "rgba(255, 255, 255, 0.72)" : "rgba(15, 23, 42, 0.22)",
+        },
       }),
-    [colors.background, colorScheme, fontScale],
+    [colors.background, colorScheme, fontScale, insets.bottom],
   );
 
   if (!currentId || !resolved || !modalBundle) {
@@ -290,30 +324,37 @@ export function OnboardingMemoryWizardStep({
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          {resolved.imageUri ? (
-            <Image
-              source={{ uri: resolved.imageUri }}
-              style={styles.headerAvatar}
-              contentFit="cover"
-              transition={160}
-              accessibilityRole="image"
-              accessibilityLabel={resolved.name}
-            />
-          ) : null}
-          <View style={styles.headerTitles}>
-            <ThemedText size="xl" weight="bold" numberOfLines={2}>
-              {resolved.name}
-            </ThemedText>
-            <ThemedText size="sm" style={{ marginTop: 6 * fontScale, opacity: 0.75 }} numberOfLines={1}>
-              {t(`onboarding.sphere.${resolved.sphere}`) || resolved.sphere}
-            </ThemedText>
+      {!showFinishContinue ? (
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            {resolved.imageUri ? (
+              <Image
+                source={{ uri: resolved.imageUri }}
+                style={styles.headerAvatar}
+                contentFit="cover"
+                transition={160}
+                accessibilityRole="image"
+                accessibilityLabel={resolved.name}
+              />
+            ) : null}
+            <View style={styles.headerTitles}>
+              <ThemedText size="xl" weight="bold" numberOfLines={2}>
+                {resolved.name}
+              </ThemedText>
+              <ThemedText size="sm" style={{ marginTop: 6 * fontScale, opacity: 0.75 }} numberOfLines={1}>
+                {t(`onboarding.sphere.${resolved.sphere}`) || resolved.sphere}
+              </ThemedText>
+            </View>
           </View>
         </View>
-      </View>
+      ) : null}
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          showFinishContinue ? { justifyContent: "center", flexGrow: 1 } : null,
+        ]}
+      >
         <View style={styles.hero}>
           {!resolved.imageUri ? (
             <View style={{ flexDirection: "row", justifyContent: "center", gap: 10 }}>
@@ -324,19 +365,102 @@ export function OnboardingMemoryWizardStep({
               />
             </View>
           ) : null}
-          <ThemedText
-            size="sm"
-            style={{
-              marginTop: resolved.imageUri ? 0 : 14 * fontScale,
-              textAlign: "center",
-              opacity: 0.88,
-              lineHeight: 22 * fontScale,
-            }}
-          >
-            {showFinishContinue
-              ? t("onboarding.postEntity.memoryWizard.onboardingCompleteMessage")
-              : t("onboarding.postEntity.memoryWizard.subtitle")}
-          </ThemedText>
+          {showFinishContinue ? (
+            <View style={styles.celebrationBadge}>
+              <LinearGradient
+                colors={[
+                  currentBadge?.colorGradient[0] ?? "#5DA4EF",
+                  currentBadge?.colorGradient[1] ?? "#357ABD",
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[StyleSheet.absoluteFill, { borderRadius: 37 * fontScale }]}
+              />
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  {
+                    borderRadius: 37 * fontScale,
+                    backgroundColor: isDark ? "rgba(0, 0, 0, 0.18)" : "rgba(0, 0, 0, 0.08)",
+                  },
+                ]}
+              />
+              <ThemedText
+                style={{
+                  fontSize: 34 * fontScale,
+                  lineHeight: 40 * fontScale,
+                }}
+              >
+                {currentBadge?.emoji ?? "✨"}
+              </ThemedText>
+            </View>
+          ) : null}
+          {showFinishContinue ? (
+            <ThemedText
+              size="xs"
+              weight="semibold"
+              style={{
+                textAlign: "center",
+                opacity: 0.78,
+                marginBottom: 10 * fontScale,
+                color: isDark ? "#F3F6FA" : "#1E293B",
+              }}
+            >
+              {currentBadge ? `${currentBadge.name} badge` : "Badge earned"}
+            </ThemedText>
+          ) : null}
+          {showFinishContinue ? (
+            <ThemedText
+              size="xl"
+              weight="bold"
+              style={{
+                textAlign: "center",
+                marginBottom: 8 * fontScale,
+              }}
+            >
+              {t("onboarding.postEntity.memoryWizard.onboardingCompleteTitle") ??
+                "You're all set!"}
+            </ThemedText>
+          ) : null}
+          {showFinishContinue ? (
+            <>
+              <ThemedText
+                size="sm"
+                style={{
+                  marginTop: resolved.imageUri ? 0 : 10 * fontScale,
+                  textAlign: "center",
+                  color: isDark ? "#F8FAFC" : "#111827",
+                  lineHeight: 21 * fontScale,
+                }}
+              >
+                {t("onboarding.postEntity.memoryWizard.onboardingCompleteMessage")}
+              </ThemedText>
+              <ThemedText
+                size="xs"
+                style={{
+                  marginTop: 10 * fontScale,
+                  textAlign: "center",
+                  color: isDark ? "#DCE5F0" : "#334155",
+                  lineHeight: 19 * fontScale,
+                  paddingHorizontal: 8 * fontScale,
+                }}
+              >
+                {t("onboarding.postEntity.memoryWizard.onboardingCompletePerksLine")}
+              </ThemedText>
+            </>
+          ) : (
+            <ThemedText
+              size="sm"
+              style={{
+                marginTop: resolved.imageUri ? 0 : 14 * fontScale,
+                textAlign: "center",
+                color: isDark ? "#F8FAFC" : "#111827",
+                lineHeight: 22 * fontScale,
+              }}
+            >
+              {t("onboarding.postEntity.memoryWizard.subtitle")}
+            </ThemedText>
+          )}
 
           {showFinishContinue ? null : hasAiMemoryForCurrent ? (
             <View style={{ marginTop: 20 * fontScale }}>
@@ -397,7 +521,8 @@ export function OnboardingMemoryWizardStep({
             onPress={() => void onPressContinue()}
             accessibilityRole="button"
             accessibilityLabel={
-              t("onboarding.postEntity.continue") as string
+              (t("onboarding.postEntity.startSferas") ??
+                t("onboarding.postEntity.continue")) as string
             }
             style={{ opacity: continueBusy ? 0.6 : 1 }}
           >
@@ -412,14 +537,17 @@ export function OnboardingMemoryWizardStep({
               }}
             >
               <ThemedText size="m" weight="bold" style={{ color: "#FFF" }}>
-                {t("onboarding.postEntity.continue")}
+                {t("onboarding.postEntity.startSferas") ??
+                  t("onboarding.postEntity.continue")}
               </ThemedText>
             </LinearGradient>
           </TouchableOpacity>
         ) : null}
-        <ThemedText size="xs" style={{ opacity: 0.6, textAlign: "center" }}>
-          Step {stepIndex + 1} / {orderedEntityIds.length}
-        </ThemedText>
+        {!showFinishContinue ? (
+          <ThemedText size="xs" style={{ opacity: 0.6, textAlign: "center" }}>
+            Step {stepIndex + 1} / {orderedEntityIds.length}
+          </ThemedText>
+        ) : null}
       </View>
     </View>
   );

@@ -930,12 +930,22 @@ export function OnboardingWizard({
 
   const finishOnboardingAndLeave = useCallback(async () => {
     try {
-      await clearOnboardingPostEntityFlow();
       await setOnboardingCompleted(true);
-      await setShowWalkthroughAfterOnboarding(false);
-      await setShowPostOnboardingAIWelcome(true);
-      await setFocusedDisplayMode("memoryBalanceRings");
       router.replace("/(tabs)");
+      // Persist non-critical onboarding cleanup in background so app entry
+      // is never blocked by storage latency/failures.
+      void (async () => {
+        try {
+          await clearOnboardingPostEntityFlow();
+          await setShowWalkthroughAfterOnboarding(false);
+          await setShowPostOnboardingAIWelcome(true);
+          await setFocusedDisplayMode("memoryBalanceRings");
+        } catch (err) {
+          void logError("OnboardingSave:finishPostEntityBackground", err, {
+            stage: "postNavigate",
+          });
+        }
+      })();
     } catch (err) {
       void logError("OnboardingSave:finishPostEntity", err, { stage: "complete" });
       Alert.alert(

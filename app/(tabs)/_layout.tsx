@@ -1,8 +1,8 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useGlobalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AITabButton, HapticTab, HomeTabButton } from "@/components/haptic-tab";
@@ -98,6 +98,9 @@ function TabBarBackground() {
   );
 }
 
+const POST_ONBOARDING_AI_WELCOME_SHOW_DELAY_MS = 2500;
+const POST_ONBOARDING_AI_WELCOME_FADE_MS = 650;
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
@@ -124,6 +127,8 @@ export default function TabLayout() {
     useState(false);
   const [postOnboardingAIWelcomeDismissedThisSession, setPostOnboardingAIWelcomeDismissedThisSession] =
     useState(false);
+  const welcomeShowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const postOnboardingWelcomeOpacity = useRef(new Animated.Value(0)).current;
   const showPostOnboardingAIWelcomeUI =
     showPostOnboardingAIWelcome && !isInsightsDrillMemoryFlow;
 
@@ -250,26 +255,51 @@ export default function TabLayout() {
   }, [memoriesBelowAISpotlightCap, idealizedMemories.length]);
 
   useEffect(() => {
+    if (welcomeShowTimeoutRef.current) {
+      clearTimeout(welcomeShowTimeoutRef.current);
+      welcomeShowTimeoutRef.current = null;
+    }
+
     if (!memoriesBelowAISpotlightCap && postOnboardingAIWelcomeEligible) {
       setShowPostOnboardingAIWelcomeState(false);
       setPostOnboardingAIWelcomeEligible(false);
       void setShowPostOnboardingAIWelcome(false);
-      return;
-    }
-
-    if (
+      postOnboardingWelcomeOpacity.setValue(0);
+    } else if (
       postOnboardingAIWelcomeEligible &&
       memoriesBelowAISpotlightCap &&
       !postOnboardingAIWelcomeDismissedThisSession
     ) {
-      setShowPostOnboardingAIWelcomeState(true);
+      welcomeShowTimeoutRef.current = setTimeout(() => {
+        setShowPostOnboardingAIWelcomeState(true);
+      }, POST_ONBOARDING_AI_WELCOME_SHOW_DELAY_MS);
+    } else {
+      setShowPostOnboardingAIWelcomeState(false);
+      postOnboardingWelcomeOpacity.setValue(0);
     }
+
+    return () => {
+      if (welcomeShowTimeoutRef.current) {
+        clearTimeout(welcomeShowTimeoutRef.current);
+        welcomeShowTimeoutRef.current = null;
+      }
+    };
   }, [
     memoriesBelowAISpotlightCap,
     idealizedMemories.length,
     postOnboardingAIWelcomeEligible,
     postOnboardingAIWelcomeDismissedThisSession,
+    postOnboardingWelcomeOpacity,
   ]);
+
+  useEffect(() => {
+    Animated.timing(postOnboardingWelcomeOpacity, {
+      toValue: showPostOnboardingAIWelcomeUI ? 1 : 0,
+      duration: POST_ONBOARDING_AI_WELCOME_FADE_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [showPostOnboardingAIWelcomeUI, postOnboardingWelcomeOpacity]);
 
   const handleAIButtonPressForWelcome = useCallback(() => {
     if (!showPostOnboardingAIWelcomeUI) return;
@@ -290,14 +320,21 @@ export default function TabLayout() {
   return (
     <View style={styles.container}>
       {showPostOnboardingAIWelcomeUI && (
-        <Pressable
-          onPress={dismissPostOnboardingWelcome}
+        <Animated.View
           style={{
             ...StyleSheet.absoluteFillObject,
-            backgroundColor: "rgba(6, 10, 18, 0.68)",
+            opacity: postOnboardingWelcomeOpacity,
             zIndex: 95,
           }}
-        />
+        >
+          <Pressable
+            onPress={dismissPostOnboardingWelcome}
+            style={{
+              ...StyleSheet.absoluteFillObject,
+              backgroundColor: "rgba(6, 10, 18, 0.68)",
+            }}
+          />
+        </Animated.View>
       )}
       <Tabs initialRouteName="index" screenOptions={screenOptions}>
         <Tabs.Screen
@@ -416,13 +453,22 @@ export default function TabLayout() {
         }}
       >
         {showPostOnboardingAIWelcomeUI && (
-          <View
+          <Animated.View
             pointerEvents="none"
             style={{
               position: "absolute",
               bottom: aiButtonSize + Math.round(26 * fontScale),
               alignItems: "center",
               gap: Math.round(6 * fontScale),
+              opacity: postOnboardingWelcomeOpacity,
+              transform: [
+                {
+                  translateY: postOnboardingWelcomeOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [10, 0],
+                  }),
+                },
+              ],
             }}
           >
             <ThemedText
@@ -457,7 +503,7 @@ export default function TabLayout() {
               size={Math.round(36 * fontScale)}
               color="#FFFFFF"
             />
-          </View>
+          </Animated.View>
         )}
         <View style={{ pointerEvents: "auto" }}>
           <AITabButton

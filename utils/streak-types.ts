@@ -28,7 +28,7 @@ export const STREAK_BADGES: StreakBadge[] = [
   {
     id: 'ignite',
     name: 'Ignite',
-    emoji: '✨',
+    emoji: '🔥',
     daysRequired: 1,
     colorGradient: ['#E3F2FD', '#90CAF9'],
     description: 'Your first spark in the cosmos',
@@ -37,7 +37,7 @@ export const STREAK_BADGES: StreakBadge[] = [
   {
     id: 'pulse',
     name: 'Pulse',
-    emoji: '🔥',
+    emoji: '💓',
     daysRequired: 3,
     colorGradient: ['#FFEBEE', '#EF5350'],
     description: 'Your rhythm is steady and alive',

@@ -68,6 +68,9 @@ export function OnboardingEntityResultsView({
 
   const [entitiesBySphere, setEntitiesBySphere] =
     useState<AIOnboardingResponse["entitiesBySphere"]>(initialEntitiesBySphere);
+  const [collapsedSpheres, setCollapsedSpheres] = useState<
+    Partial<Record<keyof AIOnboardingResponse["entitiesBySphere"], boolean>>
+  >({});
   const [isSavingAll, setIsSavingAll] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const scrollOffsetY = useRef(0);
@@ -97,31 +100,12 @@ export function OnboardingEntityResultsView({
     );
   }, [entitiesBySphere]);
 
-  const updateSphereEntities = useCallback(
+  const validateSphereEntities = useCallback(
     (
       sphere: keyof AIOnboardingResponse["entitiesBySphere"],
-      entities: AIEntitySuggestion[]
-    ) => {
-      setEntitiesBySphere((prev) => {
-        const next = { ...prev, [sphere]: entities };
-        onEntitiesBySphereChange?.(next);
-        return next;
-      });
-    },
-    [onEntitiesBySphereChange]
-  );
-
-  const validateAll = useCallback((): boolean => {
-    const spheres: (keyof AIOnboardingResponse["entitiesBySphere"])[] = [
-      "relationships",
-      "career",
-      "family",
-      "friends",
-      "hobbies",
-    ];
-    for (const sphere of spheres) {
-      const entities = entitiesBySphere[sphere];
-      if (!Array.isArray(entities)) continue;
+      entities: AIEntitySuggestion[] | undefined
+    ): boolean => {
+      if (!Array.isArray(entities)) return true;
       for (const entity of entities) {
         if (!entity.name?.trim()) return false;
         if (sphere === "family" && !entity.relationship?.trim()) return false;
@@ -136,9 +120,64 @@ export function OnboardingEntityResultsView({
           }
         }
       }
+      return true;
+    },
+    []
+  );
+
+  const updateSphereEntities = useCallback(
+    (
+      sphere: keyof AIOnboardingResponse["entitiesBySphere"],
+      entities: AIEntitySuggestion[]
+    ) => {
+      setEntitiesBySphere((prev) => {
+        const next = { ...prev, [sphere]: entities };
+        onEntitiesBySphereChange?.(next);
+        return next;
+      });
+    },
+    [onEntitiesBySphereChange]
+  );
+
+  const toggleSphereCollapsed = useCallback(
+    (sphere: keyof AIOnboardingResponse["entitiesBySphere"]) => {
+      setCollapsedSpheres((prev) => ({
+        ...prev,
+        [sphere]: !prev[sphere],
+      }));
+    },
+    []
+  );
+
+  const validateAll = useCallback((): boolean => {
+    const spheres: (keyof AIOnboardingResponse["entitiesBySphere"])[] = [
+      "relationships",
+      "career",
+      "family",
+      "friends",
+      "hobbies",
+    ];
+    for (const sphere of spheres) {
+      const entities = entitiesBySphere[sphere];
+      if (!validateSphereEntities(sphere, entities)) return false;
     }
     return true;
-  }, [entitiesBySphere]);
+  }, [entitiesBySphere, validateSphereEntities]);
+
+  const hasValidationErrorsBySphere = useMemo(() => {
+    const bySphere: Partial<
+      Record<keyof AIOnboardingResponse["entitiesBySphere"], boolean>
+    > = {};
+    for (const sphere of spheresWithEntities) {
+      bySphere[sphere] = !validateSphereEntities(sphere, entitiesBySphere[sphere]);
+    }
+    return bySphere;
+  }, [entitiesBySphere, spheresWithEntities, validateSphereEntities]);
+
+  const isSaveDisabled = useMemo(
+    () => isSavingAll || !validateAll(),
+    [isSavingAll, validateAll]
+  );
 
   const handleSaveAll = useCallback(async () => {
     if (!validateAll()) {
@@ -194,6 +233,31 @@ export function OnboardingEntityResultsView({
           justifyContent: "center",
           alignItems: "center",
           marginRight: 12 * fontScale,
+        },
+        sectionTitleContainer: {
+          flex: 1,
+          flexDirection: "row",
+          alignItems: "center",
+        },
+        sectionCollapseButton: {
+          width: 36 * fontScale,
+          height: 36 * fontScale,
+          borderRadius: 18 * fontScale,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.08)"
+              : "rgba(0, 0, 0, 0.06)",
+        },
+        sectionValidationDot: {
+          position: "absolute",
+          top: 4 * fontScale,
+          right: 4 * fontScale,
+          width: 9 * fontScale,
+          height: 9 * fontScale,
+          borderRadius: 4.5 * fontScale,
+          backgroundColor: "#FF4D4F",
         },
         saveButtonContainer: {
           position: "absolute",
@@ -261,33 +325,51 @@ export function OnboardingEntityResultsView({
           const label =
             t(`onboarding.sphere.${sphere}`) || SPHERE_LABELS[sphere];
           const icon = SPHERE_ICONS[sphere];
+          const isCollapsed = !!collapsedSpheres[sphere];
+          const hasValidationError = !!hasValidationErrorsBySphere[sphere];
           return (
             <View key={sphere}>
-              <View
+              <TouchableOpacity
                 style={[
                   styles.sectionHeader,
                   idx === 0 && styles.sectionHeaderFirst,
                 ]}
+                onPress={() => toggleSphereCollapsed(sphere)}
+                activeOpacity={0.75}
               >
-                <View style={styles.sectionIcon}>
-                  <MaterialIcons
-                    name={icon as "favorite" | "work" | "family-restroom" | "people" | "sports-esports"}
-                    size={20 * fontScale}
-                    color={colors.primary}
-                  />
+                <View style={styles.sectionTitleContainer}>
+                  <View style={styles.sectionIcon}>
+                    <MaterialIcons
+                      name={icon as "favorite" | "work" | "family-restroom" | "people" | "sports-esports"}
+                      size={20 * fontScale}
+                      color={colors.primary}
+                    />
+                  </View>
+                  <ThemedText size="l" weight="bold">
+                    {label}
+                  </ThemedText>
                 </View>
-                <ThemedText size="l" weight="bold">
-                  {label}
-                </ThemedText>
-              </View>
-              <AIEntityResultsView
-                sphere={sphere}
-                entities={entities}
-                onSave={async () => {}}
-                onCancel={() => {}}
-                embedded
-                onEntitiesChange={(e) => updateSphereEntities(sphere, e)}
-              />
+                <View style={styles.sectionCollapseButton}>
+                  <MaterialIcons
+                    name={isCollapsed ? "expand-more" : "expand-less"}
+                    size={24 * fontScale}
+                    color={colors.textMediumEmphasis}
+                  />
+                  {hasValidationError ? (
+                    <View style={styles.sectionValidationDot} />
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+              {!isCollapsed ? (
+                <AIEntityResultsView
+                  sphere={sphere}
+                  entities={entities}
+                  onSave={async () => {}}
+                  onCancel={() => {}}
+                  embedded
+                  onEntitiesChange={(e) => updateSphereEntities(sphere, e)}
+                />
+              ) : null}
             </View>
           );
         })}
@@ -297,15 +379,15 @@ export function OnboardingEntityResultsView({
         <TouchableOpacity
           style={[
             styles.saveButton,
-            isSavingAll && styles.saveButtonDisabled,
+            isSaveDisabled && styles.saveButtonDisabled,
           ]}
           onPress={handleSaveAll}
-          disabled={isSavingAll}
+          disabled={isSaveDisabled}
           activeOpacity={0.8}
         >
           <LinearGradient
             colors={
-              isSavingAll
+              isSaveDisabled
                 ? colorScheme === "dark"
                   ? ["rgba(255, 255, 255, 0.1)", "rgba(255, 255, 255, 0.1)"]
                   : ["rgba(0, 0, 0, 0.1)", "rgba(0, 0, 0, 0.1)"]

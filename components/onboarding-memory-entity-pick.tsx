@@ -29,6 +29,7 @@ type Props = {
 };
 
 const ONBOARDING_PRIMARY_GRADIENT = ["#4A90E2", "#357ABD", "#2E6DA4"] as const;
+const ONBOARDING_MEMORY_WIZARD_MIN = 2;
 
 export function OnboardingMemoryEntityPick({ rows, onConfirm }: Props) {
   const colorScheme = useColorScheme();
@@ -57,6 +58,7 @@ export function OnboardingMemoryEntityPick({ rows, onConfirm }: Props) {
   );
 
   const selectedCount = useMemo(() => Object.keys(picked).length, [picked]);
+  const canContinue = selectedCount >= ONBOARDING_MEMORY_WIZARD_MIN && !busy;
 
   const orderedIds = useMemo(() => {
     const out: string[] = [];
@@ -159,14 +161,14 @@ export function OnboardingMemoryEntityPick({ rows, onConfirm }: Props) {
   );
 
   const onContinue = useCallback(async () => {
-    if (orderedIds.length === 0 || busy) return;
+    if (!canContinue) return;
     setBusy(true);
     try {
       await onConfirm(orderedIds);
     } finally {
       setBusy(false);
     }
-  }, [orderedIds, busy, onConfirm]);
+  }, [canContinue, orderedIds, onConfirm]);
 
   return (
     <View style={styles.container}>
@@ -211,6 +213,7 @@ export function OnboardingMemoryEntityPick({ rows, onConfirm }: Props) {
         >
           {t("onboarding.postEntity.memoryPick.pickCountHint", {
             current: selectedCount,
+            min: ONBOARDING_MEMORY_WIZARD_MIN,
             max: ONBOARDING_MEMORY_WIZARD_MAX,
           })}
         </ThemedText>
@@ -289,11 +292,11 @@ export function OnboardingMemoryEntityPick({ rows, onConfirm }: Props) {
       </ScrollView>
       <View style={styles.footer}>
         <TouchableOpacity
-          disabled={orderedIds.length === 0 || busy}
+          disabled={!canContinue}
           activeOpacity={0.88}
           onPress={() => void onContinue()}
           style={{
-            opacity: orderedIds.length === 0 ? 0.45 : 1,
+            opacity: canContinue ? 1 : 0.45,
           }}
         >
           <LinearGradient
