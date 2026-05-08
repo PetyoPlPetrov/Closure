@@ -4335,7 +4335,7 @@ const translations: Record<Language, Translations> = {
       "Reward: increases free entity limit per sfera from 2 to 5.",
     "streakRules.badge.sferas.name": "Sferas",
     "streakRules.badge.sferas.description":
-      "Earn 5 free AI requests and receive a special ticket for Sferas Plus/private events.",
+      "Earn 5 free AI requests.",
     "streakRules.badge.sferas.reward":
       "Reward: increases free AI requests and free wheel/lesson checks from 3 to 5 per day.",
     "streakRules.reminder.toggleTitle": "Mid-day badge reminder",
@@ -9410,9 +9410,9 @@ const translations: Record<Language, Translations> = {
 
     // Streak Rules Modal
     "streakRules.title": "Как Работят Поредиците",
-    "streakRules.badges.title": "Значки за Поредица",
+    "streakRules.badges.title": "Баджове за Поредица",
     "streakRules.badges.subtitle":
-      "Значките отразяват вашите последователни дни. По-високи поредици отключват по-добри значки!",
+      "Баджовете отразяват вашите последователни дни. По-високи поредици отключват по-добри баджове!",
     "streakRules.badge.requires": "Изисква",
     "streakRules.badge.requires.day": "ден",
     "streakRules.badge.requires.days": "дни",
@@ -9450,22 +9450,22 @@ const translations: Record<Language, Translations> = {
       "Награда: увеличава безплатния лимит за обекти в сфера от 2 на 5.",
     "streakRules.badge.sferas.name": "Сферас",
     "streakRules.badge.sferas.description":
-      "Печелиш 5 безплатни AI заявки и специален билет за Sferas Plus/частни събития.",
+      "Печелиш 5 безплатни AI заявки.",
     "streakRules.badge.sferas.reward":
       "Награда: увеличава безплатните AI заявки и безплатните wheel/lesson проверки от 3 на 5 за ден.",
     "streakRules.reminder.toggleTitle": "Напомняне по средата на деня",
     "streakRules.reminder.toggleDescription":
-      "Когато е включено, ще получаваш дневно напомняне да запишеш спомен и да запазиш ползите от текущата значка.",
+      "Когато е включено, ще получаваш дневно напомняне да запишеш спомен и да запазиш ползите от текущия бадж.",
     "streak.badge.day": "ден",
     "streak.badge.days": "дни",
     "streak.modal.title": "Вашата Поредица 🔥",
     "streak.modal.currentStreak": "Текуща Поредица",
     "streak.modal.longestStreak": "Най-дълга Поредица",
     "streak.modal.totalDays": "Общо Дни",
-    "streak.modal.badgesEarned": "Получени Значки",
-    "streak.modal.nextBadge": "Следваща Значка",
+    "streak.modal.badgesEarned": "Получени Баджове",
+    "streak.modal.nextBadge": "Следващ Бадж",
     "streak.modal.daysToGo": "остават!",
-    "streak.modal.badgeCollection": "Колекция от Значки",
+    "streak.modal.badgeCollection": "Колекция от Баджове",
     "streak.modal.startJourney": "Започнете вашето пътешествие",
     "streak.modal.motivation.start":
       "Започнете вашето пътешествие днес! Запишете момент, за да започнете поредицата си 🌱",

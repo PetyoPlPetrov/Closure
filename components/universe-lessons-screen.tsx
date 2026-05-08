@@ -738,6 +738,7 @@ const LessonSfera = React.memo(function LessonSfera({
   const scheme = (colorScheme ?? "dark") as "light" | "dark";
   const isLight = scheme === "light";
   const themeColors = Colors[scheme];
+  const { pulsingAnimations } = useVisualSettings();
   const colors = sphereRingsForScheme(card.sphere, scheme);
   const accentColor = getSphereSferaColor(card.sphere, scheme);
 
@@ -781,17 +782,22 @@ const LessonSfera = React.memo(function LessonSfera({
   useEffect(() => {
     let initialTimer: ReturnType<typeof setTimeout> | undefined;
     let intervalId: ReturnType<typeof setInterval> | undefined;
-    if (isVisible) {
+    if (isVisible && pulsingAnimations) {
       initialTimer = setTimeout(() => {
         fireMoonPulse();
         intervalId = setInterval(fireMoonPulse, 4500);
       }, 2000);
+    } else {
+      cancelAnimation(moonScale);
+      cancelAnimation(moonGlow);
+      moonScale.value = 1;
+      moonGlow.value = 0;
     }
     return () => {
       if (initialTimer !== undefined) clearTimeout(initialTimer);
       if (intervalId !== undefined) clearInterval(intervalId);
     };
-  }, [isVisible, fireMoonPulse]);
+  }, [isVisible, pulsingAnimations, fireMoonPulse, moonScale, moonGlow]);
 
   // Stop moon tap/idle sequences when this card is not the focused pager item (no work on neighbors).
   useEffect(() => {
@@ -831,7 +837,7 @@ const LessonSfera = React.memo(function LessonSfera({
     setAvatarExpanded(true);
   }, [moonScale, moonGlow, avatarExpanded]);
   useEffect(() => {
-    if (isVisible) {
+    if (isVisible && pulsingAnimations) {
       moonAmbient.value = withDelay(600, withRepeat(
         withSequence(
           withTiming(1.06, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
@@ -844,7 +850,7 @@ const LessonSfera = React.memo(function LessonSfera({
       cancelAnimation(moonAmbient);
       moonAmbient.value = 1;
     }
-  }, [isVisible, moonAmbient]);
+  }, [isVisible, pulsingAnimations, moonAmbient]);
 
   const moonStyle = useAnimatedStyle(() => ({ transform: [{ scale: moonScale.value * moonAmbient.value }] }));
   const moonGlowStyle = useAnimatedStyle(() => ({ opacity: moonGlow.value }));
@@ -1261,6 +1267,28 @@ const LessonSfera = React.memo(function LessonSfera({
               <ThemedText style={[styles.lessonFullModalBody, { color: themeColors.text }]}>
                 {card.text}
               </ThemedText>
+              {card.memoryId ? (
+                <View style={styles.lessonFullModalActionsRow}>
+                  <Pressable
+                    onPress={() => {
+                      setFullLessonModalVisible(false);
+                      onAvatarPress?.();
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("universe.lessons.accessibility.openMemory")}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={[
+                      styles.lessonFullModalOpenMoreBtn,
+                      {
+                        borderColor: accentColor + "99",
+                        backgroundColor: isLight ? "rgba(255,255,255,0.92)" : "rgba(8,14,28,0.75)",
+                      },
+                    ]}
+                  >
+                    <MaterialIcons name="open-in-new" size={18} color={accentColor} />
+                  </Pressable>
+                </View>
+              ) : null}
             </ScrollView>
           </Pressable>
         </Pressable>
@@ -1333,7 +1361,7 @@ export function UniverseLessonsScreen({
   const filterChipSelectedLight = isLight ? { backgroundColor: `${colors.primary}22` } : {};
   const insets = useSafeAreaInsets();
   const { ensureSubscriptionResolved, refreshCustomerInfo } = useSubscription();
-  const { appUsabilityHints, cosmicBackgroundOpacity } = useVisualSettings();
+  const { appUsabilityHints, cosmicBackgroundOpacity, pulsingAnimations } = useVisualSettings();
   const lightCosmicOff = isLight && cosmicBackgroundOpacity === 0;
   const lessonsScreenBg = isLight
     ? lightCosmicOff
@@ -1794,7 +1822,9 @@ export function UniverseLessonsScreen({
   // Swipe hint: fade in → swipe up → return → swipe down → return → fade out, repeat 3×
   const swipeHintOpacity = useSharedValue(0);
   const swipeHintY = useSharedValue(0);
+  const hasPlayedSwipeHintRef = useRef(false);
   useEffect(() => {
+    if (hasPlayedSwipeHintRef.current) return;
     if (!visible || !appUsabilityHints || !runLessonAnimations) {
       cancelAnimation(swipeHintOpacity);
       cancelAnimation(swipeHintY);
@@ -1802,6 +1832,7 @@ export function UniverseLessonsScreen({
       swipeHintY.value = 0;
       return;
     }
+    hasPlayedSwipeHintRef.current = true;
     const SWIPE = 90;
     const cycle = () => {
       swipeHintY.value = 0;
@@ -1836,6 +1867,34 @@ export function UniverseLessonsScreen({
     }
   }, [visible, screenOpacity]);
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
+  const examIconScale = useSharedValue(1);
+  const examIconPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: examIconScale.value }],
+  }));
+
+  useEffect(() => {
+    if (!visible || !runLessonAnimations || !hasUserLessons || !pulsingAnimations) {
+      cancelAnimation(examIconScale);
+      examIconScale.value = 1;
+      return;
+    }
+
+    const firePulse = () => {
+      examIconScale.value = withSequence(
+        withTiming(1.14, { duration: 240, easing: Easing.out(Easing.cubic) }),
+        withTiming(1, { duration: 280, easing: Easing.inOut(Easing.quad) }),
+      );
+    };
+
+    const initialTimer = setTimeout(firePulse, 900);
+    const intervalId = setInterval(firePulse, 8000);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(intervalId);
+      cancelAnimation(examIconScale);
+      examIconScale.value = 1;
+    };
+  }, [visible, runLessonAnimations, hasUserLessons, pulsingAnimations, examIconScale]);
 
   const handleAvatarPress = useCallback((card: LessonCard) => {
     if (!card.entityId || !card.memoryId) return;
@@ -2019,29 +2078,33 @@ export function UniverseLessonsScreen({
           style={[styles.header, { top: insets.top + 12 }]}
           pointerEvents="box-none"
         >
-          <Pressable
-            onPress={onClose}
-            hitSlop={16}
-            accessibilityRole="button"
-            accessibilityLabel={t("universe.lessons.accessibility.back")}
-            style={styles.headerIconSlot}
-          >
-            <View
-              style={[
-                styles.closeBg,
-                isLight && {
-                  backgroundColor: "rgba(255, 255, 255, 0.96)",
-                  borderColor: "rgba(0, 0, 0, 0.16)",
-                },
-              ]}
+          {embeddedInTab ? (
+            <View style={styles.headerIconSlot} />
+          ) : (
+            <Pressable
+              onPress={onClose}
+              hitSlop={16}
+              accessibilityRole="button"
+              accessibilityLabel={t("universe.lessons.accessibility.back")}
+              style={styles.headerIconSlot}
             >
-              <MaterialIcons
-                name="arrow-back"
-                size={20}
-                color={isLight ? colors.text : colors.textHighEmphasis}
-              />
-            </View>
-          </Pressable>
+              <View
+                style={[
+                  styles.closeBg,
+                  isLight && {
+                    backgroundColor: "rgba(255, 255, 255, 0.96)",
+                    borderColor: "rgba(0, 0, 0, 0.16)",
+                  },
+                ]}
+              >
+                <MaterialIcons
+                  name="arrow-back"
+                  size={20}
+                  color={isLight ? colors.text : colors.textHighEmphasis}
+                />
+              </View>
+            </Pressable>
+          )}
           <ThemedText
             pointerEvents="none"
             numberOfLines={1}
@@ -2068,9 +2131,10 @@ export function UniverseLessonsScreen({
               accessibilityLabel={t("universe.lessons.lessonCheckCta")}
               style={{ alignItems: "center", justifyContent: "center" }}
             >
-              <View
+              <Animated.View
                 style={[
                   styles.closeBg,
+                  examIconPulseStyle,
                   isLight && {
                     backgroundColor: "rgba(255, 255, 255, 0.96)",
                     borderColor: "rgba(0, 0, 0, 0.16)",
@@ -2082,13 +2146,13 @@ export function UniverseLessonsScreen({
                   size={20}
                   color={
                     hasUserLessons
-                      ? colors.primary
+                      ? accentColor
                       : isLight
                         ? colors.textDisabled
                         : colors.textDisabled
                   }
                 />
-              </View>
+              </Animated.View>
             </Pressable>
             <Pressable
               onPress={openFilters}
@@ -2441,14 +2505,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitleCenter: {
-    flex: 1,
+    position: "absolute",
+    left: 0,
+    right: 0,
     fontSize: 22,
     lineHeight: 28,
     fontWeight: "700",
     color: Colors.dark.textHighEmphasis,
     letterSpacing: 0.4,
     textAlign: "center",
-    marginHorizontal: 4,
+    paddingHorizontal: 108,
     textShadowColor: "rgba(8,14,28,0.70)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 10,
@@ -2760,6 +2826,23 @@ const styles = StyleSheet.create({
   },
   lessonFullModalScrollContent: {
     paddingBottom: 8,
+  },
+  lessonFullModalActionsRow: {
+    marginTop: 10,
+    width: "100%",
+    alignItems: "flex-end",
+  },
+  lessonFullModalOpenMoreBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
   },
   lessonFullModalImageWrap: {
     width: "100%",
