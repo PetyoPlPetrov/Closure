@@ -152,6 +152,14 @@ const MEMORY_BALANCE_RING_LAYOUT: readonly { angleDeg: number; radius: number }[
   { angleDeg: 198, radius: scaleFocused(156) },
 ];
 
+/** Persisted user-adjusted spin of the Memory Balance sfera ring (degrees, any range; stored normalized 0–360). */
+const MEMORY_BALANCE_ORBIT_ROTATION_DEG_KEY = "@sferas:memory_balance_orbit_rotation_deg";
+
+function normalizeMemoryBalanceOrbitDeg(deg: number): number {
+  const x = deg % 360;
+  return x < 0 ? x + 360 : x;
+}
+
 /** Vertical drift when hiding Memory Balance sferas (sun menu open) — worklet-safe constant. */
 const MEMORY_BALANCE_MENU_HIDE_DRIFT_Y = scaleFocused(10);
 /** Sunny / cloud stats under Memory Balance sferas. */
@@ -2633,17 +2641,43 @@ const MemoryBalanceSphereItem = React.memo(function MemoryBalanceSphereItem({
   modeTransition,
   onPress,
   containerStyle,
-  children,
+  baseAngleRad,
+  orbitRadius,
+  orbitRotationDeg,
+  mbTapPulseIndex,
+  mbTapPulseScale,
+  sphere,
+  footer,
 }: {
   index: number;
   modeTransition: SharedValue<number>;
   onPress: () => void;
   containerStyle: any;
-  children: React.ReactNode;
+  baseAngleRad: number;
+  orbitRadius: number;
+  orbitRotationDeg: SharedValue<number>;
+  mbTapPulseIndex: SharedValue<number>;
+  mbTapPulseScale: SharedValue<number>;
+  /** Colored orb only — tap pulse scales this, not the label/stats below. */
+  sphere: React.ReactNode;
+  footer: React.ReactNode;
 }) {
-  const animatedStyle = useAnimatedStyle(() => {
+  const outerAnimatedStyle = useAnimatedStyle(() => {
     const start = Math.min(0.6, index * 0.12);
     const end = Math.min(1, start + 0.5);
+    const rotationRad = (orbitRotationDeg.value * Math.PI) / 180;
+    const deltaX =
+      (Math.cos(baseAngleRad + rotationRad) - Math.cos(baseAngleRad)) *
+      orbitRadius;
+    const deltaY =
+      (Math.sin(baseAngleRad + rotationRad) - Math.sin(baseAngleRad)) *
+      orbitRadius;
+    const modeScale = interpolate(
+      modeTransition.value,
+      [start, end],
+      [0.92, 1],
+      Extrapolation.CLAMP,
+    );
     return {
       opacity: interpolate(
         modeTransition.value,
@@ -2652,26 +2686,30 @@ const MemoryBalanceSphereItem = React.memo(function MemoryBalanceSphereItem({
         Extrapolation.CLAMP,
       ),
       transform: [
-        {
-          scale: interpolate(
-            modeTransition.value,
-            [start, end],
-            [0.92, 1],
-            Extrapolation.CLAMP,
-          ),
-        },
+        { scale: modeScale },
+        { translateX: deltaX },
+        { translateY: deltaY },
       ],
     };
-  }, [index, modeTransition]);
+  }, [index, modeTransition, baseAngleRad, orbitRadius, orbitRotationDeg]);
+
+  const spherePulseStyle = useAnimatedStyle(() => {
+    const pulseMul =
+      mbTapPulseIndex.value === index ? mbTapPulseScale.value : 1;
+    return {
+      transform: [{ scale: pulseMul }],
+    };
+  }, [index, mbTapPulseIndex, mbTapPulseScale]);
 
   return (
-    <Animated.View style={[containerStyle, animatedStyle]}>
+    <Animated.View style={[containerStyle, outerAnimatedStyle]}>
       <Pressable
         onPress={onPress}
         style={{ width: "100%", height: "100%", alignItems: "center" }}
         hitSlop={8}
       >
-        {children}
+        <Animated.View style={spherePulseStyle}>{sphere}</Animated.View>
+        {footer}
       </Pressable>
     </Animated.View>
   );
@@ -2718,20 +2756,119 @@ function MemoryBalanceView({
   momentStatsBySphere,
   getSphereSunnyPercentage,
   colorScheme,
-  onSpherePress,
+  onMemoryBalanceTapFeedback,
+  onMemoryBalanceNavigate,
   modeTransition,
+  orbitRotationDeg,
+  persistMemoryBalanceOrbitDeg,
+  pulsingAnimations = true,
   sphere3DEffect = false,
 }: {
   memoryBalanceSizeBySphere: Record<LifeSphere, number>;
   momentStatsBySphere: Record<LifeSphere, { sunny: number; cloudy: number }>;
   getSphereSunnyPercentage: (sphere: LifeSphere) => number;
   colorScheme: "light" | "dark";
-  onSpherePress: (sphereIndex: number, sphereType: LifeSphere) => void;
+  /** Haptic + collapse sun; return false to skip pulse and navigation. */
+  onMemoryBalanceTapFeedback: (sphereIndex: number, sphereType: LifeSphere) => boolean;
+  onMemoryBalanceNavigate: (sphereIndex: number, sphereType: LifeSphere) => void;
   modeTransition: SharedValue<number>;
+  orbitRotationDeg: SharedValue<number>;
+  persistMemoryBalanceOrbitDeg: (deg: number) => void;
+  pulsingAnimations?: boolean;
   sphere3DEffect?: boolean;
 }) {
   const t = useTranslate();
   const { momentColors } = useMomentColors();
+  const orbitStartRotationDeg = useSharedValue(0);
+  const mbTapPulseIndex = useSharedValue(-1);
+  const mbTapPulseScale = useSharedValue(1);
+
+  const runNavigateOrPulseThenNavigate = useCallback(
+    (sphereIndex: number, sphereType: LifeSphere) => {
+      if (!onMemoryBalanceTapFeedback(sphereIndex, sphereType)) return;
+
+      if (!pulsingAnimations) {
+        onMemoryBalanceNavigate(sphereIndex, sphereType);
+        return;
+      }
+
+      cancelAnimation(mbTapPulseScale);
+      mbTapPulseIndex.value = sphereIndex;
+      mbTapPulseScale.value = 1;
+      mbTapPulseScale.value = withSequence(
+        withTiming(1.1, {
+          duration: 100,
+          easing: Easing.out(Easing.quad),
+        }),
+        withTiming(
+          1,
+          {
+            duration: 240,
+            easing: Easing.out(Easing.cubic),
+          },
+          (finished) => {
+            "worklet";
+            if (finished) {
+              mbTapPulseIndex.value = -1;
+              runOnJS(onMemoryBalanceNavigate)(sphereIndex, sphereType);
+            }
+          },
+        ),
+      );
+    },
+    [
+      mbTapPulseIndex,
+      mbTapPulseScale,
+      onMemoryBalanceNavigate,
+      onMemoryBalanceTapFeedback,
+      pulsingAnimations,
+    ],
+  );
+
+  const orbitPanGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(5)
+        .onBegin(() => {
+          "worklet";
+          orbitStartRotationDeg.value = orbitRotationDeg.value;
+        })
+        .onUpdate((g) => {
+          "worklet";
+          // Spin-only interaction: wheel center stays fixed; drag adjusts angular offset.
+          const dragSpin = -g.translationX * 0.1 + g.translationY * 0.08;
+          orbitRotationDeg.value = orbitStartRotationDeg.value + dragSpin;
+        })
+        .onEnd((g) => {
+          "worklet";
+          const releaseSpin = Math.max(
+            -48,
+            Math.min(48, -g.velocityX * 0.003 + g.velocityY * 0.0022),
+          );
+          const target = orbitRotationDeg.value + releaseSpin;
+          // Persist before spring so save runs even if spring is interrupted or callback quirks.
+          runOnJS(persistMemoryBalanceOrbitDeg)(target);
+          orbitRotationDeg.value = withSpring(
+            target,
+            {
+              damping: 16,
+              stiffness: 170,
+            },
+            (finished) => {
+              "worklet";
+              if (finished) {
+                runOnJS(persistMemoryBalanceOrbitDeg)(orbitRotationDeg.value);
+              }
+            },
+          );
+        }),
+    [
+      orbitRotationDeg,
+      orbitStartRotationDeg,
+      persistMemoryBalanceOrbitDeg,
+    ],
+  );
+
   const balanceStatNumberColor =
     colorScheme === "dark"
       ? "rgba(255, 255, 255, 0.92)"
@@ -2739,8 +2876,9 @@ function MemoryBalanceView({
   const balanceSunnyIconColor = momentColors.sunny.background;
   const balanceCloudIconColor = momentColors.cloudy.background;
   return (
-    <>
-      {SPHERE_LIST.map((sphere, i) => {
+    <GestureDetector gesture={orbitPanGesture}>
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+        {SPHERE_LIST.map((sphere, i) => {
         const layout = MEMORY_BALANCE_RING_LAYOUT[i];
         const rad = (layout.angleDeg * Math.PI) / 180;
         const size = memoryBalanceSizeBySphere[sphere.type];
@@ -2767,7 +2905,12 @@ function MemoryBalanceView({
             key={`memory-balance-${sphere.type}`}
             index={i}
             modeTransition={modeTransition}
-            onPress={() => onSpherePress(i, sphere.type)}
+            onPress={() => runNavigateOrPulseThenNavigate(i, sphere.type)}
+            baseAngleRad={rad}
+            orbitRadius={layout.radius}
+            orbitRotationDeg={orbitRotationDeg}
+            mbTapPulseIndex={mbTapPulseIndex}
+            mbTapPulseScale={mbTapPulseScale}
             containerStyle={{
               position: "absolute",
               left: centerX - size / 2,
@@ -2782,146 +2925,152 @@ function MemoryBalanceView({
               alignItems: "center",
               zIndex: 16,
             }}
-          >
-            <View
-              style={{
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: sphere3DEffect ? "transparent" : gradient3D.base,
-                shadowColor: colorScheme === "dark" ? shadowColor : "#000",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.45,
-                shadowRadius: 14,
-                elevation: 12,
-                overflow: "hidden",
-              }}
-            >
-              {sphere3DEffect ? (
-                <Svg
-                  width="100%"
-                  height="100%"
-                  viewBox="0 0 100 100"
-                  style={{ position: "absolute" }}
-                  pointerEvents="none"
-                >
-                  <Defs>
-                    <RadialGradient
-                      id={`memory-balance-sphere-${sphere.type}`}
+            sphere={
+              <View
+                style={{
+                  width: size,
+                  height: size,
+                  borderRadius: size / 2,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: sphere3DEffect ? "transparent" : gradient3D.base,
+                  shadowColor: colorScheme === "dark" ? shadowColor : "#000",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.45,
+                  shadowRadius: 14,
+                  elevation: 12,
+                  overflow: "hidden",
+                }}
+              >
+                {sphere3DEffect ? (
+                  <Svg
+                    width="100%"
+                    height="100%"
+                    viewBox="0 0 100 100"
+                    style={{ position: "absolute" }}
+                    pointerEvents="none"
+                  >
+                    <Defs>
+                      <RadialGradient
+                        id={`memory-balance-sphere-${sphere.type}`}
+                        cx="50"
+                        cy="50"
+                        r="50"
+                        fx="32"
+                        fy="32"
+                        gradientUnits="userSpaceOnUse"
+                      >
+                        <Stop offset="0%" stopColor={gradient3D.highlight} stopOpacity="1" />
+                        <Stop offset="38%" stopColor={gradient3D.base} stopOpacity="1" />
+                        <Stop offset="100%" stopColor={gradient3D.shadow} stopOpacity="1" />
+                      </RadialGradient>
+                    </Defs>
+                    <SvgCircle
                       cx="50"
                       cy="50"
                       r="50"
-                      fx="32"
-                      fy="32"
-                      gradientUnits="userSpaceOnUse"
-                    >
-                      <Stop offset="0%" stopColor={gradient3D.highlight} stopOpacity="1" />
-                      <Stop offset="38%" stopColor={gradient3D.base} stopOpacity="1" />
-                      <Stop offset="100%" stopColor={gradient3D.shadow} stopOpacity="1" />
-                    </RadialGradient>
-                  </Defs>
-                  <SvgCircle
-                    cx="50"
-                    cy="50"
-                    r="50"
-                    fill={`url(#memory-balance-sphere-${sphere.type})`}
-                  />
-                </Svg>
-              ) : null}
-              <MaterialIcons
-                name={sphere.icon as keyof typeof MaterialIcons.glyphMap}
-                size={Math.round(size * 0.33)}
-                color={iconColor}
-              />
-            </View>
-            <ThemedText
-              numberOfLines={2}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
-              style={{
-                marginTop: MEMORY_BALANCE_NAME_GAP,
-                width: size + scaleFocused(8),
-                fontSize: scaleFocused(10),
-                lineHeight: scaleFocused(13),
-                fontWeight: "600",
-                textAlign: "center",
-                color: colorScheme === "dark" ? "#E8EEF4" : "#1E2830",
-                opacity: 0.95,
-              }}
-            >
-              {t(SPHERE_DISPLAY_NAME_KEY[sphere.type])}
-            </ThemedText>
-            <View
-              style={{
-                marginTop: MEMORY_BALANCE_STATS_MARGIN_TOP,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: MEMORY_BALANCE_STATS_ROW_GAP,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: MEMORY_BALANCE_STATS_ICON_TEXT_GAP,
-                  }}
-                >
-                  <MaterialIcons
-                    name="wb-sunny"
-                    size={MEMORY_BALANCE_STATS_ICON_SIZE}
-                    color={balanceSunnyIconColor}
-                  />
-                  <ThemedText
-                    style={{
-                      fontSize: MEMORY_BALANCE_STATS_TEXT_SIZE,
-                      lineHeight: MEMORY_BALANCE_STATS_LINE_HEIGHT,
-                      color: balanceStatNumberColor,
-                      opacity: colorScheme === "dark" ? 0.9 : 1,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {stats.sunny}
-                  </ThemedText>
-                </View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: MEMORY_BALANCE_STATS_ICON_TEXT_GAP,
-                  }}
-                >
-                  <MaterialIcons
-                    name="cloud"
-                    size={MEMORY_BALANCE_STATS_ICON_SIZE}
-                    color={balanceCloudIconColor}
-                  />
-                  <ThemedText
-                    style={{
-                      fontSize: MEMORY_BALANCE_STATS_TEXT_SIZE,
-                      lineHeight: MEMORY_BALANCE_STATS_LINE_HEIGHT,
-                      color: balanceStatNumberColor,
-                      opacity: colorScheme === "dark" ? 0.9 : 1,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {stats.cloudy}
-                  </ThemedText>
-                </View>
+                      fill={`url(#memory-balance-sphere-${sphere.type})`}
+                    />
+                  </Svg>
+                ) : null}
+                <MaterialIcons
+                  name={sphere.icon as keyof typeof MaterialIcons.glyphMap}
+                  size={Math.round(size * 0.33)}
+                  color={iconColor}
+                />
               </View>
-            </View>
-          </MemoryBalanceSphereItem>
+            }
+            footer={
+              <>
+                <ThemedText
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                  style={{
+                    marginTop: MEMORY_BALANCE_NAME_GAP,
+                    width: size + scaleFocused(8),
+                    fontSize: scaleFocused(10),
+                    lineHeight: scaleFocused(13),
+                    fontWeight: "600",
+                    textAlign: "center",
+                    color: colorScheme === "dark" ? "#E8EEF4" : "#1E2830",
+                    opacity: 0.95,
+                  }}
+                >
+                  {t(SPHERE_DISPLAY_NAME_KEY[sphere.type])}
+                </ThemedText>
+                <View
+                  style={{
+                    marginTop: MEMORY_BALANCE_STATS_MARGIN_TOP,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: MEMORY_BALANCE_STATS_ROW_GAP,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: MEMORY_BALANCE_STATS_ICON_TEXT_GAP,
+                      }}
+                    >
+                      <MaterialIcons
+                        name="wb-sunny"
+                        size={MEMORY_BALANCE_STATS_ICON_SIZE}
+                        color={balanceSunnyIconColor}
+                      />
+                      <ThemedText
+                        style={{
+                          fontSize: MEMORY_BALANCE_STATS_TEXT_SIZE,
+                          lineHeight: MEMORY_BALANCE_STATS_LINE_HEIGHT,
+                          color: balanceStatNumberColor,
+                          opacity: colorScheme === "dark" ? 0.9 : 1,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {stats.sunny}
+                      </ThemedText>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: MEMORY_BALANCE_STATS_ICON_TEXT_GAP,
+                      }}
+                    >
+                      <MaterialIcons
+                        name="cloud"
+                        size={MEMORY_BALANCE_STATS_ICON_SIZE}
+                        color={balanceCloudIconColor}
+                      />
+                      <ThemedText
+                        style={{
+                          fontSize: MEMORY_BALANCE_STATS_TEXT_SIZE,
+                          lineHeight: MEMORY_BALANCE_STATS_LINE_HEIGHT,
+                          color: balanceStatNumberColor,
+                          opacity: colorScheme === "dark" ? 0.9 : 1,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {stats.cloudy}
+                      </ThemedText>
+                    </View>
+                  </View>
+                </View>
+              </>
+            }
+          />
         );
-      })}
-    </>
+        })}
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -2973,6 +3122,30 @@ export function FocusedSferaView({
     });
     return () => subscription.remove();
   }, []);
+
+  /** Lives on FocusedSferaView so it survives MemoryBalanceView unmount (e.g. opening a sphere). */
+  const memoryBalanceOrbitRotationDegSv = useSharedValue(0);
+
+  const persistMemoryBalanceOrbitDeg = useCallback((deg: number) => {
+    void AsyncStorage.setItem(
+      MEMORY_BALANCE_ORBIT_ROTATION_DEG_KEY,
+      String(normalizeMemoryBalanceOrbitDeg(deg)),
+    );
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void AsyncStorage.getItem(MEMORY_BALANCE_ORBIT_ROTATION_DEG_KEY).then((raw) => {
+      if (cancelled || raw == null) return;
+      const v = parseFloat(raw);
+      if (Number.isFinite(v)) {
+        memoryBalanceOrbitRotationDegSv.value = normalizeMemoryBalanceOrbitDeg(v);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [memoryBalanceOrbitRotationDegSv]);
 
   const animationsEnabled = isScreenFocused && !hidden && isAppActive;
   const overviewAnimationsEnabled = animationsEnabled && selectedSphere === null;
@@ -3146,6 +3319,10 @@ export function FocusedSferaView({
     displayMode === "memoryBalanceRings" ? 1 : 0,
   );
   const hasSyncedInitialDisplayModeRef = useRef(false);
+  /** Previous `selectedSphere` for mode crossfade: avoid animating orbit→MB when returning from individual view (was fixed-regression flash). */
+  const prevSelectedSphereForModeTransitionRef = useRef<LifeSphere | null>(
+    selectedSphere,
+  );
   const [isSunExpanded, setIsSunExpanded] = useState(startSunExpanded);
   const handledNotificationLessonTargetKeyRef = useRef<string | null>(null);
 
@@ -3338,6 +3515,12 @@ export function FocusedSferaView({
    * gesture re-evaluates this on every onBegin).
    */
   const dragStartFocusedIdxSv = useSharedValue(initialFocusedIdx);
+  const exitMemoryBalanceForDrag = useCallback(() => {
+    setDisplayMode("defaultOrbit");
+    AsyncStorage.setItem(FOCUSED_DISPLAY_MODE_STORAGE_KEY, "defaultOrbit").catch(
+      () => {},
+    );
+  }, []);
 
   // ───────────────── Center horizontal swipe (live UI-thread scrub) ─────────────────
   // Why GestureDetector + Gesture.Pan instead of PanResponder:
@@ -3351,13 +3534,19 @@ export function FocusedSferaView({
   const horizontalPanGesture = useMemo(() => {
     return Gesture.Pan()
       // Only steal the gesture once the finger has clearly committed to horizontal motion.
-      // `failOffsetY` ensures vertical-leaning drags (chevron/side-region fling) fall through
-      // to the legacy PanResponder below.
+      // Allow diagonal drags too (users often drag spheres on an arc, not perfectly horizontal).
       .activeOffsetX([-6, 6])
-      .failOffsetY([-25, 25])
-      .enabled(sunLoadComplete)
+      .enabled(
+        sunLoadComplete &&
+          !(selectedSphere === null && displayMode === "memoryBalanceRings"),
+      )
       .onBegin(() => {
         "worklet";
+        // If drag starts while memory-balance rings are shown, switch to orbit mode
+        // so drag/swipe interaction responds immediately.
+        if (selectedSphere === null && displayMode === "memoryBalanceRings") {
+          runOnJS(exitMemoryBalanceForDrag)();
+        }
         cancelAnimation(focusedFracSv);
         // Snapshot the live (possibly fractional) value so the orbit can be grabbed
         // mid-animation without snapping. Subsequent onUpdate writes add the drag offset
@@ -3446,6 +3635,9 @@ export function FocusedSferaView({
     N,
     beginSphereTransition,
     applyFocusedIndex,
+    selectedSphere,
+    displayMode,
+    exitMemoryBalanceForDrag,
   ]);
 
   // ───────────────── Side-region vertical swipe (kept on PanResponder) ─────────────────
@@ -3514,9 +3706,19 @@ export function FocusedSferaView({
     if (!displayModeHydrated) return;
     const target =
       selectedSphere === null && displayMode === "memoryBalanceRings" ? 1 : 0;
+    const returningToOverview =
+      prevSelectedSphereForModeTransitionRef.current !== null &&
+      selectedSphere === null;
+    prevSelectedSphereForModeTransitionRef.current = selectedSphere;
+
     cancelAnimation(modeTransition);
+    // While in individual-sfera view we hold modeTransition at 0. Coming back to overview with
+    // Memory Balance must snap to 1 — a 700ms ease would show the orbit layer first (regression).
+    // Same-frame snap when entering individual (target 0). Keep 700ms only when toggling MB ↔ orbit on overview.
+    const instantModeCrossfade =
+      returningToOverview || selectedSphere !== null;
     modeTransition.value = withTiming(target, {
-      duration: 700,
+      duration: instantModeCrossfade ? 0 : 700,
       easing: Easing.inOut(Easing.cubic),
     });
   }, [selectedSphere, displayMode, displayModeHydrated, modeTransition]);
@@ -3785,16 +3987,26 @@ export function FocusedSferaView({
     ],
   );
 
-  const handleMemoryBalanceSpherePress = useCallback(
-    (sphereIndex: number, sphereType: LifeSphere) => {
-      if (!sunLoadComplete) return;
+  const handleMemoryBalanceTapFeedback = useCallback(
+    (sphereIndex: number, _sphereType: LifeSphere) => {
+      if (!sunLoadComplete) return false;
+      if (Platform.OS === "ios" && Device.isDevice) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }
       if (isSunExpanded) {
         handleCollapseSun();
       }
+      return true;
+    },
+    [handleCollapseSun, isSunExpanded, sunLoadComplete],
+  );
+
+  const handleMemoryBalanceNavigate = useCallback(
+    (sphereIndex: number, sphereType: LifeSphere) => {
       goToSphere(sphereIndex);
       onSphereSelect(sphereType);
     },
-    [goToSphere, handleCollapseSun, isSunExpanded, onSphereSelect, sunLoadComplete],
+    [goToSphere, onSphereSelect],
   );
 
   const triggerLightHaptic = useCallback(() => {
@@ -3830,6 +4042,7 @@ export function FocusedSferaView({
     insightsHubScale,
     triggerLightHaptic,
   ]);
+
 
   const leftChevronStyle = useAnimatedStyle(() => ({
     transform: [{ scale: leftChevronScale.value }],
@@ -4114,8 +4327,12 @@ export function FocusedSferaView({
             momentStatsBySphere={momentStatsBySphere}
             getSphereSunnyPercentage={getSphereSunnyPercentage}
             colorScheme={colorScheme}
-            onSpherePress={handleMemoryBalanceSpherePress}
+            onMemoryBalanceTapFeedback={handleMemoryBalanceTapFeedback}
+            onMemoryBalanceNavigate={handleMemoryBalanceNavigate}
             modeTransition={modeTransition}
+            orbitRotationDeg={memoryBalanceOrbitRotationDegSv}
+            persistMemoryBalanceOrbitDeg={persistMemoryBalanceOrbitDeg}
+            pulsingAnimations={pulsingAnimations}
             sphere3DEffect={sphere3DEffect}
           />
         </Animated.View>

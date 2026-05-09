@@ -13884,6 +13884,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
   disabled = false,
   isWrapped = false,
   sphere3DEffect = false,
+  panHandlers,
 }: {
   sphere: LifeSphere;
   position: { x: number; y: number };
@@ -13896,6 +13897,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
   disabled?: boolean;
   isWrapped?: boolean; // If true, don't use absolute positioning (parent handles it)
   sphere3DEffect?: boolean;
+  panHandlers?: ReturnType<typeof PanResponder.create>["panHandlers"];
 }) {
   const { isTablet } = useLargeDevice();
   const sphereSize = isTablet ? 120 : 80; // 50% larger on tablets
@@ -14182,6 +14184,7 @@ const SphereAvatar = React.memo(function SphereAvatar({
 
   return (
     <Pressable
+      {...panHandlers}
       onPress={handlePress}
       disabled={disabled}
       style={{
@@ -17339,22 +17342,43 @@ export default function HomeScreen() {
   // Pan gesture handling for wheel rotation
   const lastAngle = useSharedValue(0);
   const startAngle = useSharedValue(0);
-  const dragFrameCount = useSharedValue(0);
+  const smoothedDragDelta = useSharedValue(0);
   const isDragging = useSharedValue(false);
 
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => false, // Don't capture immediately - let children handle taps
+        onStartShouldSetPanResponderCapture: () => false,
         onMoveShouldSetPanResponder: (evt, gestureState) => {
-          // Only allow wheel spin if moment type selector is shown
-          if (!showMomentTypeSelector) {
-            return false;
+          // Always allow wheel drag in classic view; only capture real drags (not taps).
+          const shouldCapture =
+            Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+          if (shouldCapture) {
+            console.warn("[WheelPan] onMoveShouldSetPanResponder -> true", {
+              dx: Number(gestureState.dx.toFixed(2)),
+              dy: Number(gestureState.dy.toFixed(2)),
+            });
           }
-          // Only capture if there's significant movement (it's a drag, not a tap)
-          return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+          return shouldCapture;
+        },
+        onMoveShouldSetPanResponderCapture: (evt, gestureState) => {
+          // Capture at parent level so child Pressables don't block wheel drag.
+          const shouldCapture =
+            Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+          if (shouldCapture) {
+            console.warn(
+              "[WheelPan] onMoveShouldSetPanResponderCapture -> true",
+              {
+              dx: Number(gestureState.dx.toFixed(2)),
+              dy: Number(gestureState.dy.toFixed(2)),
+              },
+            );
+          }
+          return shouldCapture;
         },
         onPanResponderGrant: (evt) => {
+          console.warn("[WheelPan] onPanResponderGrant");
           // Calculate initial angle from center
           const touch = evt.nativeEvent;
           const dx = touch.pageX - sphereCircle.centerX;
@@ -17364,7 +17388,7 @@ export default function HomeScreen() {
           isWheelSpinning.value = false;
           wheelVelocity.value = 0;
           isDragging.value = true;
-          dragFrameCount.value = 0;
+          smoothedDragDelta.value = 0;
           // Stop hint animation when user starts dragging
           if (isHintAnimating.value) {
             isHintAnimating.value = false;
@@ -17372,6 +17396,10 @@ export default function HomeScreen() {
           }
         },
         onPanResponderMove: (evt, gestureState) => {
+          console.warn("[WheelPan] onPanResponderMove", {
+            dx: Number(gestureState.dx.toFixed(2)),
+            dy: Number(gestureState.dy.toFixed(2)),
+          });
           const touch = evt.nativeEvent;
           const dx = touch.pageX - sphereCircle.centerX;
           const dy = touch.pageY - sphereCircle.centerY;
@@ -17384,27 +17412,28 @@ export default function HomeScreen() {
           if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
           if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
 
-          // Increment frame counter for acceleration
-          dragFrameCount.value += 1;
-
-          // Reach full sensitivity in ~80ms so wheel feels directly connected to finger (matches entity wheel)
-          const targetFrames = 5;
-          const accelerationFactor = Math.min(
-            1,
-            dragFrameCount.value / targetFrames,
+          // Clamp extreme per-frame deltas and low-pass filter for smoother, more static drag feel.
+          const maxDeltaPerFrame = 0.2;
+          const clampedDelta = Math.max(
+            -maxDeltaPerFrame,
+            Math.min(maxDeltaPerFrame, deltaAngle),
           );
-          const easedAcceleration = 1 - Math.pow(1 - accelerationFactor, 3);
+          const smoothingFactor = 0.35;
+          const filteredDelta =
+            smoothedDragDelta.value * (1 - smoothingFactor) +
+            clampedDelta * smoothingFactor;
 
-          // Start at 80%, reach 100% in 5 frames — immediate response, smooth continuation
-          const acceleratedDelta = deltaAngle * (0.8 + easedAcceleration * 0.2);
-
-          wheelRotation.value += acceleratedDelta;
-          wheelVelocity.value = acceleratedDelta; // Track velocity for momentum
+          wheelRotation.value += filteredDelta;
+          wheelVelocity.value = filteredDelta; // Track filtered velocity for momentum
+          smoothedDragDelta.value = filteredDelta;
           lastAngle.value = currentAngle;
         },
         onPanResponderRelease: () => {
+          console.warn("[WheelPan] onPanResponderRelease", {
+            wheelVelocity: Number(wheelVelocity.value.toFixed(4)),
+          });
           isDragging.value = false;
-          dragFrameCount.value = 0;
+          smoothedDragDelta.value = 0;
           let velocity = wheelVelocity.value;
           // Minimum velocity for tiny drags — ensures satisfying spin (matches entity wheel)
           const MIN_VELOCITY = 0.02;
@@ -17484,7 +17513,7 @@ export default function HomeScreen() {
       isWheelSpinning,
       lastAngle,
       startAngle,
-      dragFrameCount,
+      smoothedDragDelta,
       isDragging,
       showMomentTypeSelector,
       hasAIEntitlement,
@@ -21120,6 +21149,12 @@ export default function HomeScreen() {
           {animationsReady && (
             <View
               {...panResponder.panHandlers}
+              onTouchStart={() => {
+                console.warn("[WheelPan] wheel container onTouchStart");
+              }}
+              onTouchMove={() => {
+                console.warn("[WheelPan] wheel container onTouchMove");
+              }}
               style={{
                 position: "absolute",
                 top: 0,
@@ -21164,6 +21199,7 @@ export default function HomeScreen() {
                   zoomProgress={sphereZoomProgress}
                   disabled={profiles.length === 0 || showMomentTypeSelector}
                   isWrapped={true}
+                  panHandlers={panResponder.panHandlers}
                 />
               </RotatableSphereWrapper>
 
@@ -21201,6 +21237,7 @@ export default function HomeScreen() {
                   zoomProgress={sphereZoomProgress}
                   disabled={jobs.length === 0 || showMomentTypeSelector}
                   isWrapped={true}
+                  panHandlers={panResponder.panHandlers}
                 />
               </RotatableSphereWrapper>
 
@@ -21222,6 +21259,7 @@ export default function HomeScreen() {
                   colors={colors}
                   sphere3DEffect={sphere3DEffect}
                   onPress={() => {
+                    console.warn("[WheelPan] Family Sphere onPress fired");
                     if (!isWheelSpinning.value && !showMomentTypeSelector) {
                       setFocusedMemory(null);
                       setFocusedProfileId(null);
@@ -21240,6 +21278,7 @@ export default function HomeScreen() {
                     familyMembers.length === 0 || showMomentTypeSelector
                   }
                   isWrapped={true}
+                  panHandlers={panResponder.panHandlers}
                 />
               </RotatableSphereWrapper>
 
@@ -21277,6 +21316,7 @@ export default function HomeScreen() {
                   zoomProgress={sphereZoomProgress}
                   disabled={friends.length === 0 || showMomentTypeSelector}
                   isWrapped={true}
+                  panHandlers={panResponder.panHandlers}
                 />
               </RotatableSphereWrapper>
 
@@ -21314,6 +21354,7 @@ export default function HomeScreen() {
                   zoomProgress={sphereZoomProgress}
                   disabled={hobbies.length === 0 || showMomentTypeSelector}
                   isWrapped={true}
+                  panHandlers={panResponder.panHandlers}
                 />
               </RotatableSphereWrapper>
             </View>

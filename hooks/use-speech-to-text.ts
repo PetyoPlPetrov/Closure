@@ -1,4 +1,9 @@
 import { useTranslate } from '@/utils/languages/use-translate';
+import {
+  getSupportedSpeechLocales,
+  pickSpeechLocaleFromSupportedList,
+  prefetchBulgarianOfflineModelIfAndroid,
+} from '@/utils/speech-locale-support';
 import type { ExpoSpeechRecognitionErrorEvent, ExpoSpeechRecognitionOptions, ExpoSpeechRecognitionResultEvent } from 'expo-speech-recognition';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -94,6 +99,7 @@ export function useSpeechToText({
   const startSeqRef = useRef(0);
   const fallbackNoticeShownRef = useRef(false);
   const localeRetryInProgressRef = useRef(false);
+  const androidBgPrefetchOnceRef = useRef(false);
 
   const lang = useMemo(() => (language === 'bg' ? 'bg-BG' : 'en-US'), [language]);
 
@@ -178,7 +184,7 @@ export function useSpeechToText({
         const rawMessage = e?.message;
         const message = rawMessage || t('ai.error.recording') || 'Speech recognition failed';
 
-        if (isUnsupportedLocaleError(rawMessage)) {
+        if (e?.error === 'language-not-supported' || isUnsupportedLocaleError(rawMessage)) {
           const fallbackLocale = pickFallbackLocaleFromError(rawMessage, lang, language);
           if (
             fallbackLocale &&
@@ -190,12 +196,7 @@ export function useSpeechToText({
               module.start(buildSpeechOptions(fallbackLocale));
               if (!fallbackNoticeShownRef.current) {
                 fallbackNoticeShownRef.current = true;
-                const title = language === 'bg' ? 'Информация' : 'Info';
-                const localizedMessage =
-                  language === 'bg'
-                    ? 'Гласовото разпознаване на български не е налично на това устройство. Използваме поддържан език.'
-                    : 'Bulgarian speech recognition is not available on this device. Using a supported language.';
-                Alert.alert(title, localizedMessage);
+                Alert.alert(t('ai.speech.fallback.title'), t('ai.speech.fallback.message'));
               }
               return;
             } catch {
@@ -205,12 +206,7 @@ export function useSpeechToText({
             }
           }
 
-          const title = language === 'bg' ? 'Грешка' : 'Error';
-          const localizedMessage =
-            language === 'bg'
-              ? 'Гласовото разпознаване на български не е налично на това устройство.'
-              : 'Bulgarian speech recognition is not available on this device.';
-          Alert.alert(title, localizedMessage);
+          Alert.alert(t('ai.speech.unsupported.title'), t('ai.speech.unsupported.message'));
           return;
         }
 
@@ -275,7 +271,25 @@ export function useSpeechToText({
       if (startSeqRef.current !== seq) return;
     }
 
-    const options = buildSpeechOptions(lang);
+    // Best practice (Apple / expo-speech-recognition): query supported locales before starting so we
+    // don't rely on failing first. Phone UI language does not add locales — only OS-supported IDs count.
+    if (Platform.OS === 'android' && language === 'bg' && !androidBgPrefetchOnceRef.current) {
+      androidBgPrefetchOnceRef.current = true;
+      void prefetchBulgarianOfflineModelIfAndroid();
+    }
+
+    const supportedLocales = await getSupportedSpeechLocales();
+    let localeToUse = lang;
+    if (supportedLocales.length > 0) {
+      const picked = pickSpeechLocaleFromSupportedList(supportedLocales, language);
+      localeToUse = picked.locale;
+      if (picked.bulgarianUnavailable && !fallbackNoticeShownRef.current) {
+        fallbackNoticeShownRef.current = true;
+        Alert.alert(t('ai.speech.fallback.title'), t('ai.speech.fallback.message'));
+      }
+    }
+
+    const options = buildSpeechOptions(localeToUse);
 
     try {
       m.start(options);
@@ -283,7 +297,7 @@ export function useSpeechToText({
       const message = error instanceof Error ? error.message : String(error);
       const fallbackLocale = pickFallbackLocaleFromError(message, lang, language);
 
-      if (fallbackLocale && fallbackLocale !== lang) {
+      if (fallbackLocale && fallbackLocale !== localeToUse) {
         try {
           m.start({
             ...options,
@@ -291,12 +305,7 @@ export function useSpeechToText({
           });
           if (!fallbackNoticeShownRef.current) {
             fallbackNoticeShownRef.current = true;
-            const title = language === 'bg' ? 'Информация' : 'Info';
-            const localizedMessage =
-              language === 'bg'
-                ? 'Гласовото разпознаване на български не е налично на това устройство. Използваме поддържан език.'
-                : 'Bulgarian speech recognition is not available on this device. Using a supported language.';
-            Alert.alert(title, localizedMessage);
+            Alert.alert(t('ai.speech.fallback.title'), t('ai.speech.fallback.message'));
           }
           return;
         } catch {
@@ -306,7 +315,7 @@ export function useSpeechToText({
 
       throw error;
     }
-  }, [disabled, ensureAvailableAndPermitted, getOrLoadModule, lang, language, buildSpeechOptions]);
+  }, [disabled, ensureAvailableAndPermitted, getOrLoadModule, lang, language, buildSpeechOptions, t]);
 
   const stop = useCallback(async () => {
     if (disabled) return;

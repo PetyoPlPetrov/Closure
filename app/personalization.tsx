@@ -26,6 +26,7 @@ import {
 } from "react-native";
 import { type Language } from "@/utils/languages/translations";
 import { type SpeechToTextLanguage } from "@/utils/languages/language-manager";
+import { prefetchBulgarianOfflineModelIfAndroid } from "@/utils/speech-locale-support";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -62,6 +63,9 @@ export default function PersonalizationScreen() {
 
   const handleSpeechLanguageChange = async (lang: SpeechToTextLanguage) => {
     await setSpeechToTextLanguage(lang);
+    if (lang === "bg") {
+      void prefetchBulgarianOfflineModelIfAndroid();
+    }
     setSpeechLanguageDropdownVisible(false);
   };
 

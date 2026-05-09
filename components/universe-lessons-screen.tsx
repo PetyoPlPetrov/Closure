@@ -1488,14 +1488,54 @@ export function UniverseLessonsScreen({
 
   const hasUserLessons = cards.length > 0;
 
-  const triggerLightHaptic = useCallback(() => {
-    if (Platform.OS === "ios" && Device.isDevice) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  /** Ambient pulse + tap pulse multiply so presses always animate. */
+  const examIconScale = useSharedValue(1);
+  const examTapPulseScale = useSharedValue(1);
+  const examIconPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: examIconScale.value * examTapPulseScale.value }],
+  }));
+
+  useEffect(() => {
+    if (!visible || !runLessonAnimations || !hasUserLessons || !pulsingAnimations) {
+      cancelAnimation(examIconScale);
+      examIconScale.value = 1;
+      return;
     }
+
+    const firePulse = () => {
+      examIconScale.value = withSequence(
+        withTiming(1.14, { duration: 240, easing: Easing.out(Easing.cubic) }),
+        withTiming(1, { duration: 280, easing: Easing.inOut(Easing.quad) }),
+      );
+    };
+
+    const initialTimer = setTimeout(firePulse, 900);
+    const intervalId = setInterval(firePulse, 8000);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(intervalId);
+      cancelAnimation(examIconScale);
+      examIconScale.value = 1;
+    };
+  }, [visible, runLessonAnimations, hasUserLessons, pulsingAnimations, examIconScale]);
+
+  const triggerExamIconTapPulse = useCallback(() => {
+    cancelAnimation(examTapPulseScale);
+    examTapPulseScale.value = 1;
+    examTapPulseScale.value = withSequence(
+      withTiming(1.14, { duration: 180, easing: Easing.out(Easing.cubic) }),
+      withTiming(1, { duration: 260, easing: Easing.inOut(Easing.quad) }),
+    );
+  }, [examTapPulseScale]);
+
+  const triggerLessonCheckHaptic = useCallback(() => {
+    if (Platform.OS === "web") return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
   }, []);
 
   const handleOpenUniverseExam = useCallback(async () => {
-    triggerLightHaptic();
+    triggerExamIconTapPulse();
+    triggerLessonCheckHaptic();
     if (!hasUserLessons) {
       Alert.alert("", t("universe.lessons.noneAvailable"));
       return;
@@ -1518,7 +1558,8 @@ export function UniverseLessonsScreen({
     hasUserLessons,
     refreshCustomerInfo,
     t,
-    triggerLightHaptic,
+    triggerExamIconTapPulse,
+    triggerLessonCheckHaptic,
   ]);
 
   const filteredCards = useMemo(
@@ -1867,34 +1908,6 @@ export function UniverseLessonsScreen({
     }
   }, [visible, screenOpacity]);
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
-  const examIconScale = useSharedValue(1);
-  const examIconPulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: examIconScale.value }],
-  }));
-
-  useEffect(() => {
-    if (!visible || !runLessonAnimations || !hasUserLessons || !pulsingAnimations) {
-      cancelAnimation(examIconScale);
-      examIconScale.value = 1;
-      return;
-    }
-
-    const firePulse = () => {
-      examIconScale.value = withSequence(
-        withTiming(1.14, { duration: 240, easing: Easing.out(Easing.cubic) }),
-        withTiming(1, { duration: 280, easing: Easing.inOut(Easing.quad) }),
-      );
-    };
-
-    const initialTimer = setTimeout(firePulse, 900);
-    const intervalId = setInterval(firePulse, 8000);
-    return () => {
-      clearTimeout(initialTimer);
-      clearInterval(intervalId);
-      cancelAnimation(examIconScale);
-      examIconScale.value = 1;
-    };
-  }, [visible, runLessonAnimations, hasUserLessons, pulsingAnimations, examIconScale]);
 
   const handleAvatarPress = useCallback((card: LessonCard) => {
     if (!card.entityId || !card.memoryId) return;

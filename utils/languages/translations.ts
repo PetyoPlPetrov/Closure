@@ -1298,6 +1298,10 @@ export interface Translations {
   "ai.error.maximumLength": string;
   "ai.error.send": string;
   "ai.error.notAvailable": string;
+  "ai.speech.fallback.title": string;
+  "ai.speech.fallback.message": string;
+  "ai.speech.unsupported.title": string;
+  "ai.speech.unsupported.message": string;
   "ai.error.image": string;
   "ai.response.title": string;
   "ai.loading.title": string;
@@ -5687,6 +5691,12 @@ const translations: Record<Language, Translations> = {
     "ai.error.send": "Failed to send message",
     "ai.error.notAvailable":
       "Speech recognition is not available on this device",
+    "ai.speech.fallback.title": "Voice input",
+    "ai.speech.fallback.message":
+      "This device does not provide Bulgarian for system speech recognition (separate from app language). Continuing with a supported language.",
+    "ai.speech.unsupported.title": "Voice input",
+    "ai.speech.unsupported.message":
+      "Bulgarian is not available for system speech recognition on this device.",
     "ai.error.image": "Failed to pick image",
     "ai.response.title": "AI Response",
     "ai.loading.title": "AI is thinking...",
@@ -10817,6 +10827,12 @@ const translations: Record<Language, Translations> = {
     "ai.error.send": "Неуспешно изпращане на съобщение",
     "ai.error.notAvailable":
       "Распознаването на реч не е налично на това устройство",
+    "ai.speech.fallback.title": "Гласов вход",
+    "ai.speech.fallback.message":
+      "Това устройство не предлага български за системното разпознаване на реч (отделно от езика на приложението). Продължаваме с поддържан език.",
+    "ai.speech.unsupported.title": "Гласов вход",
+    "ai.speech.unsupported.message":
+      "Българският не е наличен за системното разпознаване на реч на това устройство.",
     "ai.error.image": "Неуспешно избиране на изображение",
     "ai.response.title": "AI Отговор",
     "ai.loading.title": "AI мисли...",

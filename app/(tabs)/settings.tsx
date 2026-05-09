@@ -1809,6 +1809,8 @@ export default function SettingsScreen() {
               const FRIENDS_STORAGE_KEY = "@sferas:friends";
               const HOBBIES_STORAGE_KEY = "@sferas:hobbies";
               const AVATAR_POSITIONS_KEY = "@sferas:avatar_positions";
+              const MEMORY_BALANCE_ORBIT_ROTATION_DEG_KEY =
+                "@sferas:memory_balance_orbit_rotation_deg";
               const WALKTHROUGH_SHOWN_KEY = "@sferas:walkthrough_shown";
 
               await clearSferaEventsStorage();
@@ -1822,6 +1824,7 @@ export default function SettingsScreen() {
                 AsyncStorage.removeItem(FRIENDS_STORAGE_KEY),
                 AsyncStorage.removeItem(HOBBIES_STORAGE_KEY),
                 AsyncStorage.removeItem(AVATAR_POSITIONS_KEY),
+                AsyncStorage.removeItem(MEMORY_BALANCE_ORBIT_ROTATION_DEG_KEY),
                 AsyncStorage.removeItem(WALKTHROUGH_SHOWN_KEY), // Clear walkthrough flag so it shows again
                 clearCachedOnboardingResponse(),
                 setShowWalkthroughAfterOnboarding(false),
