@@ -121,7 +121,7 @@ export default function TabLayout() {
   const tabBarHeight =
     Math.round(78 * fontScale) +
     Math.max(12, insets.bottom + 12 - 20 * fontScale);
-  const aiButtonSize = Math.round(52 * fontScale);
+  const aiButtonSize = Math.round(56 * fontScale);
   const [showPostOnboardingAIWelcome, setShowPostOnboardingAIWelcomeState] = useState(false);
   const [postOnboardingAIWelcomeEligible, setPostOnboardingAIWelcomeEligible] =
     useState(false);

@@ -16,7 +16,7 @@ import Animated, {
   Easing,
   cancelAnimation,
 } from 'react-native-reanimated';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { emitEventsTabPress } from '@/utils/events-tab-press';
 import { emitHomeTabPress } from '@/utils/home-tab-press';
 import { emitAIButtonPress } from '@/utils/ai-button-press';
@@ -30,6 +30,7 @@ import { hexToRgb } from '@/utils/moment-pill-glyph';
 import { useSegments } from 'expo-router';
 import { useUnsavedChanges } from '@/utils/UnsavedChangesContext';
 import { useTranslate } from '@/utils/languages/use-translate';
+import { useVisualSettings } from '@/utils/VisualSettingsProvider';
 
 /** Routes where switching tabs should consult UnsavedChangesContext. Entity hubs (edit-job, edit-family-member, …) are menus only — real drafts live on add-* / add-idealized-memory. */
 const TAB_UNSAVED_CHANGE_ROUTE_SUFFIXES = [
@@ -363,6 +364,10 @@ export function AITabButton({
   const palette = Colors[colorScheme ?? 'dark'];
   const pressScale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
+  const { pulsingAnimations } = useVisualSettings();
+  const pulsingAnimationsRef = useRef(pulsingAnimations);
+  pulsingAnimationsRef.current = pulsingAnimations;
+  const resumePulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [accentSphere, setAccentSphere] = useState(getCosmicPulseAccentSphere);
 
@@ -380,6 +385,15 @@ export function AITabButton({
   const { r: accR, g: accG, b: accB } = accentRgb;
 
   useEffect(() => {
+    if (!pulsingAnimations) {
+      if (resumePulseTimeoutRef.current) {
+        clearTimeout(resumePulseTimeoutRef.current);
+        resumePulseTimeoutRef.current = null;
+      }
+      cancelAnimation(pulseScale);
+      pulseScale.value = 1;
+      return;
+    }
     const peak = aiPulsePeak(spotlight, isDark);
     pulseScale.value = withRepeat(
       withSequence(
@@ -390,13 +404,26 @@ export function AITabButton({
       true,
     );
     return () => cancelAnimation(pulseScale);
-  }, [pulseScale, spotlight, isDark]);
+  }, [pulseScale, spotlight, isDark, pulsingAnimations]);
+
+  useEffect(() => {
+    return () => {
+      if (resumePulseTimeoutRef.current) {
+        clearTimeout(resumePulseTimeoutRef.current);
+        resumePulseTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value * pressScale.value }],
   }));
 
   const handlePress = () => {
+    if (resumePulseTimeoutRef.current) {
+      clearTimeout(resumePulseTimeoutRef.current);
+      resumePulseTimeoutRef.current = null;
+    }
     cancelAnimation(pulseScale);
     pulseScale.value = 1;
     pressScale.value = withSequence(
@@ -404,8 +431,10 @@ export function AITabButton({
       withTiming(1.06, { duration: 200, easing: Easing.out(Easing.ease) }),
       withTiming(1, { duration: 180, easing: Easing.inOut(Easing.ease) }),
     );
-    // Resume pulse after animation
-    setTimeout(() => {
+    // Resume pulse after animation (only when usability → pulsing is on)
+    resumePulseTimeoutRef.current = setTimeout(() => {
+      resumePulseTimeoutRef.current = null;
+      if (!pulsingAnimationsRef.current) return;
       const peak = aiPulsePeak(spotlight, isDark);
       pulseScale.value = withRepeat(
         withSequence(

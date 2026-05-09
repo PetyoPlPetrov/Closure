@@ -331,7 +331,7 @@ export type FocusedSferaViewProps = {
   constellationOpacity?: number;
   /** When true, component stays mounted and runs calcs but is invisible (opacity 0, no pointer events). Used for instant back from entity detail. */
   hidden?: boolean;
-  /** When false, pulsing animations (cosmic rings, sphere pulse) are disabled. From Personalization settings. */
+  /** When false, pulsing animations (cosmic rings, sphere pulse, orbiting-entity idle pulse) are disabled. From Usability settings. */
   pulsingAnimations?: boolean;
   /** Called when user taps insights icon from the expanded sun menu. Navigates to /insights. */
   onInsightsPress?: () => void;
@@ -447,6 +447,13 @@ function getMemorySunnyPercentage(memory: IdealizedMemory): number {
   return (suns / total) * 100;
 }
 
+/**
+ * Sphere focusness (same signal as `focusnessSv`) rises linearly as a sfera moves toward center.
+ * Without shaping, orbiting sun/cloud chips stayed nearly invisible until the end of the swipe
+ * (previously combined with a cubic wrapper). Map focusness so UI strength ramps up early.
+ */
+const MOMENT_UI_STRENGTH_BY_FOCUSNESS = 0.28;
+
 const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
   entityIndex,
   memories,
@@ -462,21 +469,14 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
   const { momentColors } = useMomentColors();
   const floatY = useSharedValue(0);
   const wrapperStyle = useAnimatedStyle(() => {
-    // Cubic falloff (^3) — outgoing moments still drop fast, but the incoming sphere's
-    // suns/clouds start showing through earlier in the drag than ^5 allowed. This makes
-    // the moments a clearer leading visual cue that the focus is shifting.
-    //   visibility=1.00 → opacity=1.00 (fully focused, full glow)
-    //   visibility=0.90 → opacity≈0.73 (10% drag, fading but still strong)
-    //   visibility=0.80 → opacity≈0.51 (20% drag, clearly receding)
-    //   visibility=0.60 → opacity≈0.22 (40% drag, faint silhouette)
-    //   visibility=0.50 → opacity≈0.13 (halfway drag, just-visible glow)
-    //   visibility=0.30 → opacity≈0.03 (mostly gone)
-    //   visibility=0.00 → opacity=0    (unfocused)
-    // Symmetric on the incoming sphere: suns now start emerging around mid-drag instead
-    // of in the last sliver, mirroring the gentler outgoing fade.
     const v = Math.max(0, Math.min(1, visibility.value));
-    const v2 = v * v;
-    return { opacity: v2 * v };
+    const strength = interpolate(
+      v,
+      [0, MOMENT_UI_STRENGTH_BY_FOCUSNESS, 1],
+      [0, 1, 1],
+      Extrapolation.CLAMP,
+    );
+    return { opacity: strength };
   });
 
   useEffect(() => {
@@ -574,14 +574,26 @@ const SmallFloatingMomentIcon = React.memo(function SmallFloatingMomentIcon({
 }) {
   const colorScheme = useColorScheme();
   const isLight = (colorScheme ?? "dark") === "light";
-  const animatedStyle = useAnimatedStyle(() => ({
-    shadowOpacity: interpolate(visibility.value, [0, 1], [0.12, 0.8], Extrapolation.CLAMP),
-    shadowRadius: interpolate(visibility.value, [0, 1], [1.5, 4], Extrapolation.CLAMP),
-    transform: [
-      { translateX: dx - MOMENT_ICON_SIZE / 2 },
-      { translateY: dy - MOMENT_ICON_SIZE / 2 + floatY.value * 3 },
-    ],
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    const v = Math.max(0, Math.min(1, visibility.value));
+    const strength = interpolate(
+      v,
+      [0, MOMENT_UI_STRENGTH_BY_FOCUSNESS, 1],
+      [0, 1, 1],
+      Extrapolation.CLAMP,
+    );
+    // Same focusness `v` drives both directions: 0 → unfocused (scale 0), 1 → focused (full size).
+    const scale = interpolate(v, [0, 1], [0, 1], Extrapolation.CLAMP);
+    return {
+      shadowOpacity: interpolate(strength, [0, 1], [0.12, 0.8], Extrapolation.CLAMP),
+      shadowRadius: interpolate(strength, [0, 1], [1.5, 4], Extrapolation.CLAMP),
+      transform: [
+        { translateX: dx - MOMENT_ICON_SIZE / 2 },
+        { translateY: dy - MOMENT_ICON_SIZE / 2 + floatY.value * 3 },
+        { scale },
+      ],
+    };
+  });
 
   return (
     <Animated.View
@@ -762,6 +774,7 @@ const EntityRing = React.memo(function EntityRing({
   orbitDurationMs = DEFAULT_ENTITY_ORBIT_DURATION_MS,
   randomPulseIndex = null,
   animationsEnabled = true,
+  pulsingAnimations = true,
   entityPlaceholderBg = "rgba(128,128,128,0.5)",
   entityAvatarBorderColor = "rgba(255,255,255,0.75)",
   entityInitialLetterColor = "#FFFFFF",
@@ -787,6 +800,7 @@ const EntityRing = React.memo(function EntityRing({
   orbitDurationMs?: number;
   randomPulseIndex?: number | null;
   animationsEnabled?: boolean;
+  pulsingAnimations?: boolean;
   entityPlaceholderBg?: string;
   entityAvatarBorderColor?: string;
   entityInitialLetterColor?: string;
@@ -865,6 +879,7 @@ const EntityRing = React.memo(function EntityRing({
             rotateOrbit={rotateOrbit}
             shouldDoRandomPulse={randomPulseIndex === i}
             animationsEnabled={animationsEnabled}
+            pulsingAnimations={pulsingAnimations}
             placeholderBg={entityPlaceholderBg}
             avatarBorderColor={entityAvatarBorderColor}
             initialLetterColor={entityInitialLetterColor}
@@ -900,6 +915,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   rotateOrbit,
   shouldDoRandomPulse,
   animationsEnabled,
+  pulsingAnimations,
   placeholderBg = "rgba(128,128,128,0.5)",
   avatarBorderColor = "rgba(255,255,255,0.75)",
   initialLetterColor = "#FFFFFF",
@@ -931,6 +947,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   rotateOrbit: boolean;
   shouldDoRandomPulse: boolean;
   animationsEnabled: boolean;
+  pulsingAnimations: boolean;
   placeholderBg?: string;
   avatarBorderColor?: string;
   initialLetterColor?: string;
@@ -1093,7 +1110,9 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
             entityIndex={index}
             memories={entityMemories}
             visibility={momentsVisibility}
-            momentFloatEnabled={isFocused && animationsEnabled}
+            momentFloatEnabled={
+              isFocused && animationsEnabled && pulsingAnimations
+            }
           />
         ) : null}
       </Pressable>
@@ -1128,7 +1147,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
 // ───────────────────── Cosmic pulse rings (radiate outward from focused sphere) ─────────────────────
 // CosmicPulseRings returns null when `enabled` is false so three CosmicRing animators are not mounted.
 // Other gating: SparkledDots·sparklesEnabled; SmallFloatingMoments·focused+memories; EntityRing·rotateOrbit;
-// insight card auto-cycle·isVisible; sphere pulse / random entity pulse·isFocused.
+// insight card auto-cycle·isVisible; sphere pulse / random entity pulse·isFocused + pulsingAnimations.
 
 const CosmicRing = React.memo(function CosmicRing({
   delay,
@@ -1428,6 +1447,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   individualModeScale = 1,
   entityAvatarScale = 1,
   animationsEnabled = true,
+  pulsingAnimations = true,
   sphere3DEffect = false,
 }: {
   sphereIdx: number;
@@ -1461,6 +1481,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   /** Additional scale for orbiting entity avatars in selected-sfera mode (iPad only). */
   entityAvatarScale?: number;
   animationsEnabled?: boolean;
+  /** Usability → Pulsing: idle sphere scale + random orbiting-entity pulse + memory-chip bob. */
+  pulsingAnimations?: boolean;
   /** Usability: glossy radial sferas + specular (off = flat fill). */
   sphere3DEffect?: boolean;
 }) {
@@ -1475,7 +1497,12 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   // Periodically pick a random entity to pulse (only when focused)
   const entityCount = Math.min(entityIds.length, ORBIT_MAX_FLOATING_ENTITIES);
   useEffect(() => {
-    if (!animationsEnabled || !isFocused || entityCount === 0) {
+    if (
+      !animationsEnabled ||
+      !pulsingAnimations ||
+      !isFocused ||
+      entityCount === 0
+    ) {
       setRandomPulseIndex(null);
       return;
     }
@@ -1483,7 +1510,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       setRandomPulseIndex(Math.floor(Math.random() * entityCount));
     }, RANDOM_ENTITY_PULSE_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [isFocused, entityCount, animationsEnabled]);
+  }, [isFocused, entityCount, animationsEnabled, pulsingAnimations]);
 
   const initialEntityMetrics = getEntityRingMetrics(
     SLOT_SIZES[slot],
@@ -1591,7 +1618,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
 
   // Pulse animation for focused sphere — every 7s, subtle (offset so it doesn't sync with circle avatar)
   useEffect(() => {
-    if (!animationsEnabled) {
+    if (!animationsEnabled || !pulsingAnimations) {
       cancelAnimation(spherePulseScale);
       spherePulseScale.value = 1;
       return;
@@ -1618,7 +1645,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       cancelAnimation(spherePulseScale);
       spherePulseScale.value = 1;
     }
-  }, [isFocused, spherePulseScale, animationsEnabled]);
+  }, [isFocused, spherePulseScale, animationsEnabled, pulsingAnimations]);
 
   // Reset tap intent tracking when focus changes.
   useEffect(() => {
@@ -2114,6 +2141,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
             orbitDurationMs={orbitDurationMs}
             randomPulseIndex={randomPulseIndex}
             animationsEnabled={animationsEnabled}
+            pulsingAnimations={pulsingAnimations}
             entityPlaceholderBg={
               colorScheme === "light" ? gradient3D.base : "rgba(128,128,128,0.5)"
             }
@@ -2933,23 +2961,25 @@ function MemoryBalanceView({
         })
         .onUpdate((g) => {
           "worklet";
-          const dragSpin = -g.translationX * 0.17 + g.translationY * 0.135;
+          // Degrees per px — tuned so orbit tracks finger without feeling heavy.
+          const dragSpin = -g.translationX * 0.3 + g.translationY * 0.24;
           orbitRotationDeg.value =
             orbitStartRotationDeg.value + dragSpin;
         })
         .onEnd((g) => {
           "worklet";
+          // velocity* are px/s; scale so a flick adds meaningful spin (was ~2–4° max).
           const releaseSpin = Math.max(
-            -52,
-            Math.min(52, -g.velocityX * 0.0034 + g.velocityY * 0.0025),
+            -88,
+            Math.min(88, -g.velocityX * 0.009 + g.velocityY * 0.0072),
           );
           const target = orbitRotationDeg.value + releaseSpin;
           runOnJS(persistMemoryBalanceOrbitDeg)(target);
           orbitRotationDeg.value = withSpring(
             target,
             {
-              damping: 16,
-              stiffness: 170,
+              damping: 14,
+              stiffness: 150,
             },
             (finished) => {
               "worklet";
@@ -3314,6 +3344,12 @@ export function FocusedSferaView({
     colorScheme === "light" && cosmicBackgroundOpacity === 0;
   const focusedSpherePulseRef = useRef<(() => void) | null>(null);
   const focusedSpherePressStartRef = useRef<{ x: number; y: number; ts: number } | null>(null);
+  /**
+   * RN Pressable onPressOut can report stale pageX/pageY (matching press-in) after the root orbit
+   * pan activates — distance checks then falsely pass. Set from horizontalPanGesture.onStart
+   * (pan ACTIVE after activeOffset), not onBegin (fires on touch down).
+   */
+  const orbitPanConsumedOverlayTapRef = useRef(false);
   const memoriesHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const insightsHubPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -3686,6 +3722,10 @@ export function FocusedSferaView({
     );
   }, []);
 
+  const markOrbitPanConsumedOverlayTap = useCallback(() => {
+    orbitPanConsumedOverlayTapRef.current = true;
+  }, []);
+
   // ───────────────── Center horizontal swipe (live UI-thread scrub) ─────────────────
   // Why GestureDetector + Gesture.Pan instead of PanResponder:
   // PanResponder only fires JS-thread callbacks, so writes to `focusedFracSv.value` arrive on
@@ -3716,6 +3756,10 @@ export function FocusedSferaView({
         // mid-animation without snapping. Subsequent onUpdate writes add the drag offset
         // to this snapshot, preserving the user's apparent "starting position".
         dragStartFocusedIdxSv.value = focusedFracSv.value;
+      })
+      .onStart(() => {
+        "worklet";
+        runOnJS(markOrbitPanConsumedOverlayTap)();
       })
       .onUpdate((g) => {
         "worklet";
@@ -3802,6 +3846,7 @@ export function FocusedSferaView({
     selectedSphere,
     displayMode,
     exitMemoryBalanceForDrag,
+    markOrbitPanConsumedOverlayTap,
   ]);
 
   // ───────────────── Side-region vertical swipe (kept on PanResponder) ─────────────────
@@ -4098,6 +4143,11 @@ export function FocusedSferaView({
   const memoryBalanceToggleScale = useSharedValue(1);
 
   const handleFocusedSphereTapOverlay = useCallback((event: GestureResponderEvent) => {
+    if (orbitPanConsumedOverlayTapRef.current) {
+      orbitPanConsumedOverlayTapRef.current = false;
+      focusedSpherePressStartRef.current = null;
+      return;
+    }
     const start = focusedSpherePressStartRef.current;
     focusedSpherePressStartRef.current = null;
     if (start) {
@@ -4132,6 +4182,7 @@ export function FocusedSferaView({
 
   const handleFocusedSphereOverlayPressIn = useCallback(
     (event: GestureResponderEvent) => {
+      orbitPanConsumedOverlayTapRef.current = false;
       const { pageX, pageY } = event.nativeEvent;
       focusedSpherePressStartRef.current = { x: pageX, y: pageY, ts: Date.now() };
 
@@ -4174,6 +4225,12 @@ export function FocusedSferaView({
 
       if (focusedOrbitHoldCommittedRef.current) {
         focusedOrbitHoldCommittedRef.current = false;
+        return;
+      }
+
+      if (orbitPanConsumedOverlayTapRef.current) {
+        orbitPanConsumedOverlayTapRef.current = false;
+        focusedSpherePressStartRef.current = null;
         return;
       }
 
@@ -4594,6 +4651,7 @@ export function FocusedSferaView({
               individualModeScale={individualModeScale}
               entityAvatarScale={individualEntityAvatarScale}
               animationsEnabled={orbitViewAnimationsEnabled}
+              pulsingAnimations={pulsingAnimations}
               sphere3DEffect={sphere3DEffect}
             />
           </OrbitSphereItem>

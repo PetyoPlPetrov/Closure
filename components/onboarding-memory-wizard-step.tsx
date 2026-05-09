@@ -12,9 +12,9 @@ import { useTranslate } from "@/utils/languages/use-translate";
 import { getCurrentBadge } from "@/utils/streak-manager";
 import type { StreakBadge } from "@/utils/streak-types";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -92,8 +92,15 @@ export function OnboardingMemoryWizardStep({
   const insets = useSafeAreaInsets();
   const colors = Colors[colorScheme ?? "dark"];
   const t = useTranslate();
-  const { idealizedMemories, friends, familyMembers, hobbies, profiles, jobs, reloadAll } =
-    useJourney();
+  const {
+    idealizedMemories,
+    friends,
+    familyMembers,
+    hobbies,
+    profiles,
+    jobs,
+    reloadAll,
+  } = useJourney();
 
   const clampedStart =
     orderedEntityIds.length === 0
@@ -128,7 +135,9 @@ export function OnboardingMemoryWizardStep({
   }, []);
 
   const currentId =
-    orderedEntityIds.length === 0 ? null : orderedEntityIds[stepIndex] ?? null;
+    orderedEntityIds.length === 0
+      ? null
+      : (orderedEntityIds[stepIndex] ?? null);
   const resolved = currentId
     ? resolveEntity(currentId, friends, familyMembers, hobbies, profiles, jobs)
     : null;
@@ -153,11 +162,9 @@ export function OnboardingMemoryWizardStep({
     orderedEntityIds.every((id) => committedSet.has(id));
 
   const isLastWizardStep =
-    orderedEntityIds.length > 0 &&
-    stepIndex >= orderedEntityIds.length - 1;
+    orderedEntityIds.length > 0 && stepIndex >= orderedEntityIds.length - 1;
 
-  const showFinishContinue =
-    isLastWizardStep && everyWizardSlotCommitted;
+  const showFinishContinue = isLastWizardStep && everyWizardSlotCommitted;
 
   const advanceAfterCurrentEntityComplete = useCallback(async () => {
     if (orderedEntityIds.length === 0) return;
@@ -169,11 +176,7 @@ export function OnboardingMemoryWizardStep({
     const next = stepIndex + 1;
     await onPersistStepIndex(next);
     setStepIndex(next);
-  }, [
-    orderedEntityIds.length,
-    stepIndex,
-    onPersistStepIndex,
-  ]);
+  }, [orderedEntityIds.length, stepIndex, onPersistStepIndex]);
 
   const handleCommitted = useCallback(async () => {
     if (!currentId) return;
@@ -248,7 +251,9 @@ export function OnboardingMemoryWizardStep({
           paddingBottom: 16 * fontScale,
           borderBottomWidth: 1,
           borderBottomColor:
-            colorScheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+            colorScheme === "dark"
+              ? "rgba(255,255,255,0.1)"
+              : "rgba(0,0,0,0.08)",
         },
         headerRow: {
           flexDirection: "row",
@@ -281,10 +286,13 @@ export function OnboardingMemoryWizardStep({
         },
         footer: {
           padding: 16 * fontScale,
-          paddingBottom: Math.max(insets.bottom, 10 * fontScale) + 8 * fontScale,
+          paddingBottom:
+            Math.max(insets.bottom, 10 * fontScale) + 8 * fontScale,
           borderTopWidth: 1,
           borderTopColor:
-            colorScheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+            colorScheme === "dark"
+              ? "rgba(255,255,255,0.1)"
+              : "rgba(0,0,0,0.08)",
           gap: 12 * fontScale,
         },
         hero: {
@@ -292,7 +300,9 @@ export function OnboardingMemoryWizardStep({
           borderRadius: 18 * fontScale,
           borderWidth: 1,
           borderColor:
-            colorScheme === "dark" ? "rgba(255, 255, 255, 0.24)" : "rgba(15, 23, 42, 0.16)",
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.24)"
+              : "rgba(15, 23, 42, 0.16)",
           backgroundColor: colorScheme === "dark" ? "#1D2736" : "#FFFFFF",
           marginBottom: 20 * fontScale,
           alignItems: "stretch",
@@ -308,7 +318,9 @@ export function OnboardingMemoryWizardStep({
           overflow: "hidden",
           borderWidth: 2,
           borderColor:
-            colorScheme === "dark" ? "rgba(255, 255, 255, 0.72)" : "rgba(15, 23, 42, 0.22)",
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.72)"
+              : "rgba(15, 23, 42, 0.22)",
         },
       }),
     [colors.background, colorScheme, fontScale, insets.bottom],
@@ -316,7 +328,9 @@ export function OnboardingMemoryWizardStep({
 
   if (!currentId || !resolved || !modalBundle) {
     return (
-      <View style={[styles.container, { justifyContent: "center", padding: 24 }]}>
+      <View
+        style={[styles.container, { justifyContent: "center", padding: 24 }]}
+      >
         <ThemedText>{t("ai.entity.noEntities")}</ThemedText>
       </View>
     );
@@ -341,7 +355,11 @@ export function OnboardingMemoryWizardStep({
               <ThemedText size="xl" weight="bold" numberOfLines={2}>
                 {resolved.name}
               </ThemedText>
-              <ThemedText size="sm" style={{ marginTop: 6 * fontScale, opacity: 0.75 }} numberOfLines={1}>
+              <ThemedText
+                size="sm"
+                style={{ marginTop: 6 * fontScale, opacity: 0.75 }}
+                numberOfLines={1}
+              >
                 {t(`onboarding.sphere.${resolved.sphere}`) || resolved.sphere}
               </ThemedText>
             </View>
@@ -357,7 +375,13 @@ export function OnboardingMemoryWizardStep({
       >
         <View style={styles.hero}>
           {!resolved.imageUri ? (
-            <View style={{ flexDirection: "row", justifyContent: "center", gap: 10 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 10,
+              }}
+            >
               <MaterialIcons
                 name={showFinishContinue ? "celebration" : "psychology-alt"}
                 size={36 * fontScale}
@@ -374,14 +398,19 @@ export function OnboardingMemoryWizardStep({
                 ]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={[StyleSheet.absoluteFill, { borderRadius: 37 * fontScale }]}
+                style={[
+                  StyleSheet.absoluteFill,
+                  { borderRadius: 37 * fontScale },
+                ]}
               />
               <View
                 style={[
                   StyleSheet.absoluteFill,
                   {
                     borderRadius: 37 * fontScale,
-                    backgroundColor: isDark ? "rgba(0, 0, 0, 0.18)" : "rgba(0, 0, 0, 0.08)",
+                    backgroundColor: isDark
+                      ? "rgba(0, 0, 0, 0.18)"
+                      : "rgba(0, 0, 0, 0.08)",
                   },
                 ]}
               />
@@ -418,8 +447,9 @@ export function OnboardingMemoryWizardStep({
                 marginBottom: 8 * fontScale,
               }}
             >
-              {t("onboarding.postEntity.memoryWizard.onboardingCompleteTitle") ??
-                "You're all set!"}
+              {t(
+                "onboarding.postEntity.memoryWizard.onboardingCompleteTitle",
+              ) ?? "You're all set!"}
             </ThemedText>
           ) : null}
           {showFinishContinue ? (
@@ -433,7 +463,9 @@ export function OnboardingMemoryWizardStep({
                   lineHeight: 21 * fontScale,
                 }}
               >
-                {t("onboarding.postEntity.memoryWizard.onboardingCompleteMessage")}
+                {t(
+                  "onboarding.postEntity.memoryWizard.onboardingCompleteMessage",
+                )}
               </ThemedText>
               <ThemedText
                 size="xs"
@@ -445,7 +477,9 @@ export function OnboardingMemoryWizardStep({
                   paddingHorizontal: 8 * fontScale,
                 }}
               >
-                {t("onboarding.postEntity.memoryWizard.onboardingCompletePerksLine")}
+                {t(
+                  "onboarding.postEntity.memoryWizard.onboardingCompletePerksLine",
+                )}
               </ThemedText>
             </>
           ) : (
@@ -492,7 +526,7 @@ export function OnboardingMemoryWizardStep({
                 }}
               >
                 <AITabButton
-                  size={Math.round(52 * fontScale)}
+                  size={Math.round(60 * fontScale)}
                   emitGlobalPress={false}
                   accessibilityLabel={
                     t("onboarding.postEntity.memoryWizard.createAi") as string
