@@ -140,7 +140,7 @@ export default function UsabilityScreen() {
           <View style={styles.section}>
             <View style={styles.toggleRow}>
               <View style={styles.toggleTextWrap}>
-                <ThemedText size="l" weight="medium" style={{ flex: 1 }}>
+                <ThemedText size="l" style={{ flex: 1 }}>
                   {t("settings.usability.showHints")}
                 </ThemedText>
                 <ThemedText
@@ -163,7 +163,7 @@ export default function UsabilityScreen() {
 
             <View style={styles.toggleRow}>
               <View style={styles.toggleTextWrap}>
-                <ThemedText size="l" weight="medium" style={{ flex: 1 }}>
+                <ThemedText size="l" style={{ flex: 1 }}>
                   {t("settings.usability.stopPulsingAnimations")}
                 </ThemedText>
                 <ThemedText
@@ -186,7 +186,7 @@ export default function UsabilityScreen() {
 
             <View style={styles.toggleRow}>
               <View style={styles.toggleTextWrap}>
-                <ThemedText size="l" weight="medium" style={{ flex: 1 }}>
+                <ThemedText size="l" style={{ flex: 1 }}>
                   {t("settings.usability.splashAnimation")}
                 </ThemedText>
                 <ThemedText
@@ -209,7 +209,7 @@ export default function UsabilityScreen() {
 
             <View style={styles.toggleRow}>
               <View style={styles.toggleTextWrap}>
-                <ThemedText size="l" weight="medium" style={{ flex: 1 }}>
+                <ThemedText size="l" style={{ flex: 1 }}>
                   {t("settings.usability.sphere3DEffect")}
                 </ThemedText>
                 <ThemedText

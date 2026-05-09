@@ -119,7 +119,7 @@ export function ThemePickerField() {
   return (
     <>
       <View style={styles.section}>
-        <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+        <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
           {t("settings.theme")}
         </ThemedText>
         <TouchableOpacity
@@ -136,7 +136,7 @@ export function ThemePickerField() {
               size={24 * fontScale}
               color={colors.icon}
             />
-            <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+            <ThemedText size="l" style={styles.dropdownText}>
               {getThemeLabel(themeMode)}
             </ThemedText>
           </View>
@@ -161,7 +161,7 @@ export function ThemePickerField() {
           <View style={styles.modalContent}>
             <Pressable onPress={(e) => e.stopPropagation()}>
               <View style={styles.modalHeader}>
-                <ThemedText size="l" weight="bold">
+                <ThemedText size="l" weight="semibold">
                   {t("settings.theme")}
                 </ThemedText>
               </View>
@@ -184,7 +184,7 @@ export function ThemePickerField() {
                     />
                     <ThemedText
                       size="l"
-                      weight={themeMode === mode ? "bold" : "medium"}
+                      weight={themeMode === mode ? "semibold" : "normal"}
                     >
                       {getThemeLabel(mode)}
                     </ThemedText>

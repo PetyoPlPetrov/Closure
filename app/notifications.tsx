@@ -52,7 +52,7 @@ export default function NotificationsScreen() {
 
   const renderSectionHeader = (label: string) => (
     <View style={{ marginTop: 8, marginBottom: 4, paddingHorizontal: 4 }}>
-      <ThemedText size="xs" weight="semibold" style={{ color: palette.muted, textTransform: 'uppercase', letterSpacing: 1 }}>
+      <ThemedText size="xs" weight="medium" style={{ color: palette.muted, textTransform: 'uppercase', letterSpacing: 1 }}>
         {label}
       </ThemedText>
     </View>
@@ -66,7 +66,7 @@ export default function NotificationsScreen() {
         <View style={styles.card}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
-              <ThemedText size="md" weight="semibold" style={styles.rowTitleText}>
+              <ThemedText size="md" style={styles.rowTitleText}>
                 {t('notifications.guidePrompt.title')}
               </ThemedText>
               <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
@@ -92,7 +92,7 @@ export default function NotificationsScreen() {
         <View style={styles.card}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
-              <ThemedText size="md" weight="semibold" style={styles.rowTitleText}>
+              <ThemedText size="md" style={styles.rowTitleText}>
                 {t('notifications.sferaSizesHint.title')}
               </ThemedText>
               <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
@@ -126,7 +126,7 @@ export default function NotificationsScreen() {
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <ThemedText size="md" weight="semibold" style={styles.rowTitleText}>
+            <ThemedText size="md" style={styles.rowTitleText}>
               {t('momentNotifications.title')}
             </ThemedText>
             <MaterialIcons name="chevron-right" size={23 * fontScale} color={palette.text} />
@@ -146,7 +146,7 @@ export default function NotificationsScreen() {
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <ThemedText size="md" weight="semibold" style={styles.rowTitleText}>
+            <ThemedText size="md" style={styles.rowTitleText}>
               {t('notifications.entityReminders.title')}
             </ThemedText>
             <MaterialIcons name="chevron-right" size={23 * fontScale} color={palette.text} />

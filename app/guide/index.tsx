@@ -247,7 +247,7 @@ export default function GuideScreen() {
                         : colors.icon
                   }
                 />
-                <ThemedText size="l" weight="medium">
+                <ThemedText size="l">
                   {t(getSectionShortTitleKey(section.id))}
                 </ThemedText>
               </View>
@@ -275,7 +275,7 @@ export default function GuideScreen() {
 
         <View style={styles.reminderRow}>
           <View style={{ flex: 1, paddingRight: 12 * fontScale }}>
-            <ThemedText size="m" weight="medium">
+            <ThemedText size="m">
               {t("guide.remindOnOpen")}
             </ThemedText>
             <ThemedText

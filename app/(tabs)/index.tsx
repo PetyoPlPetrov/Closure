@@ -19404,14 +19404,20 @@ export default function HomeScreen() {
           splashDone={!isSplashVisible || isAnimationComplete}
           onAddMemoriesPress={() => router.push("/(tabs)/spheres")}
           onSphereSelect={(sphere) => {
-            setFocusedMemory(null);
-            setFocusedProfileId(null);
-            setFocusedJobId(null);
-            setFocusedFamilyMemberId(null);
-            setFocusedFriendId(null);
-            setFocusedHobbyId(null);
-            setAnimationsComplete(false);
-            setSelectedSphere(sphere);
+            startTransitionLoader();
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                setFocusedMemory(null);
+                setFocusedProfileId(null);
+                setFocusedJobId(null);
+                setFocusedFamilyMemberId(null);
+                setFocusedFriendId(null);
+                setFocusedHobbyId(null);
+                setAnimationsComplete(false);
+                setSelectedSphere(sphere);
+                hideLoader();
+              }, 0);
+            });
           }}
           onEntitySelect={(entityId, sphere) => {
             cameFromFocusedSferaForEntityRef.current = true;

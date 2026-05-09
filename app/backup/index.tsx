@@ -172,7 +172,7 @@ export default function BackupScreen() {
                 size={24 * fontScale}
                 color={colors.primary}
               />
-              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+              <ThemedText size="l" style={styles.dropdownText}>
                 {isExporting ? "Exporting…" : t("settings.backup.export")}
               </ThemedText>
             </View>
@@ -193,7 +193,7 @@ export default function BackupScreen() {
                 size={24 * fontScale}
                 color={colors.primary}
               />
-              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+              <ThemedText size="l" style={styles.dropdownText}>
                 {t("settings.backup.import")}
               </ThemedText>
             </View>

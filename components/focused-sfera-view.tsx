@@ -2787,10 +2787,10 @@ function MemoryBalanceView({
     (sphereIndex: number, sphereType: LifeSphere) => {
       if (!onMemoryBalanceTapFeedback(sphereIndex, sphereType)) return;
 
-      if (!pulsingAnimations) {
-        onMemoryBalanceNavigate(sphereIndex, sphereType);
-        return;
-      }
+      // Open individual sfera + top transition loader immediately — do not wait for tap pulse.
+      onMemoryBalanceNavigate(sphereIndex, sphereType);
+
+      if (!pulsingAnimations) return;
 
       cancelAnimation(mbTapPulseScale);
       mbTapPulseIndex.value = sphereIndex;
@@ -2810,7 +2810,6 @@ function MemoryBalanceView({
             "worklet";
             if (finished) {
               mbTapPulseIndex.value = -1;
-              runOnJS(onMemoryBalanceNavigate)(sphereIndex, sphereType);
             }
           },
         ),

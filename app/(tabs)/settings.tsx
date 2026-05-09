@@ -1898,7 +1898,7 @@ export default function SettingsScreen() {
       >
         {/* SUBSCRIPTION */}
         <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+          <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
             {t("settings.subscriptions.title")}
           </ThemedText>
 
@@ -1913,7 +1913,7 @@ export default function SettingsScreen() {
                 size={24 * fontScale}
                 color={colors.icon}
               />
-              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+              <ThemedText size="l" style={styles.dropdownText}>
                 {t("settings.subscriptions.premium")}
               </ThemedText>
             </View>
@@ -1941,7 +1941,7 @@ export default function SettingsScreen() {
                 size={24 * fontScale}
                 color={colors.icon}
               />
-              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+              <ThemedText size="l" style={styles.dropdownText}>
                 {t("settings.backup.title")}
               </ThemedText>
             </View>
@@ -1956,7 +1956,6 @@ export default function SettingsScreen() {
             <View style={[styles.planInfoCard, { marginTop: 12 * fontScale }]}>
               <ThemedText
                 size="sm"
-                weight="semibold"
                 style={[styles.planInfoTitle, { marginBottom: 8 * fontScale }]}
               >
                 Dev: Show paywalls
@@ -1976,7 +1975,7 @@ export default function SettingsScreen() {
                   }}
                   activeOpacity={0.7}
                 >
-                  <ThemedText size="sm" weight="medium">
+                  <ThemedText size="sm">
                     Sfera Plus paywall
                   </ThemedText>
                 </TouchableOpacity>
@@ -1994,7 +1993,7 @@ export default function SettingsScreen() {
                   }}
                   activeOpacity={0.7}
                 >
-                  <ThemedText size="sm" weight="medium">
+                  <ThemedText size="sm">
                     Sfera AI paywall
                   </ThemedText>
                 </TouchableOpacity>
@@ -2007,7 +2006,7 @@ export default function SettingsScreen() {
 
         {/* HELP */}
         <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+          <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
             {t("settings.help.title")}
           </ThemedText>
 
@@ -2022,7 +2021,7 @@ export default function SettingsScreen() {
                 size={24 * fontScale}
                 color={colors.icon}
               />
-              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+              <ThemedText size="l" style={styles.dropdownText}>
                 {t("settings.help.viewGuide")}
               </ThemedText>
             </View>
@@ -2046,7 +2045,7 @@ export default function SettingsScreen() {
                 size={24 * fontScale}
                 color={colors.icon}
               />
-              <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+              <ThemedText size="l" style={styles.dropdownText}>
                 {t("settings.feedback.addFeedback")}
               </ThemedText>
             </View>
@@ -2075,7 +2074,7 @@ export default function SettingsScreen() {
 
         {/* YOUR DATA */}
         <View style={styles.section}>
-          <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+          <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
             {t("settings.yourData.title")}
           </ThemedText>
 
@@ -2098,7 +2097,6 @@ export default function SettingsScreen() {
                   />
                   <ThemedText
                     size="l"
-                    weight="medium"
                     style={styles.dropdownText}
                   >
                     Replay loading animation
@@ -2123,7 +2121,6 @@ export default function SettingsScreen() {
                   />
                   <ThemedText
                     size="l"
-                    weight="medium"
                     style={styles.dropdownText}
                   >
                     {isGeneratingFakeData
@@ -2153,7 +2150,6 @@ export default function SettingsScreen() {
                   />
                   <ThemedText
                     size="l"
-                    weight="medium"
                     style={styles.dropdownText}
                   >
                     {t("settings.devTools.viewPremiumFeatures")}
@@ -2179,7 +2175,6 @@ export default function SettingsScreen() {
                   />
                   <ThemedText
                     size="l"
-                    weight="medium"
                     style={styles.dropdownText}
                   >
                     {t("settings.devTools.viewPlusFeatures")}
@@ -2216,7 +2211,6 @@ export default function SettingsScreen() {
               />
               <ThemedText
                 size="l"
-                weight="medium"
                 style={[
                   styles.dropdownText,
                   { color: colors.error || "#ff4444" },
@@ -2256,7 +2250,6 @@ export default function SettingsScreen() {
                 />
                 <ThemedText
                   size="l"
-                  weight="medium"
                   style={styles.dropdownText}
                 >
                   {initialOnboardingRequesting

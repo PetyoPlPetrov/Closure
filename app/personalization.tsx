@@ -275,7 +275,7 @@ export default function PersonalizationScreen() {
         >
           {/* Language */}
           <View style={styles.section}>
-            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
               {t("settings.language")}
             </ThemedText>
 
@@ -290,7 +290,7 @@ export default function PersonalizationScreen() {
                   size={24 * fontScale}
                   color={colors.icon}
                 />
-                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                <ThemedText size="l" style={styles.dropdownText}>
                   {getLanguageLabel(language)}
                 </ThemedText>
               </View>
@@ -312,7 +312,7 @@ export default function PersonalizationScreen() {
                   size={24 * fontScale}
                   color={colors.icon}
                 />
-                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                <ThemedText size="l" style={styles.dropdownText}>
                   {language === "bg" ? "Реч към текст" : "Speech to text"}:{" "}
                   {getSpeechLanguageLabel(speechToTextLanguage)}
                 </ThemedText>
@@ -329,14 +329,14 @@ export default function PersonalizationScreen() {
 
           {/* AI section */}
           <View style={styles.section}>
-            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
               {t("settings.aiInsights.title")}
             </ThemedText>
 
             <View style={styles.aiToggleRow}>
               <View style={styles.aiToggleTextWrap}>
                 <View style={styles.aiToggleTitleRow}>
-                  <ThemedText size="l" weight="medium" style={{ flex: 1 }}>
+                  <ThemedText size="l" style={{ flex: 1 }}>
                     {t("settings.aiInsights.title")}
                   </ThemedText>
                   <TouchableOpacity
@@ -367,7 +367,7 @@ export default function PersonalizationScreen() {
 
           {/* Notifications */}
           <View style={styles.section}>
-            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
               {t("settings.notifications.title")}
             </ThemedText>
 
@@ -382,7 +382,7 @@ export default function PersonalizationScreen() {
                   size={24 * fontScale}
                   color={colors.icon}
                 />
-                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                <ThemedText size="l" style={styles.dropdownText}>
                   {t("settings.notifications.manage")}
                 </ThemedText>
               </View>
@@ -396,7 +396,7 @@ export default function PersonalizationScreen() {
 
           {/* Usability: opens dedicated screen (hints + stop pulsing) */}
           <View style={styles.section}>
-            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
               {t("settings.usability.sectionTitle")}
             </ThemedText>
 
@@ -412,7 +412,7 @@ export default function PersonalizationScreen() {
                   size={24 * fontScale}
                   color={colors.icon}
                 />
-                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                <ThemedText size="l" style={styles.dropdownText}>
                   {t("settings.usability.title")}
                 </ThemedText>
               </View>
@@ -426,7 +426,7 @@ export default function PersonalizationScreen() {
 
           {/* Look / Visual section: Moment Colors + Cosmic app look */}
           <View style={styles.section}>
-            <ThemedText size="l" weight="semibold" style={styles.sectionTitle}>
+            <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
               {t("personalization.visualSection")}
             </ThemedText>
 
@@ -441,7 +441,7 @@ export default function PersonalizationScreen() {
                   size={24 * fontScale}
                   color={colors.icon}
                 />
-                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                <ThemedText size="l" style={styles.dropdownText}>
                   {t("settings.momentColors.title")}
                 </ThemedText>
               </View>
@@ -463,7 +463,7 @@ export default function PersonalizationScreen() {
                   size={24 * fontScale}
                   color={colors.icon}
                 />
-                <ThemedText size="l" weight="medium" style={styles.dropdownText}>
+                <ThemedText size="l" style={styles.dropdownText}>
                   {t("settings.personalization.cosmicAppLookTitle")}
                 </ThemedText>
               </View>
@@ -490,7 +490,7 @@ export default function PersonalizationScreen() {
           <View style={styles.modalContent}>
             <Pressable onPress={(e) => e.stopPropagation()}>
               <View style={styles.modalHeader}>
-                <ThemedText size="l" weight="bold">
+                <ThemedText size="l" weight="semibold">
                   {t("settings.language")}
                 </ThemedText>
               </View>
@@ -508,7 +508,7 @@ export default function PersonalizationScreen() {
                   />
                   <ThemedText
                     size="l"
-                    weight={language === "en" ? "bold" : "medium"}
+                    weight={language === "en" ? "semibold" : "normal"}
                   >
                     {t("settings.language.english")}
                   </ThemedText>
@@ -535,7 +535,7 @@ export default function PersonalizationScreen() {
                   />
                   <ThemedText
                     size="l"
-                    weight={language === "bg" ? "bold" : "medium"}
+                    weight={language === "bg" ? "semibold" : "normal"}
                   >
                     {t("settings.language.bulgarian")}
                   </ThemedText>
@@ -566,7 +566,7 @@ export default function PersonalizationScreen() {
           <View style={styles.modalContent}>
             <Pressable onPress={(e) => e.stopPropagation()}>
               <View style={styles.modalHeader}>
-                <ThemedText size="l" weight="bold">
+                <ThemedText size="l" weight="semibold">
                   {language === "bg" ? "Реч към текст" : "Speech to text"}
                 </ThemedText>
               </View>
@@ -584,7 +584,7 @@ export default function PersonalizationScreen() {
                   />
                   <ThemedText
                     size="l"
-                    weight={speechToTextLanguage === "auto" ? "bold" : "medium"}
+                    weight={speechToTextLanguage === "auto" ? "semibold" : "normal"}
                   >
                     {language === "bg"
                       ? `Автоматично (${getLanguageLabel(resolvedSpeechToTextLanguage)})`
@@ -613,7 +613,7 @@ export default function PersonalizationScreen() {
                   />
                   <ThemedText
                     size="l"
-                    weight={speechToTextLanguage === "en" ? "bold" : "medium"}
+                    weight={speechToTextLanguage === "en" ? "semibold" : "normal"}
                   >
                     {t("settings.language.english")}
                   </ThemedText>
@@ -640,7 +640,7 @@ export default function PersonalizationScreen() {
                   />
                   <ThemedText
                     size="l"
-                    weight={speechToTextLanguage === "bg" ? "bold" : "medium"}
+                    weight={speechToTextLanguage === "bg" ? "semibold" : "normal"}
                   >
                     {t("settings.language.bulgarian")}
                   </ThemedText>
