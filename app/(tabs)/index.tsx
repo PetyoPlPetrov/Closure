@@ -15173,6 +15173,8 @@ export default function HomeScreen() {
   >(null);
   /** False while not in MB; true while in MB — used to detect orbit → MB to re-show hint. */
   const prevMbForHintRef = useRef(false);
+  /** Mirrors `focusedHomeMemoryBalance` for timeout callbacks (avoid showing sunny hint after leaving MB). */
+  const focusedHomeMemoryBalanceRef = useRef<boolean | null>(null);
   const [sferaSizeHintVisible, setSferaSizeHintVisible] = useState(false);
   const sferaSizeHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -15189,6 +15191,8 @@ export default function HomeScreen() {
   const sunnyVsCloudyHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  focusedHomeMemoryBalanceRef.current = focusedHomeMemoryBalance;
 
   useFocusEffect(
     useCallback(() => {
@@ -15377,10 +15381,11 @@ export default function HomeScreen() {
       !isHomeTabFocused ||
       homeViewMode !== "focused" ||
       selectedSphere !== null;
-    // Sunny insight: show on every focused overview visit (orbit or Memory Balance).
-    // Sfera size hint stays Memory Balance–only in its separate effect below.
+    // Sunny/cloudy banner is mounted only in Memory Balance mode (FocusedSferaView hint band).
+    // Do not set visibility while in orbit — toggling MB would flash one frame of stale UI.
     const readyForSunnyVsCloudyHint =
       onFocusedOverviewSurface &&
+      focusedHomeMemoryBalance === true &&
       !isLoading &&
       focusedIntroComplete &&
       hasAnyMoments &&
@@ -15437,6 +15442,16 @@ export default function HomeScreen() {
   ]);
 
   useEffect(() => {
+    if (focusedHomeMemoryBalance === true) return;
+    prevCanShowSunnyVsCloudyRef.current = false;
+    setSunnyVsCloudyHintVisible(false);
+    if (sunnyVsCloudyHintTimerRef.current) {
+      clearTimeout(sunnyVsCloudyHintTimerRef.current);
+      sunnyVsCloudyHintTimerRef.current = null;
+    }
+  }, [focusedHomeMemoryBalance]);
+
+  useEffect(() => {
     return () => {
       if (sunnyVsCloudyHintTimerRef.current) {
         clearTimeout(sunnyVsCloudyHintTimerRef.current);
@@ -15456,8 +15471,9 @@ export default function HomeScreen() {
     }
 
     sunnyVsCloudyHintTimerRef.current = setTimeout(() => {
-      setSunnyVsCloudyHintVisible(true);
       sunnyVsCloudyHintTimerRef.current = null;
+      if (focusedHomeMemoryBalanceRef.current !== true) return;
+      setSunnyVsCloudyHintVisible(true);
     }, 1200);
   }, [sunnyVsCloudyHintNeverShow, isSunnyVsCloudyHintEligible]);
 

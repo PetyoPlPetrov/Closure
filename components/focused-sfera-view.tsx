@@ -60,7 +60,10 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+} from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -154,6 +157,19 @@ const MEMORY_BALANCE_RING_LAYOUT: readonly { angleDeg: number; radius: number }[
 
 /** Persisted user-adjusted spin of the Memory Balance sfera ring (degrees, any range; stored normalized 0–360). */
 const MEMORY_BALANCE_ORBIT_ROTATION_DEG_KEY = "@sferas:memory_balance_orbit_rotation_deg";
+
+/** Minimum finger-down time before Memory Balance long-press switches to focused orbit (tap still navigates). */
+const MEMORY_BALANCE_LONG_PRESS_ACTIVATION_MS = 420;
+/** Orbit pan activates after this drag distance (RNGH Pan `minDistance`). */
+const MB_ORBIT_PAN_MIN_DISTANCE_PX = 10;
+/** Tap stays a tap if movement stays within this (RNGH Tap `maxDistance`); above → Exclusive hands off to orbit pan on sferas. */
+const MB_ORBIT_TAP_MAX_DISTANCE_PX = 10;
+/** Orbit focused sfera: hold this long before switching to Memory Balance rings. */
+const MEMORY_BALANCE_HOLD_TO_MEMORY_MS = 1000;
+/** Crossfade Memory Balance ↔ orbit (same duration/easing both directions — matches orbit→MB calm dissolve). */
+const MEMORY_BALANCE_MYSTIC_EXIT_DURATION_MS = 1280;
+/** Material-style ease; very soft deceleration at the end of the MB ↔ orbit dissolve. */
+const MEMORY_BALANCE_MYSTIC_EXIT_EASING = Easing.bezier(0.4, 0, 0.2, 1);
 
 function normalizeMemoryBalanceOrbitDeg(deg: number): number {
   const x = deg % 360;
@@ -1124,6 +1140,9 @@ const CosmicRing = React.memo(function CosmicRing({
   opacityPeak = 0.1,
   borderW = 1,
   shadowOpacity = 0.2,
+  expandDurationMs = 4500,
+  opacityInMs = 600,
+  opacityOutMs = 3900,
 }: {
   delay: number;
   color: string;
@@ -1135,6 +1154,10 @@ const CosmicRing = React.memo(function CosmicRing({
   opacityPeak?: number;
   borderW?: number;
   shadowOpacity?: number;
+  /** Radial expansion duration — shorter during Memory Balance hold so pulses read in ~1s. */
+  expandDurationMs?: number;
+  opacityInMs?: number;
+  opacityOutMs?: number;
 }) {
   const ringScale = useSharedValue(1);
   const ringOpacity = useSharedValue(0);
@@ -1153,7 +1176,7 @@ const CosmicRing = React.memo(function CosmicRing({
         withSequence(
           withTiming(1, { duration: 0 }),
           withTiming(1.9, {
-            duration: 4500,
+            duration: expandDurationMs,
             easing: Easing.bezier(0.25, 0.46, 0.45, 0.94),
           }),
         ),
@@ -1165,8 +1188,14 @@ const CosmicRing = React.memo(function CosmicRing({
       delay,
       withRepeat(
         withSequence(
-          withTiming(opacityPeak, { duration: 600, easing: Easing.out(Easing.ease) }),
-          withTiming(0, { duration: 3900, easing: Easing.in(Easing.quad) }),
+          withTiming(opacityPeak, {
+            duration: opacityInMs,
+            easing: Easing.out(Easing.ease),
+          }),
+          withTiming(0, {
+            duration: opacityOutMs,
+            easing: Easing.in(Easing.quad),
+          }),
         ),
         -1,
         false,
@@ -1178,7 +1207,16 @@ const CosmicRing = React.memo(function CosmicRing({
       ringScale.value = 1;
       ringOpacity.value = 0;
     };
-  }, [enabled, delay, ringScale, ringOpacity, opacityPeak]);
+  }, [
+    enabled,
+    delay,
+    ringScale,
+    ringOpacity,
+    opacityPeak,
+    expandDurationMs,
+    opacityInMs,
+    opacityOutMs,
+  ]);
 
   const ringStyle = useAnimatedStyle(() => ({
     opacity: ringOpacity.value,
@@ -1224,6 +1262,10 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
   ringOpacityPeak = 0.1,
   ringBorderWidth = 1,
   ringShadowOpacity = 0.2,
+  /** Memory Balance long-press: snap rings in fast + tighter pulse so they match focused orbit energy during the 1s hold. */
+  holdGesturePulse = false,
+  fadeInDurationMs,
+  fadeOutDurationMs,
 }: {
   color: string;
   offsetX: number;
@@ -1234,9 +1276,16 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
   ringOpacityPeak?: number;
   ringBorderWidth?: number;
   ringShadowOpacity?: number;
+  holdGesturePulse?: boolean;
+  fadeInDurationMs?: number;
+  fadeOutDurationMs?: number;
 }) {
-  const RINGS_FADE_OUT_MS = 430;
-  const RINGS_FADE_IN_MS = 760;
+  const RINGS_FADE_OUT_MS = fadeOutDurationMs ?? 430;
+  const RINGS_FADE_IN_MS = fadeInDurationMs ?? (holdGesturePulse ? 120 : 760);
+  const ringExpandMs = holdGesturePulse ? 1180 : 4500;
+  const ringOpacityInMs = holdGesturePulse ? 200 : 600;
+  const ringOpacityOutMs = holdGesturePulse ? 980 : 3900;
+  const ringDelays = holdGesturePulse ? [0, 360, 720] : [0, 1500, 3000];
   const [shouldRunRings, setShouldRunRings] = useState(enabled && visible);
   const [ringCycleKey, setRingCycleKey] = useState(0);
   const stopRingsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1298,7 +1347,7 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
     <Animated.View pointerEvents="none" style={fadeStyle}>
       <CosmicRing
         key={`cosmic-ring-0-${ringCycleKey}`}
-        delay={0}
+        delay={ringDelays[0]}
         color={color}
         left={left}
         top={top}
@@ -1307,10 +1356,13 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
         opacityPeak={ringOpacityPeak}
         borderW={ringBorderWidth}
         shadowOpacity={ringShadowOpacity}
+        expandDurationMs={ringExpandMs}
+        opacityInMs={ringOpacityInMs}
+        opacityOutMs={ringOpacityOutMs}
       />
       <CosmicRing
         key={`cosmic-ring-1-${ringCycleKey}`}
-        delay={1500}
+        delay={ringDelays[1]}
         color={color}
         left={left}
         top={top}
@@ -1319,10 +1371,13 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
         opacityPeak={ringOpacityPeak}
         borderW={ringBorderWidth}
         shadowOpacity={ringShadowOpacity}
+        expandDurationMs={ringExpandMs}
+        opacityInMs={ringOpacityInMs}
+        opacityOutMs={ringOpacityOutMs}
       />
       <CosmicRing
         key={`cosmic-ring-2-${ringCycleKey}`}
-        delay={3000}
+        delay={ringDelays[2]}
         color={color}
         left={left}
         top={top}
@@ -1331,6 +1386,9 @@ const CosmicPulseRings = React.memo(function CosmicPulseRings({
         opacityPeak={ringOpacityPeak}
         borderW={ringBorderWidth}
         shadowOpacity={ringShadowOpacity}
+        expandDurationMs={ringExpandMs}
+        opacityInMs={ringOpacityInMs}
+        opacityOutMs={ringOpacityOutMs}
       />
     </Animated.View>
   );
@@ -2639,7 +2697,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
 const MemoryBalanceSphereItem = React.memo(function MemoryBalanceSphereItem({
   index,
   modeTransition,
-  onPress,
+  interactionGesture,
   containerStyle,
   baseAngleRad,
   orbitRadius,
@@ -2651,7 +2709,10 @@ const MemoryBalanceSphereItem = React.memo(function MemoryBalanceSphereItem({
 }: {
   index: number;
   modeTransition: SharedValue<number>;
-  onPress: () => void;
+  /** Tap vs orbit pan vs optional long-press — composed in MemoryBalanceView. */
+  interactionGesture: NonNullable<
+    React.ComponentProps<typeof GestureDetector>["gesture"]
+  >;
   containerStyle: any;
   baseAngleRad: number;
   orbitRadius: number;
@@ -2702,15 +2763,16 @@ const MemoryBalanceSphereItem = React.memo(function MemoryBalanceSphereItem({
   }, [index, mbTapPulseIndex, mbTapPulseScale]);
 
   return (
-    <Animated.View style={[containerStyle, outerAnimatedStyle]}>
-      <Pressable
-        onPress={onPress}
-        style={{ width: "100%", height: "100%", alignItems: "center" }}
-        hitSlop={8}
-      >
-        <Animated.View style={spherePulseStyle}>{sphere}</Animated.View>
-        {footer}
-      </Pressable>
+    <Animated.View style={[containerStyle, outerAnimatedStyle]} collapsable={false}>
+      <GestureDetector gesture={interactionGesture}>
+        <Animated.View
+          style={{ width: "100%", height: "100%", alignItems: "center" }}
+          collapsable={false}
+        >
+          <Animated.View style={spherePulseStyle}>{sphere}</Animated.View>
+          {footer}
+        </Animated.View>
+      </GestureDetector>
     </Animated.View>
   );
 });
@@ -2758,6 +2820,7 @@ function MemoryBalanceView({
   colorScheme,
   onMemoryBalanceTapFeedback,
   onMemoryBalanceNavigate,
+  onMemoryBalanceLongPressToOrbit,
   modeTransition,
   orbitRotationDeg,
   persistMemoryBalanceOrbitDeg,
@@ -2771,6 +2834,8 @@ function MemoryBalanceView({
   /** Haptic + collapse sun; return false to skip pulse and navigation. */
   onMemoryBalanceTapFeedback: (sphereIndex: number, sphereType: LifeSphere) => boolean;
   onMemoryBalanceNavigate: (sphereIndex: number, sphereType: LifeSphere) => void;
+  /** Long press: leave Memory Balance rings and show focused-orbit overview on this sfera. */
+  onMemoryBalanceLongPressToOrbit?: (sphereIndex: number, sphereType: LifeSphere) => void;
   modeTransition: SharedValue<number>;
   orbitRotationDeg: SharedValue<number>;
   persistMemoryBalanceOrbitDeg: (deg: number) => void;
@@ -2783,27 +2848,31 @@ function MemoryBalanceView({
   const mbTapPulseIndex = useSharedValue(-1);
   const mbTapPulseScale = useSharedValue(1);
 
-  const runNavigateOrPulseThenNavigate = useCallback(
+  const runCommitHoldToOrbit = useCallback(
     (sphereIndex: number, sphereType: LifeSphere) => {
-      if (!onMemoryBalanceTapFeedback(sphereIndex, sphereType)) return;
+      if (!onMemoryBalanceLongPressToOrbit) return;
 
-      // Open individual sfera + top transition loader immediately — do not wait for tap pulse.
-      onMemoryBalanceNavigate(sphereIndex, sphereType);
-
-      if (!pulsingAnimations) return;
+      if (!pulsingAnimations) {
+        onMemoryBalanceLongPressToOrbit(sphereIndex, sphereType);
+        return;
+      }
 
       cancelAnimation(mbTapPulseScale);
       mbTapPulseIndex.value = sphereIndex;
       mbTapPulseScale.value = 1;
       mbTapPulseScale.value = withSequence(
-        withTiming(1.1, {
-          duration: 100,
-          easing: Easing.out(Easing.quad),
+        withTiming(1.12, {
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+        }),
+        withTiming(1.04, {
+          duration: 260,
+          easing: Easing.inOut(Easing.sin),
         }),
         withTiming(
           1,
           {
-            duration: 240,
+            duration: 320,
             easing: Easing.out(Easing.cubic),
           },
           (finished) => {
@@ -2814,38 +2883,67 @@ function MemoryBalanceView({
           },
         ),
       );
+      onMemoryBalanceLongPressToOrbit(sphereIndex, sphereType);
     },
     [
       mbTapPulseIndex,
       mbTapPulseScale,
-      onMemoryBalanceNavigate,
-      onMemoryBalanceTapFeedback,
+      onMemoryBalanceLongPressToOrbit,
       pulsingAnimations,
     ],
   );
 
-  const orbitPanGesture = useMemo(
+  const handleMbSphereLongPress = useCallback(
+    (sphereIndex: number, sphereType: LifeSphere) => {
+      if (!onMemoryBalanceLongPressToOrbit) return;
+      if (!onMemoryBalanceTapFeedback(sphereIndex, sphereType)) return;
+      runCommitHoldToOrbit(sphereIndex, sphereType);
+    },
+    [
+      onMemoryBalanceLongPressToOrbit,
+      onMemoryBalanceTapFeedback,
+      runCommitHoldToOrbit,
+    ],
+  );
+
+  const handleMbTapJs = useCallback(
+    (sphereIndex: number) => {
+      const sphereType = SPHERE_LIST[sphereIndex].type;
+      if (!onMemoryBalanceTapFeedback(sphereIndex, sphereType)) return;
+      onMemoryBalanceNavigate(sphereIndex, sphereType);
+    },
+    [onMemoryBalanceTapFeedback, onMemoryBalanceNavigate],
+  );
+
+  const handleMbLongPressJs = useCallback(
+    (sphereIndex: number) => {
+      handleMbSphereLongPress(sphereIndex, SPHERE_LIST[sphereIndex].type);
+    },
+    [handleMbSphereLongPress],
+  );
+
+  /** One Pan instance per attachment site — same worklets / shared values (orbit drag from empty space or from a sfera after Tap fails). */
+  const createOrbitPan = useCallback(
     () =>
       Gesture.Pan()
-        .minDistance(5)
+        .minDistance(MB_ORBIT_PAN_MIN_DISTANCE_PX)
         .onBegin(() => {
           "worklet";
           orbitStartRotationDeg.value = orbitRotationDeg.value;
         })
         .onUpdate((g) => {
           "worklet";
-          // Spin-only interaction: wheel center stays fixed; drag adjusts angular offset.
-          const dragSpin = -g.translationX * 0.1 + g.translationY * 0.08;
-          orbitRotationDeg.value = orbitStartRotationDeg.value + dragSpin;
+          const dragSpin = -g.translationX * 0.17 + g.translationY * 0.135;
+          orbitRotationDeg.value =
+            orbitStartRotationDeg.value + dragSpin;
         })
         .onEnd((g) => {
           "worklet";
           const releaseSpin = Math.max(
-            -48,
-            Math.min(48, -g.velocityX * 0.003 + g.velocityY * 0.0022),
+            -52,
+            Math.min(52, -g.velocityX * 0.0034 + g.velocityY * 0.0025),
           );
           const target = orbitRotationDeg.value + releaseSpin;
-          // Persist before spring so save runs even if spring is interrupted or callback quirks.
           runOnJS(persistMemoryBalanceOrbitDeg)(target);
           orbitRotationDeg.value = withSpring(
             target,
@@ -2861,12 +2959,41 @@ function MemoryBalanceView({
             },
           );
         }),
-    [
-      orbitRotationDeg,
-      orbitStartRotationDeg,
-      persistMemoryBalanceOrbitDeg,
-    ],
+    [orbitRotationDeg, orbitStartRotationDeg, persistMemoryBalanceOrbitDeg],
   );
+
+  const backgroundOrbitPan = useMemo(() => createOrbitPan(), [createOrbitPan]);
+
+  const sphereOrbitPans = useMemo(
+    () => SPHERE_LIST.map(() => createOrbitPan()),
+    [createOrbitPan],
+  );
+
+  const sphereInteractionGestures = useMemo(() => {
+    return SPHERE_LIST.map((_, i) => {
+      const tap = Gesture.Tap()
+        .maxDistance(MB_ORBIT_TAP_MAX_DISTANCE_PX)
+        .onEnd(() => {
+          runOnJS(handleMbTapJs)(i);
+        });
+      const tapVsPan = Gesture.Exclusive(tap, sphereOrbitPans[i]);
+      if (!onMemoryBalanceLongPressToOrbit) {
+        return tapVsPan;
+      }
+      const longPress = Gesture.LongPress()
+        .minDuration(MEMORY_BALANCE_LONG_PRESS_ACTIVATION_MS)
+        .maxDistance(26)
+        .onStart(() => {
+          runOnJS(handleMbLongPressJs)(i);
+        });
+      return Gesture.Exclusive(longPress, tapVsPan);
+    });
+  }, [
+    sphereOrbitPans,
+    handleMbTapJs,
+    handleMbLongPressJs,
+    onMemoryBalanceLongPressToOrbit,
+  ]);
 
   const balanceStatNumberColor =
     colorScheme === "dark"
@@ -2875,8 +3002,12 @@ function MemoryBalanceView({
   const balanceSunnyIconColor = momentColors.sunny.background;
   const balanceCloudIconColor = momentColors.cloudy.background;
   return (
-    <GestureDetector gesture={orbitPanGesture}>
-      <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+    <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+      {/* Orbit drag on starfield / gaps — sfera rows use their own Exclusive(Tap, Pan) above this layer. */}
+      <GestureDetector gesture={backgroundOrbitPan}>
+        <View style={StyleSheet.absoluteFillObject} collapsable={false} />
+      </GestureDetector>
+      <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
         {SPHERE_LIST.map((sphere, i) => {
         const layout = MEMORY_BALANCE_RING_LAYOUT[i];
         const rad = (layout.angleDeg * Math.PI) / 180;
@@ -2904,7 +3035,7 @@ function MemoryBalanceView({
             key={`memory-balance-${sphere.type}`}
             index={i}
             modeTransition={modeTransition}
-            onPress={() => runNavigateOrPulseThenNavigate(i, sphere.type)}
+            interactionGesture={sphereInteractionGestures[i]}
             baseAngleRad={rad}
             orbitRadius={layout.radius}
             orbitRotationDeg={orbitRotationDeg}
@@ -3069,7 +3200,7 @@ function MemoryBalanceView({
         );
         })}
       </View>
-    </GestureDetector>
+    </View>
   );
 }
 
@@ -3187,9 +3318,15 @@ export function FocusedSferaView({
   const insightsHubPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  /** Next Memory Balance → orbit crossfade uses a longer, softer timing (long-press exit). */
+  const mysticBalanceExitRef = useRef(false);
+  /** Orbit → Memory Balance crossfade after focused-sfera hold commits. */
+  const mysticBalanceEnterRef = useRef(false);
   const openInsightsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isOpeningInsightsRef = useRef(false);
   const insightsHubScale = useSharedValue(1);
+  const focusedOrbitHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusedOrbitHoldCommittedRef = useRef(false);
   const [displayMode, setDisplayMode] = useState<"defaultOrbit" | "memoryBalanceRings">(
     "defaultOrbit",
   );
@@ -3422,7 +3559,7 @@ export function FocusedSferaView({
     markIntroComplete();
   }, [splashDone, sferaDataReady, selectedSphere, overallSunnyPercentage, markIntroComplete]);
 
-  const beginSphereTransition = useCallback(() => {
+  const beginSphereTransition = useCallback((hideAfterMs: number = ORBIT_TRANSITION_DURATION_MS) => {
     if (sphereTransitionTimerRef.current) {
       clearTimeout(sphereTransitionTimerRef.current);
     }
@@ -3430,7 +3567,7 @@ export function FocusedSferaView({
     sphereTransitionTimerRef.current = setTimeout(() => {
       setIsSphereTransitioning(false);
       sphereTransitionTimerRef.current = null;
-    }, ORBIT_TRANSITION_DURATION_MS);
+    }, hideAfterMs);
   }, []);
 
   const applyFocusedIndex = useCallback(
@@ -3443,6 +3580,20 @@ export function FocusedSferaView({
   );
 
   /**
+   * Jump orbit focus with no bead glide — pairs with Memory Balance → orbit crossfade the same
+   * way orbit → Memory Balance only changes display mode (no competing orbit animation).
+   */
+  const snapFocusToSphereWithoutOrbitAnimation = useCallback(
+    (newIdx: number) => {
+      cancelAnimation(focusedFracSv);
+      const i = ((newIdx % N) + N) % N;
+      focusedFracSv.value = i;
+      applyFocusedIndex(i);
+    },
+    [N, focusedFracSv, applyFocusedIndex],
+  );
+
+  /**
    * Programmatic focus change (chevron tap, sphere tap, drag release with snap).
    * Animates `focusedFracSv` along the shortest orbit path with `withTiming`, then settles
    * to the new integer index. JS-side state (`focusedIdx`) updates synchronously so labels,
@@ -3451,17 +3602,21 @@ export function FocusedSferaView({
    * Caller should pass a 0..N-1 index; wrap-around is taken into account here.
    */
   const goToSphere = useCallback(
-    (newIdx: number) => {
-      beginSphereTransition();
+    (newIdx: number, orbitDurationMs: number = ORBIT_TRANSITION_DURATION_MS) => {
+      beginSphereTransition(orbitDurationMs);
 
       cancelAnimation(focusedFracSv);
       const current = focusedFracSv.value;
       let delta = newIdx - current;
       while (delta > N / 2) delta -= N;
       while (delta < -N / 2) delta += N;
+      const orbitEasing =
+        orbitDurationMs > ORBIT_TRANSITION_DURATION_MS
+          ? Easing.inOut(Easing.poly(5))
+          : Easing.inOut(Easing.cubic);
       focusedFracSv.value = withTiming(
         current + delta,
-        { duration: ORBIT_TRANSITION_DURATION_MS, easing: Easing.inOut(Easing.cubic) },
+        { duration: orbitDurationMs, easing: orbitEasing },
         (finished) => {
           "worklet";
           if (finished) {
@@ -3481,6 +3636,16 @@ export function FocusedSferaView({
       if (sphereTransitionTimerRef.current) {
         clearTimeout(sphereTransitionTimerRef.current);
         sphereTransitionTimerRef.current = null;
+      }
+    },
+    [],
+  );
+
+  useEffect(
+    () => () => {
+      if (focusedOrbitHoldTimerRef.current) {
+        clearTimeout(focusedOrbitHoldTimerRef.current);
+        focusedOrbitHoldTimerRef.current = null;
       }
     },
     [],
@@ -3716,9 +3881,34 @@ export function FocusedSferaView({
     // Same-frame snap when entering individual (target 0). Keep 700ms only when toggling MB ↔ orbit on overview.
     const instantModeCrossfade =
       returningToOverview || selectedSphere !== null;
+    const mysticExit =
+      mysticBalanceExitRef.current &&
+      !instantModeCrossfade &&
+      target === 0 &&
+      displayMode === "defaultOrbit";
+    if (mysticExit) {
+      mysticBalanceExitRef.current = false;
+    }
+    const mysticEnter =
+      mysticBalanceEnterRef.current &&
+      !instantModeCrossfade &&
+      target === 1 &&
+      displayMode === "memoryBalanceRings";
+    if (mysticEnter) {
+      mysticBalanceEnterRef.current = false;
+    }
+    const duration = instantModeCrossfade
+      ? 0
+      : mysticExit || mysticEnter
+        ? MEMORY_BALANCE_MYSTIC_EXIT_DURATION_MS
+        : 700;
+    const easing =
+      mysticExit || mysticEnter
+        ? MEMORY_BALANCE_MYSTIC_EXIT_EASING
+        : Easing.inOut(Easing.cubic);
     modeTransition.value = withTiming(target, {
-      duration: instantModeCrossfade ? 0 : 700,
-      easing: Easing.inOut(Easing.cubic),
+      duration,
+      easing,
     });
   }, [selectedSphere, displayMode, displayModeHydrated, modeTransition]);
   const individualModeScale =
@@ -3940,12 +4130,84 @@ export function FocusedSferaView({
     onSphereSelect,
   ]);
 
-  const handleFocusedSphereTapOverlayPressIn = useCallback(
+  const handleFocusedSphereOverlayPressIn = useCallback(
     (event: GestureResponderEvent) => {
       const { pageX, pageY } = event.nativeEvent;
       focusedSpherePressStartRef.current = { x: pageX, y: pageY, ts: Date.now() };
+
+      if (selectedSphere !== null || isSunExpanded || !sunLoadComplete) return;
+
+      if (focusedOrbitHoldTimerRef.current) {
+        clearTimeout(focusedOrbitHoldTimerRef.current);
+        focusedOrbitHoldTimerRef.current = null;
+      }
+      focusedOrbitHoldCommittedRef.current = false;
+
+      focusedOrbitHoldTimerRef.current = setTimeout(() => {
+        focusedOrbitHoldTimerRef.current = null;
+        focusedOrbitHoldCommittedRef.current = true;
+        mysticBalanceEnterRef.current = true;
+        if (Platform.OS === "ios" && Device.isDevice) {
+          Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Success,
+          ).catch(() => {});
+        } else if (Platform.OS === "android") {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        }
+        setDisplayMode("memoryBalanceRings");
+      }, MEMORY_BALANCE_HOLD_TO_MEMORY_MS);
     },
-    [],
+    [
+      selectedSphere,
+      isSunExpanded,
+      sunLoadComplete,
+      setDisplayMode,
+    ],
+  );
+
+  const handleFocusedSphereOverlayPressOut = useCallback(
+    (event: GestureResponderEvent) => {
+      if (focusedOrbitHoldTimerRef.current) {
+        clearTimeout(focusedOrbitHoldTimerRef.current);
+        focusedOrbitHoldTimerRef.current = null;
+      }
+
+      if (focusedOrbitHoldCommittedRef.current) {
+        focusedOrbitHoldCommittedRef.current = false;
+        return;
+      }
+
+      const start = focusedSpherePressStartRef.current;
+      const endX = event.nativeEvent.pageX;
+      const endY = event.nativeEvent.pageY;
+      focusedSpherePressStartRef.current = null;
+
+      if (!sunLoadComplete) return;
+
+      const elapsed = start != null ? Date.now() - start.ts : 9999;
+      const distance = start
+        ? Math.hypot(endX - start.x, endY - start.y)
+        : 9999;
+
+      if (distance > TAP_MAX_DISTANCE_PX || elapsed > TAP_MAX_DURATION_MS) {
+        return;
+      }
+
+      if (isSunExpanded) {
+        handleCollapseSun();
+        return;
+      }
+
+      focusedSpherePulseRef.current?.();
+      onSphereSelect(SPHERE_LIST[focusedIdx].type);
+    },
+    [
+      sunLoadComplete,
+      isSunExpanded,
+      handleCollapseSun,
+      focusedIdx,
+      onSphereSelect,
+    ],
   );
 
   const resolveEntitySelectForSphere = useCallback(
@@ -4008,6 +4270,36 @@ export function FocusedSferaView({
     [goToSphere, onSphereSelect],
   );
 
+  /**
+   * Memory Balance → focused orbit: match orbit → Memory Balance — mystic crossfade only,
+   * snap focus to the chosen sfera (no long bead glide), no extra insights-hub pulse.
+   */
+  const handleMemoryBalanceLongPressToOrbit = useCallback(
+    (sphereIndex: number, _sphereType: LifeSphere) => {
+      if (!sunLoadComplete) return;
+      if (Platform.OS === "ios" && Device.isDevice) {
+        Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success,
+        ).catch(() => {});
+      } else if (Platform.OS === "android") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      }
+      if (isSunExpanded) {
+        handleCollapseSun();
+      }
+      mysticBalanceExitRef.current = true;
+      snapFocusToSphereWithoutOrbitAnimation(sphereIndex);
+      setDisplayMode("defaultOrbit");
+    },
+    [
+      sunLoadComplete,
+      isSunExpanded,
+      handleCollapseSun,
+      snapFocusToSphereWithoutOrbitAnimation,
+      setDisplayMode,
+    ],
+  );
+
   const triggerLightHaptic = useCallback(() => {
     if (Platform.OS === "ios" && Device.isDevice) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -4057,34 +4349,36 @@ export function FocusedSferaView({
   }));
   const orbitLayerStyle = useAnimatedStyle(() => {
     const sunFade = interpolate(sunExpanded.value, [0, 1], [1, 0], Extrapolation.CLAMP);
-    const modeFade = interpolate(modeTransition.value, [0, 1], [1, 0], Extrapolation.CLAMP);
+    const t = modeTransition.value;
+    const modeFade = interpolate(t, [0, 1], [1, 0], Extrapolation.CLAMP);
+    /** Softer zoom than toggle crossfade — less “snap”, reads calmer during mystic dissolve. */
+    const orbitScale = interpolate(t, [0, 1], [1, 0.988], Extrapolation.CLAMP);
+    /** Orbit eases slightly upward as it appears (t: 1→0). */
+    const orbitEnterY = interpolate(t, [0, 1], [0, 16], Extrapolation.CLAMP);
     return {
       opacity: sunFade * modeFade,
-      transform: [
-        {
-          scale: interpolate(modeTransition.value, [0, 1], [1, 0.975], Extrapolation.CLAMP),
-        },
-      ],
+      transform: [{ scale: orbitScale }, { translateY: orbitEnterY }],
     };
   });
   /** Fades / scales Memory Balance sferas with both mode transition and sun menu spring. */
   const memoryBalanceLayerStyle = useAnimatedStyle(() => {
     const sunFade = interpolate(sunExpanded.value, [0, 1], [1, 0], Extrapolation.CLAMP);
-    const modeFade = interpolate(modeTransition.value, [0, 1], [0, 1], Extrapolation.CLAMP);
+    const t = modeTransition.value;
+    const modeFade = interpolate(t, [0, 1], [0, 1], Extrapolation.CLAMP);
+    const mbScale = interpolate(t, [0, 1], [0.978, 1], Extrapolation.CLAMP);
+    /** Rings drift upward slightly as they dissolve (t: 1→0). */
+    const mbExitLiftY = interpolate(t, [0, 1], [-14, 0], Extrapolation.CLAMP);
+    const sunMenuDriftY = interpolate(
+      sunExpanded.value,
+      [0, 1],
+      [0, MEMORY_BALANCE_MENU_HIDE_DRIFT_Y],
+      Extrapolation.CLAMP,
+    );
     return {
       opacity: sunFade * modeFade,
       transform: [
-        {
-          scale: interpolate(modeTransition.value, [0, 1], [0.965, 1], Extrapolation.CLAMP),
-        },
-        {
-          translateY: interpolate(
-            sunExpanded.value,
-            [0, 1],
-            [0, MEMORY_BALANCE_MENU_HIDE_DRIFT_Y],
-            Extrapolation.CLAMP,
-          ),
-        },
+        { scale: mbScale },
+        { translateY: mbExitLiftY + sunMenuDriftY },
       ],
     };
   });
@@ -4328,6 +4622,7 @@ export function FocusedSferaView({
             colorScheme={colorScheme}
             onMemoryBalanceTapFeedback={handleMemoryBalanceTapFeedback}
             onMemoryBalanceNavigate={handleMemoryBalanceNavigate}
+            onMemoryBalanceLongPressToOrbit={handleMemoryBalanceLongPressToOrbit}
             modeTransition={modeTransition}
             orbitRotationDeg={memoryBalanceOrbitRotationDegSv}
             persistMemoryBalanceOrbitDeg={persistMemoryBalanceOrbitDeg}
@@ -4339,19 +4634,32 @@ export function FocusedSferaView({
 
       {/* ─── Focused sphere tap target — absolute positioned so iOS hit-testing works (transforms bypass hit rects) ─── */}
       {!isMemoryBalanceMode && (
-        <Pressable
+        <View
           style={{
             position: "absolute",
             left: ORBIT_CX - focusedTapSize / 2,
             top: ORBIT_CY + ORBIT_R - focusedTapSize / 2,
             width: focusedTapSize,
             height: focusedTapSize,
-            borderRadius: focusedTapSize / 2,
             zIndex: 30,
           }}
-          onPressIn={handleFocusedSphereTapOverlayPressIn}
-          onPress={handleFocusedSphereTapOverlay}
-        />
+        >
+          <Pressable
+            style={{
+              flex: 1,
+              borderRadius: focusedTapSize / 2,
+            }}
+            onPressIn={handleFocusedSphereOverlayPressIn}
+            onPressOut={
+              selectedSphere === null
+                ? handleFocusedSphereOverlayPressOut
+                : undefined
+            }
+            onPress={
+              selectedSphere !== null ? handleFocusedSphereTapOverlay : undefined
+            }
+          />
+        </View>
       )}
 
       {/* ─── Center: entity insight card (per-sfera) or Sfera Insights hub (overview) ─── */}
