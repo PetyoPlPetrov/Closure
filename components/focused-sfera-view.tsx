@@ -158,6 +158,34 @@ const MEMORY_BALANCE_RING_LAYOUT: readonly { angleDeg: number; radius: number }[
 /** Persisted user-adjusted spin of the Memory Balance sfera ring (degrees, any range; stored normalized 0–360). */
 const MEMORY_BALANCE_ORBIT_ROTATION_DEG_KEY = "@sferas:memory_balance_orbit_rotation_deg";
 
+/** Z tilt (degrees) for one-shot overview gesture hints — default orbit + Memory Balance (rotate affordance). */
+const OVERVIEW_GESTURE_HINT_TILT_DEG = 4.5;
+/** Auto-dismiss: shorter overall hint session (few slow cycles, then stop). */
+const OVERVIEW_GESTURE_HINT_AUTO_DISMISS_MS = 3800;
+/** Pan must move this far before hints dismiss (rotate engaged). */
+const OVERVIEW_GESTURE_HINT_PAN_DISMISS_PX = 12;
+/** Half-cycle for orb tilt — keep large so motion reads as slow/deliberate. */
+const OVERVIEW_GESTURE_HINT_WOBBLE_HALF_MS = 1350;
+/**
+ * Memory Balance only: degrees added to persisted ring rotation — back-and-forth ring rock.
+ * Does not mutate saved orbit angle.
+ */
+const OVERVIEW_MB_RING_HINT_SWING_DEG = 10;
+/** Half-cycle for Memory Balance ring rock — slow; full swing ≈ 2× this. */
+const OVERVIEW_MB_RING_HINT_HALF_MS = 1550;
+
+function devLogOverviewGestureHints(
+  message: string,
+  data?: Record<string, unknown>,
+): void {
+  if (!__DEV__) return;
+  if (data !== undefined) {
+    console.log(`[SferasOverviewHints] ${message}`, data);
+  } else {
+    console.log(`[SferasOverviewHints] ${message}`);
+  }
+}
+
 /** Minimum finger-down time before Memory Balance long-press switches to focused orbit (tap still navigates). */
 const MEMORY_BALANCE_LONG_PRESS_ACTIVATION_MS = 420;
 /** Orbit pan activates after this drag distance (RNGH Pan `minDistance`). */
@@ -1449,6 +1477,7 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   animationsEnabled = true,
   pulsingAnimations = true,
   sphere3DEffect = false,
+  overviewGestureHintTiltDeg,
 }: {
   sphereIdx: number;
   sphere: { type: LifeSphere; icon: string };
@@ -1485,6 +1514,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   pulsingAnimations?: boolean;
   /** Usability: glossy radial sferas + specular (off = flat fill). */
   sphere3DEffect?: boolean;
+  /** Usability: idle tilt wobble on home overview (shared with Memory Balance). */
+  overviewGestureHintTiltDeg: SharedValue<number>;
 }) {
   const { isTablet } = useLargeDevice();
   const isFocused = sphereIdx === focusedIdx;
@@ -1771,7 +1802,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
       [isInitialView ? 0.5 : 0.75, 1],
       Extrapolation.CLAMP,
     ),
-    transform: [{ scale: spherePulseScale.value * firstTapFeedbackScale.value }],
+    transform: [
+      { rotate: `${overviewGestureHintTiltDeg.value}deg` },
+      { scale: spherePulseScale.value * firstTapFeedbackScale.value },
+    ],
   }));
 
   const sphereVisualStyle = useAnimatedStyle(() => {
@@ -2730,8 +2764,10 @@ const MemoryBalanceSphereItem = React.memo(function MemoryBalanceSphereItem({
   baseAngleRad,
   orbitRadius,
   orbitRotationDeg,
+  overviewGestureHintMbRingNudgeDeg,
   mbTapPulseIndex,
   mbTapPulseScale,
+  overviewGestureHintTiltDeg,
   sphere,
   footer,
 }: {
@@ -2745,8 +2781,12 @@ const MemoryBalanceSphereItem = React.memo(function MemoryBalanceSphereItem({
   baseAngleRad: number;
   orbitRadius: number;
   orbitRotationDeg: SharedValue<number>;
+  /** Hint-only oscillation (deg) added to ring rotation — spin affordance on Memory Balance. */
+  overviewGestureHintMbRingNudgeDeg: SharedValue<number>;
   mbTapPulseIndex: SharedValue<number>;
   mbTapPulseScale: SharedValue<number>;
+  /** Session hint: idle oscillation suggesting ring rotation (Usability hints). */
+  overviewGestureHintTiltDeg: SharedValue<number>;
   /** Colored orb only — tap pulse scales this, not the label/stats below. */
   sphere: React.ReactNode;
   footer: React.ReactNode;
@@ -2754,7 +2794,10 @@ const MemoryBalanceSphereItem = React.memo(function MemoryBalanceSphereItem({
   const outerAnimatedStyle = useAnimatedStyle(() => {
     const start = Math.min(0.6, index * 0.12);
     const end = Math.min(1, start + 0.5);
-    const rotationRad = (orbitRotationDeg.value * Math.PI) / 180;
+    const rotationRad =
+      ((orbitRotationDeg.value + overviewGestureHintMbRingNudgeDeg.value) *
+        Math.PI) /
+      180;
     const deltaX =
       (Math.cos(baseAngleRad + rotationRad) - Math.cos(baseAngleRad)) *
       orbitRadius;
@@ -2780,15 +2823,26 @@ const MemoryBalanceSphereItem = React.memo(function MemoryBalanceSphereItem({
         { translateY: deltaY },
       ],
     };
-  }, [index, modeTransition, baseAngleRad, orbitRadius, orbitRotationDeg]);
+  }, [
+    index,
+    modeTransition,
+    baseAngleRad,
+    orbitRadius,
+    orbitRotationDeg,
+    overviewGestureHintMbRingNudgeDeg,
+  ]);
 
   const spherePulseStyle = useAnimatedStyle(() => {
     const pulseMul =
       mbTapPulseIndex.value === index ? mbTapPulseScale.value : 1;
+    const tilt = overviewGestureHintTiltDeg.value;
     return {
-      transform: [{ scale: pulseMul }],
+      transform: [
+        { rotate: `${tilt}deg` },
+        { scale: pulseMul },
+      ],
     };
-  }, [index, mbTapPulseIndex, mbTapPulseScale]);
+  }, [index, mbTapPulseIndex, mbTapPulseScale, overviewGestureHintTiltDeg]);
 
   return (
     <Animated.View style={[containerStyle, outerAnimatedStyle]} collapsable={false}>
@@ -2852,6 +2906,9 @@ function MemoryBalanceView({
   modeTransition,
   orbitRotationDeg,
   persistMemoryBalanceOrbitDeg,
+  overviewGestureHintTiltDeg,
+  overviewGestureHintMbRingNudgeDeg,
+  onOverviewGestureHintDismiss,
   pulsingAnimations = true,
   sphere3DEffect = false,
 }: {
@@ -2867,6 +2924,11 @@ function MemoryBalanceView({
   modeTransition: SharedValue<number>;
   orbitRotationDeg: SharedValue<number>;
   persistMemoryBalanceOrbitDeg: (deg: number) => void;
+  /** Idle tilt shared value — driven only while gesture hints are active. */
+  overviewGestureHintTiltDeg: SharedValue<number>;
+  overviewGestureHintMbRingNudgeDeg: SharedValue<number>;
+  /** Orbit drag / tap / long-press on MB — end session gesture hints. */
+  onOverviewGestureHintDismiss?: () => void;
   pulsingAnimations?: boolean;
   sphere3DEffect?: boolean;
 }) {
@@ -2875,6 +2937,15 @@ function MemoryBalanceView({
   const orbitStartRotationDeg = useSharedValue(0);
   const mbTapPulseIndex = useSharedValue(-1);
   const mbTapPulseScale = useSharedValue(1);
+  const mbPanGestureHintDismissSent = useSharedValue(0);
+  const gestureHintDismissRef = useRef(onOverviewGestureHintDismiss);
+  useEffect(() => {
+    gestureHintDismissRef.current = onOverviewGestureHintDismiss;
+  }, [onOverviewGestureHintDismiss]);
+
+  const fireGestureHintDismiss = useCallback(() => {
+    gestureHintDismissRef.current?.();
+  }, []);
 
   const runCommitHoldToOrbit = useCallback(
     (sphereIndex: number, sphereType: LifeSphere) => {
@@ -2936,18 +3007,20 @@ function MemoryBalanceView({
 
   const handleMbTapJs = useCallback(
     (sphereIndex: number) => {
+      fireGestureHintDismiss();
       const sphereType = SPHERE_LIST[sphereIndex].type;
       if (!onMemoryBalanceTapFeedback(sphereIndex, sphereType)) return;
       onMemoryBalanceNavigate(sphereIndex, sphereType);
     },
-    [onMemoryBalanceTapFeedback, onMemoryBalanceNavigate],
+    [fireGestureHintDismiss, onMemoryBalanceTapFeedback, onMemoryBalanceNavigate],
   );
 
   const handleMbLongPressJs = useCallback(
     (sphereIndex: number) => {
+      fireGestureHintDismiss();
       handleMbSphereLongPress(sphereIndex, SPHERE_LIST[sphereIndex].type);
     },
-    [handleMbSphereLongPress],
+    [fireGestureHintDismiss, handleMbSphereLongPress],
   );
 
   /** One Pan instance per attachment site — same worklets / shared values (orbit drag from empty space or from a sfera after Tap fails). */
@@ -2961,6 +3034,15 @@ function MemoryBalanceView({
         })
         .onUpdate((g) => {
           "worklet";
+          const moved =
+            Math.abs(g.translationX) + Math.abs(g.translationY);
+          if (
+            mbPanGestureHintDismissSent.value === 0 &&
+            moved >= OVERVIEW_GESTURE_HINT_PAN_DISMISS_PX
+          ) {
+            mbPanGestureHintDismissSent.value = 1;
+            runOnJS(fireGestureHintDismiss)();
+          }
           // Degrees per px — tuned so orbit tracks finger without feeling heavy.
           const dragSpin = -g.translationX * 0.3 + g.translationY * 0.24;
           orbitRotationDeg.value =
@@ -2989,7 +3071,13 @@ function MemoryBalanceView({
             },
           );
         }),
-    [orbitRotationDeg, orbitStartRotationDeg, persistMemoryBalanceOrbitDeg],
+    [
+      orbitRotationDeg,
+      orbitStartRotationDeg,
+      persistMemoryBalanceOrbitDeg,
+      mbPanGestureHintDismissSent,
+      fireGestureHintDismiss,
+    ],
   );
 
   const backgroundOrbitPan = useMemo(() => createOrbitPan(), [createOrbitPan]);
@@ -3069,8 +3157,10 @@ function MemoryBalanceView({
             baseAngleRad={rad}
             orbitRadius={layout.radius}
             orbitRotationDeg={orbitRotationDeg}
+            overviewGestureHintMbRingNudgeDeg={overviewGestureHintMbRingNudgeDeg}
             mbTapPulseIndex={mbTapPulseIndex}
             mbTapPulseScale={mbTapPulseScale}
+            overviewGestureHintTiltDeg={overviewGestureHintTiltDeg}
             containerStyle={{
               position: "absolute",
               left: centerX - size / 2,
@@ -3285,6 +3375,10 @@ export function FocusedSferaView({
 
   /** Lives on FocusedSferaView so it survives MemoryBalanceView unmount (e.g. opening a sphere). */
   const memoryBalanceOrbitRotationDegSv = useSharedValue(0);
+  /** Idle tilt — usability hints; consumed independently per display mode per app launch. */
+  const overviewGestureHintTiltDeg = useSharedValue(0);
+  /** Memory Balance ring only: oscillating delta (deg) on top of `orbitRotationDeg` for spin hint. */
+  const overviewGestureHintMbRingNudgeDeg = useSharedValue(0);
 
   const persistMemoryBalanceOrbitDeg = useCallback((deg: number) => {
     void AsyncStorage.setItem(
@@ -3367,6 +3461,44 @@ export function FocusedSferaView({
     "defaultOrbit",
   );
   const [displayModeHydrated, setDisplayModeHydrated] = useState(false);
+
+  /** Each layout (orbit vs Memory Balance) gets at most one hint sequence per cold start. */
+  const gestureHintsConsumedForDisplayModeRef = useRef({
+    defaultOrbit: false,
+    memoryBalanceRings: false,
+  });
+  /** Default-orbit horizontal scrub — dismiss gesture hints once pan moves (UI thread). */
+  const orbitPanGestureHintDismissSent = useSharedValue(0);
+  /** Dev: log “not yet eligible” at most once until the next successful START. */
+  const devOverviewHintWaitLoggedRef = useRef(false);
+  /** Dev: log skip-once per display mode when START is skipped because that mode already dismissed. */
+  const devSessionDoneHintSkipLoggedRef = useRef({
+    defaultOrbit: false,
+    memoryBalanceRings: false,
+  });
+
+  const dismissOverviewGestureHints = useCallback(
+    (modeOverride?: "defaultOrbit" | "memoryBalanceRings") => {
+      const mode = modeOverride ?? displayMode;
+      if (gestureHintsConsumedForDisplayModeRef.current[mode]) return;
+      gestureHintsConsumedForDisplayModeRef.current[mode] = true;
+      devLogOverviewGestureHints(
+        "dismiss: session ended (interaction, timer, or navigation)",
+        { displayMode: mode },
+      );
+      cancelAnimation(overviewGestureHintTiltDeg);
+      overviewGestureHintTiltDeg.value = withTiming(0, {
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+      });
+      cancelAnimation(overviewGestureHintMbRingNudgeDeg);
+      overviewGestureHintMbRingNudgeDeg.value = withTiming(0, {
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+      });
+    },
+    [overviewGestureHintTiltDeg, overviewGestureHintMbRingNudgeDeg, displayMode],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -3639,6 +3771,7 @@ export function FocusedSferaView({
    */
   const goToSphere = useCallback(
     (newIdx: number, orbitDurationMs: number = ORBIT_TRANSITION_DURATION_MS) => {
+      dismissOverviewGestureHints();
       beginSphereTransition(orbitDurationMs);
 
       cancelAnimation(focusedFracSv);
@@ -3664,7 +3797,13 @@ export function FocusedSferaView({
 
       applyFocusedIndex(newIdx);
     },
-    [N, focusedFracSv, beginSphereTransition, applyFocusedIndex],
+    [
+      N,
+      focusedFracSv,
+      beginSphereTransition,
+      applyFocusedIndex,
+      dismissOverviewGestureHints,
+    ],
   );
 
   useEffect(
@@ -3761,9 +3900,18 @@ export function FocusedSferaView({
         "worklet";
         runOnJS(markOrbitPanConsumedOverlayTap)();
       })
-      .onUpdate((g) => {
-        "worklet";
-        // Negative translationX (drag left) advances to next sphere; clamp to ±1 so one
+        .onUpdate((g) => {
+          "worklet";
+          const panMoved =
+            Math.abs(g.translationX) + Math.abs(g.translationY);
+          if (
+            orbitPanGestureHintDismissSent.value === 0 &&
+            panMoved >= OVERVIEW_GESTURE_HINT_PAN_DISMISS_PX
+          ) {
+            orbitPanGestureHintDismissSent.value = 1;
+            runOnJS(dismissOverviewGestureHints)();
+          }
+          // Negative translationX (drag left) advances to next sphere; clamp to ±1 so one
         // gesture moves at most one slot — predictable carousel feel. The live write to
         // `focusedFracSv` propagates synchronously to every derived value (size, focusness,
         // entity ring radius/avatar) and to `containerStyle`'s position, so all spheres
@@ -3847,6 +3995,8 @@ export function FocusedSferaView({
     displayMode,
     exitMemoryBalanceForDrag,
     markOrbitPanConsumedOverlayTap,
+    orbitPanGestureHintDismissSent,
+    dismissOverviewGestureHints,
   ]);
 
   // ───────────────── Side-region vertical swipe (kept on PanResponder) ─────────────────
@@ -3911,6 +4061,161 @@ export function FocusedSferaView({
     sunLoadComplete &&
     !isSunExpanded &&
     !isMemoryBalanceMode;
+
+  useEffect(() => {
+    if (!appUsabilityHints) {
+      devOverviewHintWaitLoggedRef.current = false;
+      cancelAnimation(overviewGestureHintTiltDeg);
+      overviewGestureHintTiltDeg.value = 0;
+      cancelAnimation(overviewGestureHintMbRingNudgeDeg);
+      overviewGestureHintMbRingNudgeDeg.value = 0;
+      return;
+    }
+    if (gestureHintsConsumedForDisplayModeRef.current[displayMode]) {
+      if (__DEV__ && !devSessionDoneHintSkipLoggedRef.current[displayMode]) {
+        devSessionDoneHintSkipLoggedRef.current[displayMode] = true;
+        devLogOverviewGestureHints(
+          "skip START: hints already dismissed for this display mode this launch (orbit vs Memory Balance are separate)",
+          {
+            displayMode,
+            consumed: { ...gestureHintsConsumedForDisplayModeRef.current },
+          },
+        );
+      }
+      cancelAnimation(overviewGestureHintTiltDeg);
+      overviewGestureHintTiltDeg.value = 0;
+      cancelAnimation(overviewGestureHintMbRingNudgeDeg);
+      overviewGestureHintMbRingNudgeDeg.value = 0;
+      return;
+    }
+    /** Default orbit + Memory Balance overview — not gated on display mode (was MB-only; orbit users never saw hints). */
+    const overviewHintsEligible =
+      displayModeHydrated &&
+      selectedSphere === null &&
+      !isSunExpanded &&
+      sunLoadComplete &&
+      !hidden &&
+      isScreenFocused &&
+      isAppActive;
+
+    if (!overviewHintsEligible) {
+      if (
+        __DEV__ &&
+        !devOverviewHintWaitLoggedRef.current
+      ) {
+        devOverviewHintWaitLoggedRef.current = true;
+        devLogOverviewGestureHints(
+          "not yet eligible (will retry when deps change); START logs when all flags pass",
+          {
+            appUsabilityHints,
+            displayModeHydrated,
+            selectedSphereIsNull: selectedSphere === null,
+            isSunExpanded,
+            sunLoadComplete,
+            hidden,
+            isScreenFocused,
+            isAppActive,
+            displayMode,
+          },
+        );
+      }
+      cancelAnimation(overviewGestureHintTiltDeg);
+      overviewGestureHintTiltDeg.value = withTiming(0, {
+        duration: 200,
+        easing: Easing.out(Easing.cubic),
+      });
+      cancelAnimation(overviewGestureHintMbRingNudgeDeg);
+      overviewGestureHintMbRingNudgeDeg.value = withTiming(0, {
+        duration: 200,
+        easing: Easing.out(Easing.cubic),
+      });
+      return;
+    }
+
+    devOverviewHintWaitLoggedRef.current = false;
+    devLogOverviewGestureHints(
+      "START gesture hints — gated on VisualSettings appUsabilityHints (Usability settings)",
+      {
+        appUsabilityHints,
+        displayMode,
+        isMemoryBalanceMode:
+          selectedSphere === null && displayMode === "memoryBalanceRings",
+        tiltDeg: OVERVIEW_GESTURE_HINT_TILT_DEG,
+        tiltHalfCycleMs: OVERVIEW_GESTURE_HINT_WOBBLE_HALF_MS,
+        memoryBalanceRingSwingDeg:
+          displayMode === "memoryBalanceRings"
+            ? OVERVIEW_MB_RING_HINT_SWING_DEG
+            : null,
+        memoryBalanceRingSwingHalfMs:
+          displayMode === "memoryBalanceRings"
+            ? OVERVIEW_MB_RING_HINT_HALF_MS
+            : null,
+      },
+    );
+
+    cancelAnimation(overviewGestureHintTiltDeg);
+    overviewGestureHintTiltDeg.value = withRepeat(
+      withSequence(
+        withTiming(OVERVIEW_GESTURE_HINT_TILT_DEG, {
+          duration: OVERVIEW_GESTURE_HINT_WOBBLE_HALF_MS,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(-OVERVIEW_GESTURE_HINT_TILT_DEG, {
+          duration: OVERVIEW_GESTURE_HINT_WOBBLE_HALF_MS,
+          easing: Easing.inOut(Easing.sin),
+        }),
+      ),
+      -1,
+      true,
+    );
+
+    cancelAnimation(overviewGestureHintMbRingNudgeDeg);
+    if (displayMode === "memoryBalanceRings") {
+      overviewGestureHintMbRingNudgeDeg.value = withRepeat(
+        withSequence(
+          withTiming(OVERVIEW_MB_RING_HINT_SWING_DEG, {
+            duration: OVERVIEW_MB_RING_HINT_HALF_MS,
+            easing: Easing.inOut(Easing.sin),
+          }),
+          withTiming(-OVERVIEW_MB_RING_HINT_SWING_DEG, {
+            duration: OVERVIEW_MB_RING_HINT_HALF_MS,
+            easing: Easing.inOut(Easing.sin),
+          }),
+        ),
+        -1,
+        true,
+      );
+    } else {
+      overviewGestureHintMbRingNudgeDeg.value = 0;
+    }
+
+    const modeWhenHintsScheduled = displayMode;
+    const tid = setTimeout(() => {
+      dismissOverviewGestureHints(modeWhenHintsScheduled);
+    }, OVERVIEW_GESTURE_HINT_AUTO_DISMISS_MS);
+
+    return () => {
+      clearTimeout(tid);
+      cancelAnimation(overviewGestureHintTiltDeg);
+      overviewGestureHintTiltDeg.value = 0;
+      cancelAnimation(overviewGestureHintMbRingNudgeDeg);
+      overviewGestureHintMbRingNudgeDeg.value = 0;
+    };
+  }, [
+    appUsabilityHints,
+    displayModeHydrated,
+    selectedSphere,
+    isSunExpanded,
+    sunLoadComplete,
+    hidden,
+    isScreenFocused,
+    isAppActive,
+    dismissOverviewGestureHints,
+    overviewGestureHintTiltDeg,
+    overviewGestureHintMbRingNudgeDeg,
+    displayMode,
+  ]);
+
   useEffect(() => {
     if (!displayModeHydrated) return;
     const target =
@@ -4369,6 +4674,16 @@ export function FocusedSferaView({
     if (isSunExpanded) handleCollapseSun();
     const nextMode =
       displayMode === "memoryBalanceRings" ? "defaultOrbit" : "memoryBalanceRings";
+    devLogOverviewGestureHints("user toggled Memory Balance / orbit display mode", {
+      from: displayMode,
+      to: nextMode,
+      appUsabilityHints,
+      gestureHintsConsumed: {
+        ...gestureHintsConsumedForDisplayModeRef.current,
+      },
+      isScreenFocused,
+      sunLoadComplete,
+    });
     setDisplayMode(nextMode);
     if (insightsHubPulseTimerRef.current) {
       clearTimeout(insightsHubPulseTimerRef.current);
@@ -4389,6 +4704,8 @@ export function FocusedSferaView({
     displayMode,
     insightsHubScale,
     triggerLightHaptic,
+    appUsabilityHints,
+    isScreenFocused,
   ]);
 
 
@@ -4653,6 +4970,7 @@ export function FocusedSferaView({
               animationsEnabled={orbitViewAnimationsEnabled}
               pulsingAnimations={pulsingAnimations}
               sphere3DEffect={sphere3DEffect}
+              overviewGestureHintTiltDeg={overviewGestureHintTiltDeg}
             />
           </OrbitSphereItem>
         ))}
@@ -4684,6 +5002,9 @@ export function FocusedSferaView({
             modeTransition={modeTransition}
             orbitRotationDeg={memoryBalanceOrbitRotationDegSv}
             persistMemoryBalanceOrbitDeg={persistMemoryBalanceOrbitDeg}
+            overviewGestureHintTiltDeg={overviewGestureHintTiltDeg}
+            overviewGestureHintMbRingNudgeDeg={overviewGestureHintMbRingNudgeDeg}
+            onOverviewGestureHintDismiss={dismissOverviewGestureHints}
             pulsingAnimations={pulsingAnimations}
             sphere3DEffect={sphere3DEffect}
           />
