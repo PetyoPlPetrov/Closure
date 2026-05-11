@@ -82,6 +82,18 @@ function isUnsupportedLocaleError(message: string | undefined): boolean {
   return /Locale\s+[a-z]{2}-[A-Z]{2}\s+is not supported/i.test(message) || /Available locales:/i.test(message);
 }
 
+/** BCP-47 primary subtag, lowercased (e.g. en-US → en). */
+function speechLocalePrimary(locale: string): string {
+  const trimmed = locale.trim();
+  const dash = trimmed.indexOf('-');
+  return (dash === -1 ? trimmed : trimmed.slice(0, dash)).toLowerCase();
+}
+
+/** True when the recognizer language differs from the app UI language (e.g. BG app + EN STT). */
+function speechLocalePrimaryMismatch(app: 'en' | 'bg', locale: string): boolean {
+  return speechLocalePrimary(locale) !== app;
+}
+
 export function useSpeechToText({
   language,
   getText,
@@ -97,11 +109,27 @@ export function useSpeechToText({
   const baseTextRef = useRef<string>('');
   const lastFinalTranscriptRef = useRef<string>('');
   const startSeqRef = useRef(0);
-  const fallbackNoticeShownRef = useRef(false);
+  /** One mismatch alert per mic press (start()), even if we probe locale then retry in catch. */
+  const warnedMismatchThisMicPressRef = useRef(false);
   const localeRetryInProgressRef = useRef(false);
   const androidBgPrefetchOnceRef = useRef(false);
 
   const lang = useMemo(() => (language === 'bg' ? 'bg-BG' : 'en-US'), [language]);
+
+  const warnSpeechLocaleMismatchIfNeeded = useCallback(
+    (locale: string) => {
+      if (warnedMismatchThisMicPressRef.current) return;
+      if (!speechLocalePrimaryMismatch(language, locale)) return;
+      warnedMismatchThisMicPressRef.current = true;
+      const primary = speechLocalePrimary(locale);
+      const message =
+        language === 'bg' && primary === 'en'
+          ? t('ai.speech.fallback.message', { locale })
+          : t('ai.speech.fallback.messageGeneric', { locale });
+      Alert.alert(t('ai.speech.fallback.title'), message);
+    },
+    [language, t],
+  );
 
   const buildSpeechOptions = useCallback(
     (locale: string): ExpoSpeechRecognitionOptions => ({
@@ -194,10 +222,7 @@ export function useSpeechToText({
             localeRetryInProgressRef.current = true;
             try {
               module.start(buildSpeechOptions(fallbackLocale));
-              if (!fallbackNoticeShownRef.current) {
-                fallbackNoticeShownRef.current = true;
-                Alert.alert(t('ai.speech.fallback.title'), t('ai.speech.fallback.message'));
-              }
+              warnSpeechLocaleMismatchIfNeeded(fallbackLocale);
               return;
             } catch {
               // Fall through to friendly error below.
@@ -215,7 +240,7 @@ export function useSpeechToText({
     ];
 
     return () => subs.forEach(s => s.remove());
-  }, [module, getText, setText, t, buildSpeechOptions, lang, language]);
+  }, [module, getText, setText, t, buildSpeechOptions, lang, language, warnSpeechLocaleMismatchIfNeeded]);
 
   // IMPORTANT:
   // Do not abort() on unmount. The underlying recognizer is effectively global, and aborting here can
@@ -249,6 +274,7 @@ export function useSpeechToText({
 
   const start = useCallback(async () => {
     if (disabled) return;
+    warnedMismatchThisMicPressRef.current = false;
     await ensureAvailableAndPermitted();
 
     const m = getOrLoadModule();
@@ -283,10 +309,7 @@ export function useSpeechToText({
     if (supportedLocales.length > 0) {
       const picked = pickSpeechLocaleFromSupportedList(supportedLocales, language);
       localeToUse = picked.locale;
-      if (picked.bulgarianUnavailable && !fallbackNoticeShownRef.current) {
-        fallbackNoticeShownRef.current = true;
-        Alert.alert(t('ai.speech.fallback.title'), t('ai.speech.fallback.message'));
-      }
+      warnSpeechLocaleMismatchIfNeeded(localeToUse);
     }
 
     const options = buildSpeechOptions(localeToUse);
@@ -303,10 +326,7 @@ export function useSpeechToText({
             ...options,
             lang: fallbackLocale,
           });
-          if (!fallbackNoticeShownRef.current) {
-            fallbackNoticeShownRef.current = true;
-            Alert.alert(t('ai.speech.fallback.title'), t('ai.speech.fallback.message'));
-          }
+          warnSpeechLocaleMismatchIfNeeded(fallbackLocale);
           return;
         } catch {
           // If fallback start also fails, surface the original error below.
@@ -315,7 +335,16 @@ export function useSpeechToText({
 
       throw error;
     }
-  }, [disabled, ensureAvailableAndPermitted, getOrLoadModule, lang, language, buildSpeechOptions, t]);
+  }, [
+    disabled,
+    ensureAvailableAndPermitted,
+    getOrLoadModule,
+    lang,
+    language,
+    buildSpeechOptions,
+    t,
+    warnSpeechLocaleMismatchIfNeeded,
+  ]);
 
   const stop = useCallback(async () => {
     if (disabled) return;

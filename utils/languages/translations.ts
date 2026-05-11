@@ -293,6 +293,7 @@ export interface Translations {
   "common.ok": string;
   "common.success": string;
   "common.error": string;
+  "common.loading": string;
   "common.retry": string;
   "common.optional": string;
   "common.discard": string;
@@ -414,7 +415,6 @@ export interface Translations {
 
   // Onboarding
   "onboarding.language.title": string;
-  "onboarding.language.subtitle": string;
   "onboarding.title": string;
   "onboarding.subtitle": string;
   "onboarding.placeholder": string;
@@ -576,6 +576,11 @@ export interface Translations {
   "profile.relationshipEndDate.select": string;
   "profile.relationshipEndDate.selectTitle": string;
   "profile.relationshipOngoing": string;
+  "profile.relationship.status": string;
+  "profile.relationship.current": string;
+  "profile.relationship.past": string;
+  "profile.relationship.startDate": string;
+  "profile.relationship.endDate": string;
   "profile.familyMemberName": string;
   "profile.familyMemberName.placeholder": string;
   "profile.relationshipType": string;
@@ -1300,6 +1305,7 @@ export interface Translations {
   "ai.error.notAvailable": string;
   "ai.speech.fallback.title": string;
   "ai.speech.fallback.message": string;
+  "ai.speech.fallback.messageGeneric": string;
   "ai.speech.unsupported.title": string;
   "ai.speech.unsupported.message": string;
   "ai.error.image": string;
@@ -1313,6 +1319,7 @@ export interface Translations {
   "ai.upload.image": string;
   "ai.upload.image.optional": string;
   "ai.permission.image": string;
+  "ai.imagePermissionMessage": string;
   "ai.imageTooLarge.title": string;
   "ai.imageTooLarge.message": string;
   "ai.results.title": string;
@@ -2247,15 +2254,6 @@ export interface Translations {
   "suggestions.art.lessons.0": string;
   "suggestions.art.lessons.1": string;
   "suggestions.art.lessons.2": string;
-  "suggestions.cooking.hardTruths.0": string;
-  "suggestions.cooking.hardTruths.1": string;
-  "suggestions.cooking.hardTruths.2": string;
-  "suggestions.cooking.goodFacts.0": string;
-  "suggestions.cooking.goodFacts.1": string;
-  "suggestions.cooking.goodFacts.2": string;
-  "suggestions.cooking.lessons.0": string;
-  "suggestions.cooking.lessons.1": string;
-  "suggestions.cooking.lessons.2": string;
   "suggestions.reading.hardTruths.0": string;
   "suggestions.reading.hardTruths.1": string;
   "suggestions.reading.hardTruths.2": string;
@@ -2406,12 +2404,6 @@ export interface Translations {
   "suggestions.concert.goodFacts.4": string;
   "suggestions.concert.lessons.3": string;
   "suggestions.concert.lessons.4": string;
-  "suggestions.cooking.hardTruths.3": string;
-  "suggestions.cooking.hardTruths.4": string;
-  "suggestions.cooking.goodFacts.3": string;
-  "suggestions.cooking.goodFacts.4": string;
-  "suggestions.cooking.lessons.3": string;
-  "suggestions.cooking.lessons.4": string;
   "suggestions.cuddle.hardTruths.3": string;
   "suggestions.cuddle.hardTruths.4": string;
   "suggestions.cuddle.goodFacts.3": string;
@@ -2994,21 +2986,6 @@ export interface Translations {
   "suggestions.laundry.lessons.2": string;
   "suggestions.laundry.lessons.3": string;
   "suggestions.laundry.lessons.4": string;
-  "suggestions.walk.hardTruths.0": string;
-  "suggestions.walk.hardTruths.1": string;
-  "suggestions.walk.hardTruths.2": string;
-  "suggestions.walk.hardTruths.3": string;
-  "suggestions.walk.hardTruths.4": string;
-  "suggestions.walk.goodFacts.0": string;
-  "suggestions.walk.goodFacts.1": string;
-  "suggestions.walk.goodFacts.2": string;
-  "suggestions.walk.goodFacts.3": string;
-  "suggestions.walk.goodFacts.4": string;
-  "suggestions.walk.lessons.0": string;
-  "suggestions.walk.lessons.1": string;
-  "suggestions.walk.lessons.2": string;
-  "suggestions.walk.lessons.3": string;
-  "suggestions.walk.lessons.4": string;
   "suggestions.drive.hardTruths.0": string;
   "suggestions.drive.hardTruths.1": string;
   "suggestions.drive.hardTruths.2": string;
@@ -3084,21 +3061,6 @@ export interface Translations {
   "suggestions.study.lessons.2": string;
   "suggestions.study.lessons.3": string;
   "suggestions.study.lessons.4": string;
-  "suggestions.work.hardTruths.0": string;
-  "suggestions.work.hardTruths.1": string;
-  "suggestions.work.hardTruths.2": string;
-  "suggestions.work.hardTruths.3": string;
-  "suggestions.work.hardTruths.4": string;
-  "suggestions.work.goodFacts.0": string;
-  "suggestions.work.goodFacts.1": string;
-  "suggestions.work.goodFacts.2": string;
-  "suggestions.work.goodFacts.3": string;
-  "suggestions.work.goodFacts.4": string;
-  "suggestions.work.lessons.0": string;
-  "suggestions.work.lessons.1": string;
-  "suggestions.work.lessons.2": string;
-  "suggestions.work.lessons.3": string;
-  "suggestions.work.lessons.4": string;
   "suggestions.lunch.hardTruths.0": string;
   "suggestions.lunch.hardTruths.1": string;
   "suggestions.lunch.hardTruths.2": string;
@@ -3144,21 +3106,6 @@ export interface Translations {
   "suggestions.tea.lessons.2": string;
   "suggestions.tea.lessons.3": string;
   "suggestions.tea.lessons.4": string;
-  "suggestions.reunion.hardTruths.0": string;
-  "suggestions.reunion.hardTruths.1": string;
-  "suggestions.reunion.hardTruths.2": string;
-  "suggestions.reunion.hardTruths.3": string;
-  "suggestions.reunion.hardTruths.4": string;
-  "suggestions.reunion.goodFacts.0": string;
-  "suggestions.reunion.goodFacts.1": string;
-  "suggestions.reunion.goodFacts.2": string;
-  "suggestions.reunion.goodFacts.3": string;
-  "suggestions.reunion.goodFacts.4": string;
-  "suggestions.reunion.lessons.0": string;
-  "suggestions.reunion.lessons.1": string;
-  "suggestions.reunion.lessons.2": string;
-  "suggestions.reunion.lessons.3": string;
-  "suggestions.reunion.lessons.4": string;
   "suggestions.cleaning.hardTruths.0": string;
   "suggestions.cleaning.hardTruths.1": string;
   "suggestions.cleaning.hardTruths.2": string;
@@ -3324,36 +3271,6 @@ export interface Translations {
   "suggestions.appointment.lessons.2": string;
   "suggestions.appointment.lessons.3": string;
   "suggestions.appointment.lessons.4": string;
-  "suggestions.breakfast.hardTruths.0": string;
-  "suggestions.breakfast.hardTruths.1": string;
-  "suggestions.breakfast.hardTruths.2": string;
-  "suggestions.breakfast.hardTruths.3": string;
-  "suggestions.breakfast.hardTruths.4": string;
-  "suggestions.breakfast.goodFacts.0": string;
-  "suggestions.breakfast.goodFacts.1": string;
-  "suggestions.breakfast.goodFacts.2": string;
-  "suggestions.breakfast.goodFacts.3": string;
-  "suggestions.breakfast.goodFacts.4": string;
-  "suggestions.breakfast.lessons.0": string;
-  "suggestions.breakfast.lessons.1": string;
-  "suggestions.breakfast.lessons.2": string;
-  "suggestions.breakfast.lessons.3": string;
-  "suggestions.breakfast.lessons.4": string;
-  "suggestions.dinner.hardTruths.0": string;
-  "suggestions.dinner.hardTruths.1": string;
-  "suggestions.dinner.hardTruths.2": string;
-  "suggestions.dinner.hardTruths.3": string;
-  "suggestions.dinner.hardTruths.4": string;
-  "suggestions.dinner.goodFacts.0": string;
-  "suggestions.dinner.goodFacts.1": string;
-  "suggestions.dinner.goodFacts.2": string;
-  "suggestions.dinner.goodFacts.3": string;
-  "suggestions.dinner.goodFacts.4": string;
-  "suggestions.dinner.lessons.0": string;
-  "suggestions.dinner.lessons.1": string;
-  "suggestions.dinner.lessons.2": string;
-  "suggestions.dinner.lessons.3": string;
-  "suggestions.dinner.lessons.4": string;
   "suggestions.cooking.hardTruths.0": string;
   "suggestions.cooking.hardTruths.1": string;
   "suggestions.cooking.hardTruths.2": string;
@@ -3369,21 +3286,6 @@ export interface Translations {
   "suggestions.cooking.lessons.2": string;
   "suggestions.cooking.lessons.3": string;
   "suggestions.cooking.lessons.4": string;
-  "suggestions.morning.hardTruths.0": string;
-  "suggestions.morning.hardTruths.1": string;
-  "suggestions.morning.hardTruths.2": string;
-  "suggestions.morning.hardTruths.3": string;
-  "suggestions.morning.hardTruths.4": string;
-  "suggestions.morning.goodFacts.0": string;
-  "suggestions.morning.goodFacts.1": string;
-  "suggestions.morning.goodFacts.2": string;
-  "suggestions.morning.goodFacts.3": string;
-  "suggestions.morning.goodFacts.4": string;
-  "suggestions.morning.lessons.0": string;
-  "suggestions.morning.lessons.1": string;
-  "suggestions.morning.lessons.2": string;
-  "suggestions.morning.lessons.3": string;
-  "suggestions.morning.lessons.4": string;
   "suggestions.evening.hardTruths.0": string;
   "suggestions.evening.hardTruths.1": string;
   "suggestions.evening.hardTruths.2": string;
@@ -3399,21 +3301,6 @@ export interface Translations {
   "suggestions.evening.lessons.2": string;
   "suggestions.evening.lessons.3": string;
   "suggestions.evening.lessons.4": string;
-  "suggestions.night.hardTruths.0": string;
-  "suggestions.night.hardTruths.1": string;
-  "suggestions.night.hardTruths.2": string;
-  "suggestions.night.hardTruths.3": string;
-  "suggestions.night.hardTruths.4": string;
-  "suggestions.night.goodFacts.0": string;
-  "suggestions.night.goodFacts.1": string;
-  "suggestions.night.goodFacts.2": string;
-  "suggestions.night.goodFacts.3": string;
-  "suggestions.night.goodFacts.4": string;
-  "suggestions.night.lessons.0": string;
-  "suggestions.night.lessons.1": string;
-  "suggestions.night.lessons.2": string;
-  "suggestions.night.lessons.3": string;
-  "suggestions.night.lessons.4": string;
   "suggestions.kitchen.hardTruths.0": string;
   "suggestions.kitchen.hardTruths.1": string;
   "suggestions.kitchen.hardTruths.2": string;
@@ -3444,21 +3331,6 @@ export interface Translations {
   "suggestions.bathroom.lessons.2": string;
   "suggestions.bathroom.lessons.3": string;
   "suggestions.bathroom.lessons.4": string;
-  "suggestions.office.hardTruths.0": string;
-  "suggestions.office.hardTruths.1": string;
-  "suggestions.office.hardTruths.2": string;
-  "suggestions.office.hardTruths.3": string;
-  "suggestions.office.hardTruths.4": string;
-  "suggestions.office.goodFacts.0": string;
-  "suggestions.office.goodFacts.1": string;
-  "suggestions.office.goodFacts.2": string;
-  "suggestions.office.goodFacts.3": string;
-  "suggestions.office.goodFacts.4": string;
-  "suggestions.office.lessons.0": string;
-  "suggestions.office.lessons.1": string;
-  "suggestions.office.lessons.2": string;
-  "suggestions.office.lessons.3": string;
-  "suggestions.office.lessons.4": string;
   "suggestions.library.hardTruths.0": string;
   "suggestions.library.hardTruths.1": string;
   "suggestions.library.hardTruths.2": string;
@@ -3489,21 +3361,6 @@ export interface Translations {
   "suggestions.cafe.lessons.2": string;
   "suggestions.cafe.lessons.3": string;
   "suggestions.cafe.lessons.4": string;
-  "suggestions.reading.hardTruths.0": string;
-  "suggestions.reading.hardTruths.1": string;
-  "suggestions.reading.hardTruths.2": string;
-  "suggestions.reading.hardTruths.3": string;
-  "suggestions.reading.hardTruths.4": string;
-  "suggestions.reading.goodFacts.0": string;
-  "suggestions.reading.goodFacts.1": string;
-  "suggestions.reading.goodFacts.2": string;
-  "suggestions.reading.goodFacts.3": string;
-  "suggestions.reading.goodFacts.4": string;
-  "suggestions.reading.lessons.0": string;
-  "suggestions.reading.lessons.1": string;
-  "suggestions.reading.lessons.2": string;
-  "suggestions.reading.lessons.3": string;
-  "suggestions.reading.lessons.4": string;
   "suggestions.watching.hardTruths.0": string;
   "suggestions.watching.hardTruths.1": string;
   "suggestions.watching.hardTruths.2": string;
@@ -3549,21 +3406,6 @@ export interface Translations {
   "suggestions.conversation.lessons.2": string;
   "suggestions.conversation.lessons.3": string;
   "suggestions.conversation.lessons.4": string;
-  "suggestions.meeting.hardTruths.0": string;
-  "suggestions.meeting.hardTruths.1": string;
-  "suggestions.meeting.hardTruths.2": string;
-  "suggestions.meeting.hardTruths.3": string;
-  "suggestions.meeting.hardTruths.4": string;
-  "suggestions.meeting.goodFacts.0": string;
-  "suggestions.meeting.goodFacts.1": string;
-  "suggestions.meeting.goodFacts.2": string;
-  "suggestions.meeting.goodFacts.3": string;
-  "suggestions.meeting.goodFacts.4": string;
-  "suggestions.meeting.lessons.0": string;
-  "suggestions.meeting.lessons.1": string;
-  "suggestions.meeting.lessons.2": string;
-  "suggestions.meeting.lessons.3": string;
-  "suggestions.meeting.lessons.4": string;
   "suggestions.bus.hardTruths.0": string;
   "suggestions.bus.hardTruths.1": string;
   "suggestions.bus.hardTruths.2": string;
@@ -4046,7 +3888,8 @@ export interface Translations {
   "suggestions.liberation.lessons.4": string;
 }
 
-const translations: Record<Language, Translations> = {
+/** Runtime merges bg → en via getTranslation; bg omits keys that reuse English. */
+const translations = {
   en: {
     // Tab labels
     "tab.home": "Sferas",
@@ -4338,8 +4181,7 @@ const translations: Record<Language, Translations> = {
     "streakRules.badge.nova.reward":
       "Reward: increases free entity limit per sfera from 2 to 5.",
     "streakRules.badge.sferas.name": "Sferas",
-    "streakRules.badge.sferas.description":
-      "Earn 5 free AI requests.",
+    "streakRules.badge.sferas.description": "Earn 5 free AI requests.",
     "streakRules.badge.sferas.reward":
       "Reward: increases free AI requests and free wheel/lesson checks from 3 to 5 per day.",
     "streakRules.reminder.toggleTitle": "Mid-day badge reminder",
@@ -4539,7 +4381,6 @@ const translations: Record<Language, Translations> = {
     "guidePrompt.close": "Close",
 
     "onboarding.language.title": "Choose your language",
-    "onboarding.language.subtitle": "You can change this later in Settings.",
     "onboarding.title": "Set up your Sferas",
     "onboarding.subtitle":
       "Describe the most important Sferas Objects in your life with a few words about each one.",
@@ -5693,7 +5534,9 @@ const translations: Record<Language, Translations> = {
       "Speech recognition is not available on this device",
     "ai.speech.fallback.title": "Voice input",
     "ai.speech.fallback.message":
-      "This device does not provide Bulgarian for system speech recognition (separate from app language). Continuing with a supported language.",
+      "This device does not offer Bulgarian for system speech recognition (separate from the app language). Each time you use the microphone, the transcript uses English — ISO 639-3: eng (locale {locale}). Speak in English when dictating. The rest of the app and Sferas AI output stay in Bulgarian.",
+    "ai.speech.fallback.messageGeneric":
+      "The speech recognizer uses a different language than the app ({locale}). Dictate in that language for best results.",
     "ai.speech.unsupported.title": "Voice input",
     "ai.speech.unsupported.message":
       "Bulgarian is not available for system speech recognition on this device.",
@@ -5779,8 +5622,6 @@ const translations: Record<Language, Translations> = {
       "Please fill in all required fields for all entities.",
     "ai.entity.saveError": "Failed to save entities",
     "ai.entity.noEntities": "No entities found",
-    "ai.entity.openSfera": "Отвори Сфера",
-    "ai.entity.openSferaMessage": "Обектите са запазени успешно!",
     "ai.entity.openSfera": "Open Sfera",
     "ai.entity.openSferaMessage": "Entities have been saved successfully!",
     "ai.noEntities.title": "No Entities Found",
@@ -7086,17 +6927,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.art.lessons.0": "Art is personal expression, not competition",
     "suggestions.art.lessons.1": "I can create without judgment",
     "suggestions.art.lessons.2": "The process matters more than the product",
-    "suggestions.cooking.hardTruths.0": "Cooking became a chore, not a joy",
-    "suggestions.cooking.hardTruths.1":
-      "I stopped cooking because I felt unappreciated",
-    "suggestions.cooking.hardTruths.2": "Cooking for others felt one-sided",
-    "suggestions.cooking.goodFacts.0":
-      "I'm rediscovering the joy of cooking for myself",
-    "suggestions.cooking.goodFacts.1": "Cooking is an act of self-care",
-    "suggestions.cooking.goodFacts.2": "I'm exploring new recipes and flavors",
-    "suggestions.cooking.lessons.0": "Cooking should bring joy, not stress",
-    "suggestions.cooking.lessons.1": "I can cook for myself and enjoy it",
-    "suggestions.cooking.lessons.2": "Food is about nourishment and pleasure",
     "suggestions.reading.hardTruths.0":
       "I stopped reading because I felt too busy",
     "suggestions.reading.hardTruths.1":
@@ -7365,18 +7195,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.concert.lessons.3":
       "Growth comes from facing difficult truths",
     "suggestions.concert.lessons.4":
-      "I'm stronger and wiser because of this experience",
-    "suggestions.cooking.hardTruths.3":
-      "I faced challenges that revealed deeper truths about this situation",
-    "suggestions.cooking.hardTruths.4":
-      "The reality was harder than I wanted to admit",
-    "suggestions.cooking.goodFacts.3":
-      "I discovered strength I didn't know I had",
-    "suggestions.cooking.goodFacts.4":
-      "This experience taught me valuable lessons about myself",
-    "suggestions.cooking.lessons.3":
-      "Growth comes from facing difficult truths",
-    "suggestions.cooking.lessons.4":
       "I'm stronger and wiser because of this experience",
     "suggestions.cuddle.hardTruths.3":
       "I faced challenges that revealed deeper truths about this situation",
@@ -8319,47 +8137,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.writing.lessons.4":
       "I'm stronger and wiser because of this experience",
 
-    "suggestions.breakfast.hardTruths.0": "Eating breakfast alone felt empty",
-    "suggestions.breakfast.hardTruths.1":
-      "Morning routines reminded me of shared moments",
-    "suggestions.breakfast.hardTruths.2":
-      "I had to learn to start my day alone",
-    "suggestions.breakfast.hardTruths.3":
-      "Breakfast without them felt incomplete",
-    "suggestions.breakfast.hardTruths.4":
-      "Morning coffee brought back memories",
-    "suggestions.breakfast.goodFacts.0":
-      "I'm creating my own peaceful morning routine",
-    "suggestions.breakfast.goodFacts.1":
-      "Breakfast alone is now a peaceful start to my day",
-    "suggestions.breakfast.goodFacts.2": "I can eat what I want, when I want",
-    "suggestions.breakfast.goodFacts.3":
-      "Morning routines are now mine to design",
-    "suggestions.breakfast.goodFacts.4": "I'm learning to enjoy solo mornings",
-    "suggestions.breakfast.lessons.0": "I can start my day well on my own",
-    "suggestions.breakfast.lessons.1":
-      "Morning routines can be peaceful solo activities",
-    "suggestions.breakfast.lessons.2": "I don't need company for every meal",
-    "suggestions.breakfast.lessons.3":
-      "My day starts when I choose to start it",
-    "suggestions.breakfast.lessons.4": "Simple morning rituals can be healing",
-    "suggestions.dinner.hardTruths.0": "Dinner alone felt lonely",
-    "suggestions.dinner.hardTruths.1": "I missed shared evening meals",
-    "suggestions.dinner.hardTruths.2":
-      "Evening meals reminded me of togetherness",
-    "suggestions.dinner.hardTruths.3": "Dining alone became a symbol of change",
-    "suggestions.dinner.hardTruths.4": "I had to learn to enjoy solo dinners",
-    "suggestions.dinner.goodFacts.0": "I'm creating peaceful dinner routines",
-    "suggestions.dinner.goodFacts.1": "Dinner alone is now my time",
-    "suggestions.dinner.goodFacts.2": "I can cook and eat what I truly enjoy",
-    "suggestions.dinner.goodFacts.3": "Evening meals are moments of self-care",
-    "suggestions.dinner.goodFacts.4": "I'm learning to savor solo dining",
-    "suggestions.dinner.lessons.0": "I can enjoy meals alone",
-    "suggestions.dinner.lessons.1":
-      "Solo dining can be peaceful and satisfying",
-    "suggestions.dinner.lessons.2": "I don't need company for every meal",
-    "suggestions.dinner.lessons.3": "Evening routines are mine to design",
-    "suggestions.dinner.lessons.4": "Dinner time is my personal time",
     "suggestions.cooking.hardTruths.0": "Cooking for one felt pointless",
     "suggestions.cooking.hardTruths.1": "I missed cooking together",
     "suggestions.cooking.hardTruths.2": "Kitchen became a lonely place",
@@ -8376,22 +8153,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.cooking.lessons.2": "I don't need someone to cook for",
     "suggestions.cooking.lessons.3": "Kitchen creativity is all mine",
     "suggestions.cooking.lessons.4": "Cooking brings me joy and peace",
-    "suggestions.morning.hardTruths.0": "Mornings felt empty without them",
-    "suggestions.morning.hardTruths.1": "Waking up alone was hard",
-    "suggestions.morning.hardTruths.2": "Morning routines reminded me of loss",
-    "suggestions.morning.hardTruths.3": "I struggled to start my day",
-    "suggestions.morning.hardTruths.4":
-      "Mornings brought back painful memories",
-    "suggestions.morning.goodFacts.0": "I'm creating peaceful morning rituals",
-    "suggestions.morning.goodFacts.1": "Mornings are now mine to design",
-    "suggestions.morning.goodFacts.2": "I can start my day at my own pace",
-    "suggestions.morning.goodFacts.3": "Morning time is now for self-care",
-    "suggestions.morning.goodFacts.4": "I'm learning to enjoy quiet mornings",
-    "suggestions.morning.lessons.0": "I can create my own morning routine",
-    "suggestions.morning.lessons.1": "Mornings can be peaceful and productive",
-    "suggestions.morning.lessons.2": "I don't need someone to start my day",
-    "suggestions.morning.lessons.3": "My morning is mine to enjoy",
-    "suggestions.morning.lessons.4": "Simple morning rituals heal",
     "suggestions.evening.hardTruths.0": "Evenings felt long and lonely",
     "suggestions.evening.hardTruths.1": "I missed shared evening routines",
     "suggestions.evening.hardTruths.2": "Sunset reminded me of togetherness",
@@ -8407,21 +8168,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.evening.lessons.2": "I don't need company for every evening",
     "suggestions.evening.lessons.3": "My evenings are mine to design",
     "suggestions.evening.lessons.4": "Evening routines bring peace",
-    "suggestions.night.hardTruths.0": "Nights were the hardest",
-    "suggestions.night.hardTruths.1": "I struggled to sleep alone",
-    "suggestions.night.hardTruths.2": "Nighttime brought anxiety",
-    "suggestions.night.hardTruths.3": "Dark hours felt endless",
-    "suggestions.night.hardTruths.4": "I missed nighttime conversations",
-    "suggestions.night.goodFacts.0": "I'm learning to find peace at night",
-    "suggestions.night.goodFacts.1": "Nights are becoming more peaceful",
-    "suggestions.night.goodFacts.2": "I can enjoy quiet nights",
-    "suggestions.night.goodFacts.3": "Nighttime is now for rest and reflection",
-    "suggestions.night.goodFacts.4": "I'm building better sleep habits",
-    "suggestions.night.lessons.0": "I can find peace in darkness",
-    "suggestions.night.lessons.1": "Nights can be restorative",
-    "suggestions.night.lessons.2": "I don't need someone to sleep well",
-    "suggestions.night.lessons.3": "My nights are mine to rest",
-    "suggestions.night.lessons.4": "Peace comes with time",
     "suggestions.kitchen.hardTruths.0": "Kitchen felt empty without them",
     "suggestions.kitchen.hardTruths.1": "Cooking spaces reminded me of loss",
     "suggestions.kitchen.hardTruths.2": "Kitchen was a place of loneliness",
@@ -8455,22 +8201,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.bathroom.lessons.2": "I don't need help for basic care",
     "suggestions.bathroom.lessons.3": "My self-care is my priority",
     "suggestions.bathroom.lessons.4": "Taking care of myself is healing",
-    "suggestions.office.hardTruths.0":
-      "Office felt different after the breakup",
-    "suggestions.office.hardTruths.1": "Work environment reminded me of stress",
-    "suggestions.office.hardTruths.2": "I had to focus despite emotional pain",
-    "suggestions.office.hardTruths.3": "Work became an escape and a burden",
-    "suggestions.office.hardTruths.4": "Office space felt empty",
-    "suggestions.office.goodFacts.0": "I'm building a better work-life balance",
-    "suggestions.office.goodFacts.1": "Office is now just for work",
-    "suggestions.office.goodFacts.2": "I can focus on my career",
-    "suggestions.office.goodFacts.3": "Work provides stability",
-    "suggestions.office.goodFacts.4": "I'm achieving professional goals",
-    "suggestions.office.lessons.0": "I can succeed at work independently",
-    "suggestions.office.lessons.1": "Work and personal life can be separate",
-    "suggestions.office.lessons.2": "My career doesn't depend on them",
-    "suggestions.office.lessons.3": "Professional growth is mine",
-    "suggestions.office.lessons.4": "Work success is my own achievement",
     "suggestions.library.hardTruths.0": "Library visits felt lonely",
     "suggestions.library.hardTruths.1": "Studying alone was hard",
     "suggestions.library.hardTruths.2": "Quiet spaces reminded me of isolation",
@@ -8501,21 +8231,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.cafe.lessons.2": "I don't need company for coffee",
     "suggestions.cafe.lessons.3": "My cafe time is mine",
     "suggestions.cafe.lessons.4": "Public solitude is empowering",
-    "suggestions.reading.hardTruths.0": "Reading alone felt different",
-    "suggestions.reading.hardTruths.1": "I missed shared reading moments",
-    "suggestions.reading.hardTruths.2": "Books reminded me of conversations",
-    "suggestions.reading.hardTruths.3": "Reading lost its joy temporarily",
-    "suggestions.reading.hardTruths.4": "I struggled to focus on books",
-    "suggestions.reading.goodFacts.0": "I'm rediscovering my love of reading",
-    "suggestions.reading.goodFacts.1": "Reading is now peaceful and personal",
-    "suggestions.reading.goodFacts.2": "I can read whatever I want",
-    "suggestions.reading.goodFacts.3": "Books are my companions",
-    "suggestions.reading.goodFacts.4": "I'm finding new favorite authors",
-    "suggestions.reading.lessons.0": "I can enjoy reading alone",
-    "suggestions.reading.lessons.1": "Reading is a personal journey",
-    "suggestions.reading.lessons.2": "Books don't require company",
-    "suggestions.reading.lessons.3": "My reading time is sacred",
-    "suggestions.reading.lessons.4": "Stories help me heal",
     "suggestions.watching.hardTruths.0": "Watching shows alone felt empty",
     "suggestions.watching.hardTruths.1": "I missed shared viewing experiences",
     "suggestions.watching.hardTruths.2": "Movies reminded me of date nights",
@@ -8568,23 +8283,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.conversation.lessons.2": "I don't need them to talk",
     "suggestions.conversation.lessons.3": "My voice matters",
     "suggestions.conversation.lessons.4": "Honest conversations heal",
-    "suggestions.meeting.hardTruths.0": "Meetings felt awkward",
-    "suggestions.meeting.hardTruths.1": "Social gatherings were hard",
-    "suggestions.meeting.hardTruths.2": "I felt out of place",
-    "suggestions.meeting.hardTruths.3":
-      "Group settings highlighted my aloneness",
-    "suggestions.meeting.hardTruths.4": "I missed having a plus-one",
-    "suggestions.meeting.goodFacts.0":
-      "I'm becoming more comfortable in groups",
-    "suggestions.meeting.goodFacts.1": "Meetings are less stressful now",
-    "suggestions.meeting.goodFacts.2": "I can navigate social situations",
-    "suggestions.meeting.goodFacts.3": "I'm building social confidence",
-    "suggestions.meeting.goodFacts.4": "Group settings are manageable",
-    "suggestions.meeting.lessons.0": "I can handle meetings independently",
-    "suggestions.meeting.lessons.1": "Social confidence is growing",
-    "suggestions.meeting.lessons.2": "I don't need a partner for events",
-    "suggestions.meeting.lessons.3": "My presence is enough",
-    "suggestions.meeting.lessons.4": "I'm learning to enjoy social time",
     "suggestions.bus.hardTruths.0": "Bus rides felt lonely",
     "suggestions.bus.hardTruths.1":
       "Public transport reminded me of commute together",
@@ -9342,7 +9040,7 @@ const translations: Record<Language, Translations> = {
     "settings.eventInAppNotifications.title":
       "Вътреприложни известия за събития",
     "settings.eventInAppNotifications.description":
-      "Когато е включено, приложението може да показва вътреприложни напомняния за Sferas събития (напр. създаване на спомен за посещено събитие или нови събития в общността ви).",
+      "Когато е включено, приложението може да показва вътреприложни напомняния за Sferas събития (напр. създаване на спомен за посещено събитие или нови събития в общността Ви).",
     "settings.appUsabilityHints.title": "Подсказки за използване",
     "settings.appUsabilityHints.enable": "Показвай подсказки",
     "settings.appUsabilityHints.description":
@@ -9364,7 +9062,7 @@ const translations: Record<Language, Translations> = {
     "settings.aiInsights.description":
       "Използва AI за анализ на вашите спомени и показва мотивационни подсказки. Вашите данни се изпращат сигурно до нашия AI партньор само за тази цел и не се използват за обучение на модели.",
     "ai.insights.consent.body":
-      "Sferas вече използва AI за анализ на вашите спомени и ви изпраща персонализирани мотивационни подсказки. Вашите данни се изпращат сигурно до нашия AI партньор само за тази цел и не се използват за обучение на модели.",
+      "Sferas вече използва AI за анализ на вашите спомени и Ви изпраща персонализирани мотивационни подсказки. Вашите данни се изпращат сигурно до нашия AI партньор само за тази цел и не се използват за обучение на модели.",
     "ai.insights.consent.maybeLater": "По-късно",
     "ai.insights.manualTip.title": "Режим за ръчно редактиране",
     "ai.insights.manualTip.body":
@@ -9412,7 +9110,7 @@ const translations: Record<Language, Translations> = {
       "Използвахте безплатния си изпит днес. Надградете до Sferas AI за неограничени изпити.",
     "wheel.exam.questionPrompt": "Напишете отговора си",
     "wheel.exam.submitAnswer": "Изпрати",
-    "wheel.exam.analyzing": "Анализираме отговора ви…",
+    "wheel.exam.analyzing": "Анализираме отговора Ви…",
     "wheel.exam.youTookTheExam": "Направихте изпита!",
     "wheel.exam.revealLesson": "Урокът:",
     "wheel.exam.correctCelebration": "Правилно! Браво.",
@@ -9459,8 +9157,7 @@ const translations: Record<Language, Translations> = {
     "streakRules.badge.nova.reward":
       "Награда: увеличава безплатния лимит за обекти в сфера от 2 на 5.",
     "streakRules.badge.sferas.name": "Сферас",
-    "streakRules.badge.sferas.description":
-      "Печелиш 5 безплатни AI заявки.",
+    "streakRules.badge.sferas.description": "Печелиш 5 безплатни AI заявки.",
     "streakRules.badge.sferas.reward":
       "Награда: увеличава безплатните AI заявки и безплатните wheel/lesson проверки от 3 на 5 за ден.",
     "streakRules.reminder.toggleTitle": "Напомняне по средата на деня",
@@ -9511,7 +9208,7 @@ const translations: Record<Language, Translations> = {
     "common.discard": "Отхвърли",
     "memory.unsavedChanges.title": "Незапазени промени",
     "memory.unsavedChanges.message":
-      "Имате незапазени промени. Сигурни ли сте, че искате да напуснете? Промените ви ще бъдат загубени.",
+      "Имате незапазени промени. Сигурни ли сте, че искате да напуснете? Промените Ви ще бъдат загубени.",
     "walkthrough.title": "Добре дошли!",
     "walkthrough.message":
       "Създайте записи във всяка сфера, за да проследявате облачните и слънчевите моменти от живота си. Започнете като добавите партньор, работа, член на семейството, приятел или хоби!",
@@ -9560,17 +9257,17 @@ const translations: Record<Language, Translations> = {
       "Показвай напомняне при отваряне на приложението, докато всеки раздел не е отбелязан като готов—след това банерът не се показва. Изключено е същото като „Не показвай отново“ от началния банер; включете отново, за да се показва напомнянето, докато има незавършени раздели. Завършените раздели не се нулират.",
     "guide.bullet.pastLessons.title": "Учете от миналото",
     "guide.bullet.pastLessons.description":
-      "Всяко преживяване ни учи на нещо — но уроците лесно се забравят. С времето романтизираме миналото, трудно извоюваната мъдрост избледнява и се оказваме, че правим същите грешки отново. Sferas дава на всеки урок постоянен дом. Запишете го, прегледайте го когато имате нужда от напомняне, или оставете Sferas да ви го върне в точния момент. Урокът остава. Моделът се прекъсва.",
+      "Всяко преживяване ни учи на нещо — но уроците лесно се забравят. С времето романтизираме миналото, трудно извоюваната мъдрост избледнява и се оказваме, че правим същите грешки отново. Sferas дава на всеки урок постоянен дом. Запишете го, прегледайте го когато имате нужда от напомняне, или оставете Sferas да Ви го върне в точния момент. Урокът остава. Моделът се прекъсва.",
     "guide.bullet.pastLessons.menuPath":
       "/ Sferas / Отвори обект / Спомен · научени уроци",
     "guide.bullet.sunnyMoments.title": "Улавяйте слънчеви моменти",
     "guide.bullet.sunnyMoments.description":
-      "Един лош ден може да засенчи стотици добри. Фокусираме се върху това, което е тръгнало наопаки, и губим от поглед цялата радост, която вече присъства в живота ни. Sferas ви дава бърз поглед върху голямата картина — всички ваши слънчеви моменти събрани в сферите, показвайки колко много неща има за което да сте благодарни. А когато имате нужда от напомняне, Sferas може да ви изпраща слънчевите моменти като ежедневни напомняния, за да не остава доброто невидимо.",
+      "Един лош ден може да засенчи стотици добри. Фокусираме се върху това, което е тръгнало наопаки, и губим от поглед цялата радост, която вече присъства в живота ни. Sferas Ви дава бърз поглед върху голямата картина — всички ваши слънчеви моменти събрани в сферите, показвайки колко много неща има за което да сте благодарни. А когато имате нужда от напомняне, Sferas може да Ви изпраща слънчевите моменти като ежедневни напомняния, за да не остава доброто невидимо.",
     "guide.bullet.sunnyMoments.menuPath":
       "/ Sferas / Отвори обект / Спомен · слънчеви моменти",
     "guide.bullet.livingForward.title": "Поддържай връзка",
     "guide.bullet.livingForward.description":
-      "Връзките избледняват тихо, когато ежедневието стане натоварено. Тази мисия е да поддържате контакт съзнателно: настройте известия за напомняне, за да ви подсеща Sferas да се свържете, да пишете и да създавате нови моменти с хората, които са важни, преди дистанцията да стане нормата.",
+      "Връзките избледняват тихо, когато ежедневието стане натоварено. Тази мисия е да поддържате контакт съзнателно: настройте известия за напомняне, за да Ви подсеща Sferas да се свържете, да пишете и да създавате нови моменти с хората, които са важни, преди дистанцията да стане нормата.",
     "guide.bullet.livingForward.menuPath":
       "/ Персонализация / Управление на известия / Напомняния за хора",
     "guide.bullet.recordMemoryAi.title": "С AI бутона",
@@ -9589,36 +9286,36 @@ const translations: Record<Language, Translations> = {
     "guide.bullet.universeLessons.menuPath": "/ Лента с раздели / Уроци",
     "guide.bullet.dailyExam.title": "Дневен изпит",
     "guide.bullet.dailyExam.description":
-      "Всеки ден Sferas AI избира един от миналите ви уроци и представя реална житейска ситуация, свързана с него. Вие отговаряте, а AI оценява отговора ви — давайки ви честна обратна връзка дали наистина сте усвоили урока или все още имате работа. Ученето не е само записване. То е да бъдеш изпитан когато има значение.",
+      "Всеки ден Sferas AI избира един от миналите Ви уроци и представя реална житейска ситуация, свързана с него. Вие отговаряте, а AI оценява отговора Ви — давайки Ви честна обратна връзка дали наистина сте усвоили урока или все още имате работа. Ученето не е само записване. То е да бъдеш изпитан когато има значение.",
     "guide.bullet.dailyExam.menuPath":
       "/ Лента с раздели / Уроци · икона преговор (до филтрите)",
     "guide.bullet.insightsWheel.title": "Sfera Прозрения",
     "guide.bullet.insightsWheel.description":
-      "Визуална снимка на баланса в живота ви в момента. Sfera Прозрения показва разпределението на моментите в сферите ви — разкривайки къде инвестирате времето и енергията си и къде има празнини. Понякога е достатъчно да го видите нагледно, за да разберете какво изисква внимание.",
+      "Визуална снимка на баланса в живота Ви в момента. Sfera Прозрения показва разпределението на моментите в сферите Ви — разкривайки къде инвестирате времето и енергията си и къде има празнини. Понякога е достатъчно да го видите нагледно, за да разберете какво изисква внимание.",
     "guide.bullet.insightsWheel.menuPath":
       "/ Sferas / Докосни централния аватар (преглед)",
     "guide.bullet.sferasBalance.title": "Баланс на сферите",
     "guide.bullet.sferasBalance.description":
-      "Бърз преглед на общия брой моменти във всички ваши сфери. Помага ви да видите кога една сфера започва да заема твърде голяма част от живота ви и създава дисбаланс, за да върнете баланса навреме.",
+      "Бърз преглед на общия брой моменти във всички ваши сфери. Помага Ви да видите кога една сфера започва да заема твърде голяма част от живота Ви и създава дисбаланс, за да върнете баланса навреме.",
     "guide.bullet.sferasBalance.menuPath": "/ Sferas / Баланс",
     "guide.bullet.entityWheel.title": "Колело на сферата",
     "guide.bullet.entityWheel.description":
-      "Всеки обект има своето собствено колело — компактна визуализация на всички моменти и уроци, свързани с този човек, работа или преживяване. Докоснете елемент, за да се потопите в спомена зад него. Или завъртете колелото, за да позволите на Sferas да извлече случаен урок от този обект и да го превърне в изпит — целенасочена проверка дали конкретната връзка или преживяване наистина са ви научили на това, което е трябвало.",
+      "Всеки обект има своето собствено колело — компактна визуализация на всички моменти и уроци, свързани с този човек, работа или преживяване. Докоснете елемент, за да се потопите в спомена зад него. Или завъртете колелото, за да позволите на Sferas да извлече случаен урок от този обект и да го превърне в изпит — целенасочена проверка дали конкретната връзка или преживяване наистина са Ви научили на това, което е трябвало.",
     "guide.bullet.entityWheel.menuPath":
       "/ Sferas / Фокусирай сфера / Колело на обекта",
     "guide.bullet.entityReminders.title": "Напомняния за сфери",
     "guide.bullet.entityReminders.description":
-      "Някои връзки тихо избледняват — не защото сме спрели да ни е грижа, а защото сме спрели да обръщаме внимание. Напомнянията за обекти ви известяват, когато не сте записвали моменти с някого от известно време, или когато даден обект има по-малко спомени от останалите в сферата. Sferas поддържа баланса — като се грижи нито един човек или преживяване да не бъде пренебрегнато без да осъзнаете.",
+      "Някои връзки тихо избледняват — не защото сме спрели да ни е грижа, а защото сме спрели да обръщаме внимание. Напомнянията за обекти Ви известяват, когато не сте записвали моменти с някого от известно време, или когато даден обект има по-малко спомени от останалите в сферата. Sferas поддържа баланса — като се грижи нито един човек или преживяване да не бъде пренебрегнато без да осъзнаете.",
     "guide.bullet.entityReminders.menuPath":
       "/ Персонализация / Управление на известия / Напомняния за хора",
     "guide.bullet.momentNudges.title": "Напомняния за моменти",
     "guide.bullet.momentNudges.description":
-      "Настройте почасови или ежедневни известия, които показват слънчевите ви моменти и уроци от избрана сфера. Тихо потупване по рамото през деня — напомняйки ви за доброто, което сте преживели, и мъдростта, която сте спечелили, за да не остава нито едното заровено.",
+      "Настройте почасови или ежедневни известия, които показват слънчевите Ви моменти и уроци от избрана сфера. Тихо потупване по рамото през деня — напомняйки Ви за доброто, което сте преживели, и мъдростта, която сте спечелили, за да не остава нито едното заровено.",
     "guide.bullet.momentNudges.menuPath":
       "/ Персонализация / Управление на известия / Напомняния за моменти",
     "guide.bullet.eventReminders.title": "Напомняния за събития",
     "guide.bullet.eventReminders.description":
-      "Когато се присъедините към събитие чрез Sferas, приложението ви напомня след това да го запишете като спомен. Защото преживяванията наистина стават ваши едва когато отделите момент да ги осмислите.",
+      "Когато се присъедините към събитие чрез Sferas, приложението Ви напомня след това да го запишете като спомен. Защото преживяванията наистина стават ваши едва когато отделите момент да ги осмислите.",
     "guide.bullet.eventReminders.menuPath":
       "/ Персонализация / Управление на известия / Напомняния за спомени от събития",
     "guide.bullet.cosmicLook.title": "Космически облик",
@@ -9654,8 +9351,6 @@ const translations: Record<Language, Translations> = {
     "guidePrompt.close": "Затвори",
 
     "onboarding.language.title": "Изберете език",
-    "onboarding.language.subtitle":
-      "Можете да го промените по-късно в Настройки.",
     "onboarding.title": "Създайте своите Sferas",
     "onboarding.subtitle":
       "Опишете всички Обекти в Sferas и добавете по няколко думи за всеки.",
@@ -9680,16 +9375,16 @@ const translations: Record<Language, Translations> = {
     "onboarding.encouragement": "Справяте се чудесно! Не бързайте.",
     "onboarding.hierarchy.universe.title": "Вашата Вселена",
     "onboarding.hierarchy.universe.body":
-      "В центъра е бутонът Прозрения — той ви дава бързи прозрения за баланса между слънчеви и облачни моменти в живота ви. Сферите са основните области от живота ви, обикалящи около него.",
+      "В центъра е бутонът Прозрения — той Ви дава бързи прозрения за баланса между слънчеви и облачни моменти в живота Ви. Сферите са основните области от живота Ви, обикалящи около него.",
     "onboarding.hierarchy.entities.title": "Сфери и Обекти",
     "onboarding.hierarchy.entities.body":
-      "Всяка Сфера съдържа свои Обекти. Сферата Семейство — членовете на семейството ви, Приятели — близките ви приятели, Кариера — работните ви места, и т.н.",
+      "Всяка Сфера съдържа свои Обекти. Сферата Семейство — членовете на семейството Ви, Приятели — близките Ви приятели, Кариера — работните Ви места, и т.н.",
     "onboarding.hierarchy.memories.title": "Спомени и Моменти",
     "onboarding.hierarchy.memories.body":
-      "Всеки Sferas Обект съдържа Спомени. Всеки Sпомен има Моменти — слънчеви, облачни и уроци, които сте научили. Колкото повече слънчеви моменти, толкова по-ярко светят споменът и аватарът на обекта.",
+      "Всеки Sferas Обект съдържа Спомени. Всеки спомен има Моменти — слънчеви, облачни и уроци, които сте научили. Колкото повече слънчеви моменти, толкова по-ярко светят споменът и аватарът на обекта.",
     "onboarding.hierarchy.whysferas.title": "Защо Sferas?",
     "onboarding.hierarchy.whysferas.body":
-      "Животът минава бързо — и лесно се губят уроците, които сте извлекли, или слънчевите моменти, важни колкото и трудните.\n\nSferas ви помага да си припомните какво сте научили от всеки етап на живота си. А също така ненатрапчиво Ви напомня да поддържате връзка с хората, за които ви е грижа.\n\nНека Ви запознаем със Sferas.",
+      "Животът минава бързо — и лесно се губят уроците, които сте извлекли, или слънчевите моменти, важни колкото и трудните.\n\nSferas Ви помага да си припомните какво сте научили от всеки етап на живота си. А също така Ви напомня да поддържате връзка с хората, за които Ви е грижа.\n\nНека Ви запознаем със Sferas.",
     "onboarding.postEntity.minSpheres":
       "Преди следващата стъпка са нужни поне по 2 обекта в Приятели, Семейство и Хобита.",
     "onboarding.postEntity.sferaAi.title": "Sferas AI — включено при онбординг",
@@ -9718,7 +9413,7 @@ const translations: Record<Language, Translations> = {
     "onboarding.postEntity.memoryWizard.onboardingCompleteTitle":
       "Готово - справихте се!",
     "onboarding.postEntity.memoryWizard.onboardingCompleteMessage":
-      "Успешно приключихте с онбординга. Началните ви спомени са готови и можете по всяко време да продължите да развивате сферите си в приложението.",
+      "Успешно приключихте с онбординга. Началните Ви спомени са готови и можете по всяко време да продължите да развивате сферите си в приложението.",
     "onboarding.postEntity.memoryWizard.onboardingCompletePerksLine":
       "Добавяйте още спомени, за да печелите значки и да отключвате платени предимства безплатно.",
     "onboarding.postEntity.memoryPick.title": "Развийте вашите сфери",
@@ -9986,7 +9681,7 @@ const translations: Record<Language, Translations> = {
     "insights.wheelOfLife.emptyState":
       "Добавете поне един спомен и един момент в други сфери, за да видите анализи на данните.",
     "insights.wheelOfLife.distributionExplanation":
-      "Тази диаграма показва общото разпределение на житейските ви моменти във всички сфери.",
+      "Тази диаграма показва общото разпределение на житейските Ви моменти във всички сфери.",
     "insights.wheelOfLife.percentageExplanation":
       "Процентите са слънчеви спрямо облачни моменти във всяка сфера. По-висока стойност означава повече позитивни моменти там.",
     "insights.momentsView.subtitle":
@@ -10011,11 +9706,11 @@ const translations: Record<Language, Translations> = {
     "insights.momentDistribution.totalCountLessons": "{count} урока",
     "insights.momentDistribution.allSferas": "Всички",
     "insights.momentDistribution.explainerSunny":
-      "Най-много слънчеви моменти в живота ви идват от сферата {sphere}.",
+      "Най-много слънчеви моменти в живота Ви идват от сферата {sphere}.",
     "insights.momentDistribution.explainerCloudy":
-      "Най-много облачни моменти в живота ви идват от сферата {sphere}.",
+      "Най-много облачни моменти в живота Ви идват от сферата {sphere}.",
     "insights.momentDistribution.explainerLessons":
-      "Най-много уроци в живота ви идват от сферата {sphere}.",
+      "Най-много уроци в живота Ви идват от сферата {sphere}.",
     "insights.momentDrill.screenSphereTitleSunny":
       "Слънчеви моменти — {sphere}",
     "insights.momentDrill.screenSphereTitleCloudy":
@@ -10030,31 +9725,31 @@ const translations: Record<Language, Translations> = {
     "insights.momentDrill.memoryUntitled": "Спомен без заглавие",
     "insights.recommendations.title": "Препоръки",
     "insights.relationships.critical":
-      "Сферата на връзките ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни спомени и решаването на предизвикателства.",
+      "Сферата на връзките Ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни спомени и решаването на предизвикателства.",
     "insights.relationships.needsImprovement":
-      "Сферата на връзките ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху изграждането на по-силни връзки.",
+      "Сферата на връзките Ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху изграждането на по-силни връзки.",
     "insights.relationships.strength":
-      "Сферата на връзките ви е сила! Продължете да поддържате тези връзки.",
+      "Сферата на връзките Ви е сила! Продължете да поддържате тези връзки.",
     "insights.career.critical":
-      "Сферата на кариерата ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни преживявания и решаването на работни предизвикателства.",
+      "Сферата на кариерата Ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни преживявания и решаването на работни предизвикателства.",
     "insights.career.needsImprovement":
-      "Сферата на кариерата ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху професионално развитие и удовлетворение.",
+      "Сферата на кариерата Ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху професионално развитие и удовлетворение.",
     "insights.career.strength":
-      "Сферата на кариерата ви е сила! Продължете да градите върху професионалния си успех.",
+      "Сферата на кариерата Ви е сила! Продължете да градите върху професионалния си успех.",
     "insights.family.critical":
-      "Сферата на семейството ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни спомени и укрепването на семейни връзки.",
+      "Сферата на семейството Ви се нуждае от спешно внимание. Фокусирайте се върху създаването на положителни спомени и укрепването на семейни връзки.",
     "insights.family.needsImprovement":
-      "Сферата на семейството ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху семейните отношения и връзки.",
+      "Сферата на семейството Ви може да се подобри с повече положителни моменти. Помислете за фокусиране върху семейните отношения и връзки.",
     "insights.family.strength":
-      "Сферата на семейството ви е сила! Продължете да поддържате тези важни връзки.",
+      "Сферата на семейството Ви е сила! Продължете да поддържате тези важни връзки.",
     "insights.relationships.current.low":
-      "Само {percentage}% от моментите в текущата ви връзка с {name} са слънчеви (останалите са облачни).",
+      "Само {percentage}% от моментите в текущата Ви връзка с {name} са слънчеви (останалите са облачни).",
     "insights.relationships.pattern.current":
-      "Само {percentage}% от моментите в текущата ви връзка с {name} са слънчеви.",
+      "Само {percentage}% от моментите в текущата Ви връзка с {name} са слънчеви.",
     "insights.career.current.low":
-      "Само {percentage}% от моментите в текущата ви работа в {name} са положителни (останалите са предизвикателни).",
+      "Само {percentage}% от моментите в текущата Ви работа в {name} са положителни (останалите са предизвикателни).",
     "insights.career.pattern.current":
-      "Само {percentage}% от моментите в текущата ви работа в {name} са положителни.",
+      "Само {percentage}% от моментите в текущата Ви работа в {name} са положителни.",
     "insights.family.member.low":
       "Само {percentage}% от моментите с {name} са положителни (останалите са предизвикателни).",
     "insights.family.pattern":
@@ -10078,11 +9773,11 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.relationships.cloudyLabel": "О",
     "insights.comparison.relationships.facts": "Факта",
     "insights.comparison.relationships.warning.lower":
-      "Текущият ви партньор има по-ниска пропорция на слънчеви моменти в сравнение с миналите ви връзки. Помислете какво може да причинява тази разлика.",
+      "Текущият Ви партньор има по-ниска пропорция на слънчеви моменти в сравнение с миналите Ви връзки. Помислете какво може да причинява тази разлика.",
     "insights.comparison.relationships.warning.close":
-      "Текущата ви връзка има подобна пропорция на слънчеви моменти като миналите ви връзки. Това може да е модел, който си заслужава да разгледате.",
+      "Текущата Ви връзка има подобна пропорция на слънчеви моменти като миналите Ви връзки. Това може да е модел, който си заслужава да разгледате.",
     "insights.comparison.relationships.kudos":
-      "Отличен прогрес! Текущата ви връзка има значително повече слънчеви моменти в сравнение с миналите ви връзки. Продължавайте да подхранвате тази позитивна връзка!",
+      "Отличен прогрес! Текущата Ви връзка има значително повече слънчеви моменти в сравнение с миналите Ви връзки. Продължавайте да подхранвате тази позитивна връзка!",
     "insights.comparison.relationships.percentageExplanationTitle":
       "Какво означава този процент?",
     "insights.comparison.relationships.percentageExplanation":
@@ -10096,17 +9791,17 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.relationships.onlyOneEntity.message":
       "Добавете повече връзки и техните спомени, за да видите смислени анализи на сравнение и модели във вашите връзки.",
     "insights.comparison.relationships.sphereComparison.moreRelationshipTime":
-      "Връзките преобладават в живота ви, с значително повече записани моменти в сравнение с кариерата. Личните ви връзки са приоритет.",
+      "Връзките преобладават в живота Ви, с значително повече записани моменти в сравнение с кариерата. Личните Ви връзки са приоритет.",
     "insights.comparison.relationships.sphereComparison.moreCareerTime":
-      "Кариерата преобладава в живота ви, с значително повече записани моменти в сравнение с връзките. Помислете за балансиране на фокуса между работа и лични връзки.",
+      "Кариерата преобладава в живота Ви, с значително повече записани моменти в сравнение с връзките. Помислете за балансиране на фокуса между работа и лични връзки.",
     "insights.comparison.relationships.sphereComparison.balancedTime":
       "Имате приблизително балансирано разпределение на работа и личен живот между връзки и кариера.",
     "insights.comparison.relationships.sphereComparison.betterRelationshipQuality":
-      "Вашите връзки имат значително по-добро качество (повече слънчеви моменти) в сравнение с кариерата ви. Отлична работа в поддържането на връзките!",
+      "Вашите връзки имат значително по-добро качество (повече слънчеви моменти) в сравнение с кариерата Ви. Отлична работа в поддържането на връзките!",
     "insights.comparison.relationships.sphereComparison.betterCareerQuality":
-      "Вашата кариера има значително по-добро качество (повече слънчеви моменти) в сравнение с връзките ви. Помислете да се фокусирате повече върху изграждането на позитивни връзки.",
+      "Вашата кариера има значително по-добро качество (повече слънчеви моменти) в сравнение с връзките Ви. Помислете да се фокусирате повече върху изграждането на позитивни връзки.",
     "insights.comparison.general.balance":
-      "Не забравяйте да се стремите към баланс в живота. Никоя сфера не трябва да остане изоставена - грижата за всички аспекти на живота ви допринася за общото благополучие.",
+      "Не забравяйте да се стремите към баланс в живота. Никоя сфера не трябва да остане изоставена - грижата за всички аспекти на живота Ви допринася за общото благополучие.",
     "insights.comparison.requiresEntities":
       "Добавете спомени и моменти в други сфери, за да видите анализи на сравнение.",
     "insights.comparison.career.title": "Сравнение на Кариера",
@@ -10116,11 +9811,11 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.career.goodMoments": "Слънчеви Факти",
     "insights.comparison.career.badMoments": "Облачни Моменти",
     "insights.comparison.career.warning.lower":
-      "Текущата ви работа има по-ниска пропорция на слънчеви моменти в сравнение с миналите ви работи. Помислете какво може да причинява тази разлика.",
+      "Текущата Ви работа има по-ниска пропорция на слънчеви моменти в сравнение с миналите Ви работи. Помислете какво може да причинява тази разлика.",
     "insights.comparison.career.warning.close":
-      "Текущата ви работа има подобна пропорция на слънчеви моменти като миналите ви работи. Това може да е модел, който си заслужава да разгледате.",
+      "Текущата Ви работа има подобна пропорция на слънчеви моменти като миналите Ви работи. Това може да е модел, който си заслужава да разгледате.",
     "insights.comparison.career.kudos":
-      "Отличен прогрес! Текущата ви работа има значително повече слънчеви моменти в сравнение с миналите ви работи. Продължавайте да подхранвате това позитивно преживяване!",
+      "Отличен прогрес! Текущата Ви работа има значително повече слънчеви моменти в сравнение с миналите Ви работи. Продължавайте да подхранвате това позитивно преживяване!",
     "insights.comparison.career.percentageExplanationTitle":
       "Какво означава този процент?",
     "insights.comparison.career.percentageExplanation":
@@ -10134,15 +9829,15 @@ const translations: Record<Language, Translations> = {
     "insights.comparison.career.onlyOneEntity.message":
       "Добавете повече кариерни преживявания и техните спомени, за да видите смислени анализи на сравнение и модели във вашите работи.",
     "insights.comparison.career.sphereComparison.moreCareerTime":
-      "Кариерата преобладава в живота ви, с значително повече записани моменти в сравнение с връзките. Помислете за балансиране на фокуса между работа и лични връзки.",
+      "Кариерата преобладава в живота Ви, с значително повече записани моменти в сравнение с връзките. Помислете за балансиране на фокуса между работа и лични връзки.",
     "insights.comparison.career.sphereComparison.moreRelationshipTime":
-      "Връзките преобладават в живота ви, с значително повече записани моменти в сравнение с кариерата. Личните ви връзки са приоритет.",
+      "Връзките преобладават в живота Ви, с значително повече записани моменти в сравнение с кариерата. Личните Ви връзки са приоритет.",
     "insights.comparison.career.sphereComparison.balancedTime":
       "Имате приблизително балансирано разпределение на работа и личен живот между кариера и връзки.",
     "insights.comparison.career.sphereComparison.betterCareerQuality":
-      "Вашата кариера има значително по-добро качество (повече слънчеви моменти) в сравнение с връзките ви. Помислете да се фокусирате повече върху изграждането на позитивни връзки.",
+      "Вашата кариера има значително по-добро качество (повече слънчеви моменти) в сравнение с връзките Ви. Помислете да се фокусирате повече върху изграждането на позитивни връзки.",
     "insights.comparison.career.sphereComparison.betterRelationshipQuality":
-      "Вашите връзки имат значително по-добро качество (повече слънчеви моменти) в сравнение с кариерата ви. Отлична работа в поддържането на връзките!",
+      "Вашите връзки имат значително по-добро качество (повече слънчеви моменти) в сравнение с кариерата Ви. Отлична работа в поддържането на връзките!",
     "insights.comparison.family.title": "Семейство",
     "insights.comparison.family.subtitle": "Общо количество моменти",
     "insights.comparison.family.totalMoments": "Общи Моменти",
@@ -10233,81 +9928,81 @@ const translations: Record<Language, Translations> = {
     "insights.detail.relationship.memories.noData":
       "Няма записани спомени за тази връзка",
     "insights.detail.relationship.memories.more.better":
-      "Тази връзка има значително повече спомени в сравнение с другите ви връзки, и общото качество (слънчеви моменти) е по-добро.",
+      "Тази връзка има значително повече спомени в сравнение с другите Ви връзки, и общото качество (слънчеви моменти) е по-добро.",
     "insights.detail.relationship.memories.more.worse":
-      "Тази връзка има значително повече спомени в сравнение с другите ви връзки, но общото качество (слънчеви моменти) е по-ниско.",
+      "Тази връзка има значително повече спомени в сравнение с другите Ви връзки, но общото качество (слънчеви моменти) е по-ниско.",
     "insights.detail.relationship.memories.more.same":
-      "Тази връзка има значително повече спомени в сравнение с другите ви връзки, с подобно общо качество.",
+      "Тази връзка има значително повече спомени в сравнение с другите Ви връзки, с подобно общо качество.",
     "insights.detail.relationship.memories.less.better":
-      "Тази връзка има по-малко спомени в сравнение с другите ви връзки, но общото качество (слънчеви моменти) е по-добро.",
+      "Тази връзка има по-малко спомени в сравнение с другите Ви връзки, но общото качество (слънчеви моменти) е по-добро.",
     "insights.detail.relationship.memories.less.worse":
-      "Тази връзка има по-малко спомени в сравнение с другите ви връзки, и общото качество (слънчеви моменти) също е по-ниско.",
+      "Тази връзка има по-малко спомени в сравнение с другите Ви връзки, и общото качество (слънчеви моменти) също е по-ниско.",
     "insights.detail.relationship.memories.less.same":
-      "Тази връзка има по-малко спомени в сравнение с другите ви връзки, с подобно общо качество.",
+      "Тази връзка има по-малко спомени в сравнение с другите Ви връзки, с подобно общо качество.",
     "insights.detail.relationship.memories.same.better":
-      "Тази връзка има приблизително същото количество спомени като другите ви връзки, но общото качество (слънчеви моменти) е по-добро.",
+      "Тази връзка има приблизително същото количество спомени като другите Ви връзки, но общото качество (слънчеви моменти) е по-добро.",
     "insights.detail.relationship.memories.same.worse":
-      "Тази връзка има приблизително същото количество спомени като другите ви връзки, но общото качество (слънчеви моменти) е по-ниско.",
+      "Тази връзка има приблизително същото количество спомени като другите Ви връзки, но общото качество (слънчеви моменти) е по-ниско.",
     "insights.detail.relationship.memories.same.same":
-      "Тази връзка има приблизително същото количество спомени и подобно общо качество в сравнение с другите ви връзки.",
+      "Тази връзка има приблизително същото количество спомени и подобно общо качество в сравнение с другите Ви връзки.",
     "insights.detail.job.title": "Детайли за Работата",
     "insights.detail.job.noData": "Работата не е намерена",
     "insights.detail.job.memories.title": "Спомени",
     "insights.detail.job.memories.noData":
       "Няма записани спомени за тази работа",
     "insights.detail.job.memories.more.better":
-      "Тази работа има значително повече спомени в сравнение с другите ви работи, и общото качество (слънчеви моменти) е по-добро.",
+      "Тази работа има значително повече спомени в сравнение с другите Ви работи, и общото качество (слънчеви моменти) е по-добро.",
     "insights.detail.job.memories.more.worse":
-      "Тази работа има значително повече спомени в сравнение с другите ви работи, но общото качество (слънчеви моменти) е по-ниско.",
+      "Тази работа има значително повече спомени в сравнение с другите Ви работи, но общото качество (слънчеви моменти) е по-ниско.",
     "insights.detail.job.memories.more.same":
-      "Тази работа има значително повече спомени в сравнение с другите ви работи, с подобно общо качество.",
+      "Тази работа има значително повече спомени в сравнение с другите Ви работи, с подобно общо качество.",
     "insights.detail.job.memories.less.better":
-      "Тази работа има по-малко спомени в сравнение с другите ви работи, но общото качество (слънчеви моменти) е по-добро.",
+      "Тази работа има по-малко спомени в сравнение с другите Ви работи, но общото качество (слънчеви моменти) е по-добро.",
     "insights.detail.job.memories.less.worse":
-      "Тази работа има по-малко спомени в сравнение с другите ви работи, и общото качество (слънчеви моменти) също е по-ниско.",
+      "Тази работа има по-малко спомени в сравнение с другите Ви работи, и общото качество (слънчеви моменти) също е по-ниско.",
     "insights.detail.job.memories.less.same":
-      "Тази работа има по-малко спомени в сравнение с другите ви работи, с подобно общо качество.",
+      "Тази работа има по-малко спомени в сравнение с другите Ви работи, с подобно общо качество.",
     "insights.detail.job.memories.same.better":
-      "Тази работа има приблизително същото количество спомени като другите ви работи, но общото качество (слънчеви моменти) е по-добро.",
+      "Тази работа има приблизително същото количество спомени като другите Ви работи, но общото качество (слънчеви моменти) е по-добро.",
     "insights.detail.job.memories.same.worse":
-      "Тази работа има приблизително същото количество спомени като другите ви работи, но общото качество (слънчеви моменти) е по-ниско.",
+      "Тази работа има приблизително същото количество спомени като другите Ви работи, но общото качество (слънчеви моменти) е по-ниско.",
     "insights.detail.job.memories.same.same":
-      "Тази работа има приблизително същото количество спомени и подобно общо качество в сравнение с другите ви работи.",
+      "Тази работа има приблизително същото количество спомени и подобно общо качество в сравнение с другите Ви работи.",
     "insights.detail.family.title": "Детайли за Семейния Член",
     "insights.detail.family.noData": "Семейният член не е намерен",
     "insights.detail.family.memories.title": "Спомени",
     "insights.detail.family.memories.noData":
       "Няма записани спомени за този семейен член",
     "insights.detail.family.memories.more.better":
-      "Този семейен член има значително повече спомени в сравнение с другите ви семейни членове, и общото качество (слънчеви моменти) е по-добро.",
+      "Този семейен член има значително повече спомени в сравнение с другите Ви семейни членове, и общото качество (слънчеви моменти) е по-добро.",
     "insights.detail.family.memories.more.worse":
-      "Този семейен член има значително повече спомени в сравнение с другите ви семейни членове, но общото качество (слънчеви моменти) е по-ниско.",
+      "Този семейен член има значително повече спомени в сравнение с другите Ви семейни членове, но общото качество (слънчеви моменти) е по-ниско.",
     "insights.detail.family.memories.more.same":
-      "Този семейен член има значително повече спомени в сравнение с другите ви семейни членове, с подобно общо качество.",
+      "Този семейен член има значително повече спомени в сравнение с другите Ви семейни членове, с подобно общо качество.",
     "insights.detail.family.memories.less.better":
-      "Този семейен член има по-малко спомени в сравнение с другите ви семейни членове, но общото качество (слънчеви моменти) е по-добро.",
+      "Този семейен член има по-малко спомени в сравнение с другите Ви семейни членове, но общото качество (слънчеви моменти) е по-добро.",
     "insights.detail.family.memories.less.worse":
-      "Този семейен член има по-малко спомени в сравнение с другите ви семейни членове, и общото качество (слънчеви моменти) също е по-ниско.",
+      "Този семейен член има по-малко спомени в сравнение с другите Ви семейни членове, и общото качество (слънчеви моменти) също е по-ниско.",
     "insights.detail.family.memories.less.same":
-      "Този семейен член има по-малко спомени в сравнение с другите ви семейни членове, с подобно общо качество.",
+      "Този семейен член има по-малко спомени в сравнение с другите Ви семейни членове, с подобно общо качество.",
     "insights.detail.family.memories.same.better":
-      "Този семейен член има приблизително същото количество спомени като другите ви семейни членове, но общото качество (слънчеви моменти) е по-добро.",
+      "Този семейен член има приблизително същото количество спомени като другите Ви семейни членове, но общото качество (слънчеви моменти) е по-добро.",
     "insights.detail.family.memories.same.worse":
-      "Този семейен член има приблизително същото количество спомени като другите ви семейни членове, но общото качество (слънчеви моменти) е по-ниско.",
+      "Този семейен член има приблизително същото количество спомени като другите Ви семейни членове, но общото качество (слънчеви моменти) е по-ниско.",
     "insights.detail.family.memories.same.same":
-      "Този семейен член има приблизително същото количество спомени и подобно общо качество в сравнение с другите ви семейни членове.",
+      "Този семейен член има приблизително същото количество спомени и подобно общо качество в сравнение с другите Ви семейни членове.",
     "insights.suggestion.relationships.worse":
-      "Текущата ви връзка има по-малко слънчеви моменти в сравнение с миналите връзки. Помислете за създаване на повече положителни преживявания заедно.",
+      "Текущата Ви връзка има по-малко слънчеви моменти в сравнение с миналите връзки. Помислете за създаване на повече положителни преживявания заедно.",
     "insights.suggestion.relationships.low":
       "Създайте повече слънчеви моменти с текущия си партньор, за да укрепите връзката. Малките жестове и качественото време могат да направят голяма разлика.",
     "insights.suggestion.relationships.progress":
       "Отличен напредък! Създавате повече положителни моменти от миналите си връзки. Продължете да поддържате тази връзка.",
     "insights.suggestion.relationships.strong":
-      "Връзката ви процъфтява с много слънчеви моменти! Продължете да поддържате тази положителна връзка.",
+      "Връзката Ви процъфтява с много слънчеви моменти! Продължете да поддържате тази положителна връзка.",
     "insights.suggestion.career.worse":
-      "Текущата ви работа има по-малко положителни моменти в сравнение с предишните роли. Помислете какви промени могат да подобрят удовлетворението ви от работата.",
+      "Текущата Ви работа има по-малко положителни моменти в сравнение с предишните роли. Помислете какви промени могат да подобрят удовлетворението Ви от работата.",
     "insights.suggestion.career.low":
-      "Фокусирайте се върху създаване на повече положителни преживявания на работа. Идентифицирайте какво ви носи радост и удовлетворение в ролята ви.",
+      "Фокусирайте се върху създаване на повече положителни преживявания на работа. Идентифицирайте какво Ви носи радост и удовлетворение в ролята Ви.",
     "insights.suggestion.career.progress":
       "Отличен напредък! Преживявате повече положителни моменти от предишните си работи. Продължете да градите върху този успех.",
     "insights.suggestion.career.strong":
@@ -10315,7 +10010,7 @@ const translations: Record<Language, Translations> = {
     "insights.suggestion.family.low":
       "Създайте повече положителни моменти със семейните членове, за да укрепите тези важни връзки.",
     "insights.suggestion.family.strong":
-      "Семейните ви връзки са силни с много положителни моменти! Продължете да поддържате тези връзки.",
+      "Семейните Ви връзки са силни с много положителни моменти! Продължете да поддържате тези връзки.",
 
     "profile.ongoing": "Текуща",
     "profile.noMemories": "Няма спомени",
@@ -10394,7 +10089,7 @@ const translations: Record<Language, Translations> = {
       'Сигурни ли сте, че искате да изтриете "{title}"? Това действие не може да бъде отменено.',
     "memory.emptyState.title": "Все още няма спомени",
     "memory.emptyState.description":
-      "Това е първата стъпка към яснота. Изброяването на вашите спомени ви помага да оцените реалността, превръщайки размишленията в действие.",
+      "Това е първата стъпка към яснота. Изброяването на вашите спомени Ви помага да оцените реалността, превръщайки размишленията в действие.",
     "memory.error.titleRequired": "Моля, въведете заглавие на спомена.",
     "memory.error.saveFailed":
       "Неуспешно запазване на спомена. Моля, опитайте отново.",
@@ -10581,7 +10276,7 @@ const translations: Record<Language, Translations> = {
     "notifications.settings.condition.lessThanJob.title":
       "По-малко от работата",
     "notifications.settings.condition.lessThanJob.body":
-      "Известява, когато тази връзка има по-малко моменти (спомени, анализи) от текущата ви работа. Това помага да се гарантира, че отделяте достатъчно внимание на връзките си.",
+      "Известява, когато тази връзка има по-малко моменти (спомени, анализи) от текущата Ви работа. Това помага да се гарантира, че отделяте достатъчно внимание на връзките си.",
     "notifications.settings.condition.lessThanFriendsAvg.title":
       "По-малко от средното на приятелите",
     "notifications.settings.condition.lessThanFriendsAvg.body":
@@ -10690,10 +10385,10 @@ const translations: Record<Language, Translations> = {
     "onboarding.showDetails": "Покажи детайли",
     "onboarding.intro.title": "Добре дошли в Sferas!",
     "onboarding.intro.message":
-      "Ето всичко, което Sferas може да направи за вас. Разгледайте стъпките и открийте всички инструменти и функции, които ви помагат да размишлявате, растете и оставате свързани с това, което е важно.",
+      "Ето всичко, което Sferas може да направи за вас. Разгледайте стъпките и открийте всички инструменти и функции, които Ви помагат да размишлявате, растете и оставате свързани с това, което е важно.",
     "onboarding.welcome.title": "Вашето Колело на живота",
     "onboarding.welcome.message":
-      "Вижте емоционалния си баланс с един поглед. Колелото на живота визуализира разпределението на настроението ви по всички сфери — помага ви да видите къде процъфтявате и къде е нужно повече внимание. (Премиум)",
+      "Вижте емоционалния си баланс с един поглед. Колелото на живота визуализира разпределението на настроението Ви по всички сфери — помага Ви да видите къде процъфтявате и къде е нужно повече внимание. (Премиум)",
     "onboarding.moments.title": "Проследете моментите си",
     "onboarding.moments.message":
       "Улавяйте слънчеви и облачни моменти за всеки човек, работа или хоби. Записвайте спомени в момента и ги преразглеждайте по всяко време, за да получите перспектива и разбиране.",
@@ -10705,16 +10400,16 @@ const translations: Record<Language, Translations> = {
       "Извлечете ценни уроци от вашите преживявания. Документирайте какво сте научили от положителните и предизвикателните моменти, за да насърчите личностния растеж и да избегнете повтарящи се модели.",
     "onboarding.insights.title": "Sfera Прозрения",
     "onboarding.insights.message":
-      "Картата с прозрения на началния екран показва кой обект има най-малко или най-много спомени, най-старото ви взаимодействие и статистика за настроението — за да знаете кога да се фокусирате.",
+      "Картата с прозрения на началния екран показва кой обект има най-малко или най-много спомени, най-старото Ви взаимодействие и статистика за настроението — за да знаете кога да се фокусирате.",
     "onboarding.notifications.title": "Умни напомняния",
     "onboarding.notifications.message":
-      "Sferas ви известява, когато отдавна не сте записвали нищо за някого, или когато настроението му е под средното ви. Оставайте целенасочено свързани с хората, които са важни за вас.",
+      "Sferas Ви известява, когато отдавна не сте записвали нищо за някого, или когато настроението му е под средното Ви. Оставайте целенасочено свързани с хората, които са важни за вас.",
     "onboarding.momentNudges.title": "Напомняния за моменти",
     "onboarding.momentNudges.message":
-      "Задайте периодични известия, които ви подтикват да запишете слънчев момент или да преразгледате урок. Изберете почасови или ежедневни интервали и вида на напомнянето, което ви вдъхновява.",
+      "Задайте периодични известия, които Ви подтикват да запишете слънчев момент или да преразгледате урок. Изберете почасови или ежедневни интервали и вида на напомнянето, което Ви вдъхновява.",
     "onboarding.events.title": "Sferas Събития",
     "onboarding.events.message":
-      "Разделът Събития ви информира за социални събития на Sferas, събития за плюс-членове и снимки на общността. Въведете VIP кодове и получавайте напомняния за събития, за да не пропускате нищо.",
+      "Разделът Събития Ви информира за социални събития на Sferas, събития за плюс-членове и снимки на общността. Въведете VIP кодове и получавайте напомняния за събития, за да не пропускате нищо.",
     "onboarding.exams.title": "Дневен изпит",
     "onboarding.exams.message":
       "Всеки ден Sferas AI генерира ситуационни въпроси, основани на вашите собствени уроци. Отговаряйте на тях, за да затвърдите знанията си и да задълбочите самопознанието си с времето. (AI функция)",
@@ -10807,7 +10502,7 @@ const translations: Record<Language, Translations> = {
 
     // AI
     "ai.title": "Създай спомен с AI",
-    "ai.subtitle": "Sferas AI ще подреди историята ви в моменти и уроци.",
+    "ai.subtitle": "Sferas AI ще подреди историята Ви в моменти и уроци.",
     "ai.placeholder.input": "Споделете спомен или разкажете история тук…",
     "ai.placeholder.recording":
       "[Гласов запис - необходима интеграция за реч към текст]",
@@ -10829,7 +10524,9 @@ const translations: Record<Language, Translations> = {
       "Распознаването на реч не е налично на това устройство",
     "ai.speech.fallback.title": "Гласов вход",
     "ai.speech.fallback.message":
-      "Това устройство не предлага български за системното разпознаване на реч (отделно от езика на приложението). Продължаваме с поддържан език.",
+      "Това устройство не предлага български за системното разпознаване на реч (отделно от езика на приложението). При всяко ползване на микрофона транскриптът е на английски — ISO 639-3: eng (локал {locale}). Говорете на английски при диктуване. Останалата част от приложението и отговорите на Sferas AI остават на български.",
+    "ai.speech.fallback.messageGeneric":
+      "Разпознаването на реч ползва друг език от този на приложението ({locale}). За най-добър резултат диктувайте на съответния език.",
     "ai.speech.unsupported.title": "Гласов вход",
     "ai.speech.unsupported.message":
       "Българският не е наличен за системното разпознаване на реч на това устройство.",
@@ -10837,7 +10534,7 @@ const translations: Record<Language, Translations> = {
     "ai.response.title": "AI Отговор",
     "ai.loading.title": "AI мисли...",
     "ai.loading.thinking": "Sferas AI мисли...",
-    "ai.loading.analyzing": "Анализиране на мислите ви...",
+    "ai.loading.analyzing": "Анализиране на мислите Ви...",
     "ai.loading.processing": "Обработване на спомени...",
     "ai.loading.generating": "Генериране на прозрения...",
     "ai.loading.uploadPrompt":
@@ -10892,9 +10589,9 @@ const translations: Record<Language, Translations> = {
       "Неуспешно обработване на заявката: {error}. Моля, опитайте отново.",
     "ai.action.title": "Ускорете пътешествието си",
     "ai.action.message.withEntities":
-      "Нека Sferas AI ви помогне да създавате спомени и да добавяте обекти на Sferas по-бързо—връзки, членове на семейството, приятели, работа и хобита.",
+      "Нека Sferas AI Ви помогне да създавате спомени и да добавяте обекти на Sferas по-бързо—връзки, членове на семейството, приятели, работа и хобита.",
     "ai.action.message.noEntities":
-      "Нека Sferas AI ви помогне да започнете бързо. Споделете своята история и ще добавим обекти на Sferas като връзки, членове на семейството, приятели, работа и хобита към житейските ви сфери.",
+      "Нека Sferas AI Ви помогне да започнете бързо. Споделете своята история и ще добавим обекти на Sferas като връзки, членове на семейството, приятели, работа и хобита към житейските Ви сфери.",
     "ai.action.createMemory": "Създай спомен",
     "ai.action.createMemoryHint":
       "Първо създай Sferas обекти, за да го използваш",
@@ -12363,20 +12060,6 @@ const translations: Record<Language, Translations> = {
       "Изкуството е лично изразяване, а не конкуренция",
     "suggestions.art.lessons.1": "Мога да създавам без осъждане",
     "suggestions.art.lessons.2": "Процесът е по-важен от продукта",
-    "suggestions.cooking.hardTruths.0": "Готвенето стана задача, а не радост",
-    "suggestions.cooking.hardTruths.1":
-      "Спрях да готвя, защото се чувствах неоценен",
-    "suggestions.cooking.hardTruths.2":
-      "Готвенето за други се усещаше едностранно",
-    "suggestions.cooking.goodFacts.0":
-      "Преоткривам радостта от готвенето за себе си",
-    "suggestions.cooking.goodFacts.1": "Готвенето е акт на самообгрижаване",
-    "suggestions.cooking.goodFacts.2": "Изследвам нови рецепти и вкусове",
-    "suggestions.cooking.lessons.0":
-      "Готвенето трябва да носи радост, а не стрес",
-    "suggestions.cooking.lessons.1":
-      "Мога да готвя за себе си и да се наслаждавам",
-    "suggestions.cooking.lessons.2": "Храната е за хранене и удоволствие",
     "suggestions.reading.hardTruths.0":
       "Спрях да чета, защото се чувствах твърде зает",
     "suggestions.reading.hardTruths.1":
@@ -12641,17 +12324,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.concert.lessons.3":
       "Растежът идва от изправянето срещу трудни истини",
     "suggestions.concert.lessons.4":
-      "По-силен и по-мъдър съм заради това преживяване",
-    "suggestions.cooking.hardTruths.3":
-      "Изправих се с предизвикателства, които разкриха по-дълбоки истини за тази ситуация",
-    "suggestions.cooking.hardTruths.4":
-      "Реалността беше по-трудна, отколкото исках да призная",
-    "suggestions.cooking.goodFacts.3": "Открих сила, която не знаех, че имам",
-    "suggestions.cooking.goodFacts.4":
-      "Това преживяване ме научи на ценни уроци за себе си",
-    "suggestions.cooking.lessons.3":
-      "Растежът идва от изправянето срещу трудни истини",
-    "suggestions.cooking.lessons.4":
       "По-силен и по-мъдър съм заради това преживяване",
     "suggestions.cuddle.hardTruths.3":
       "Изправих се с предизвикателства, които разкриха по-дълбоки истини за тази ситуация",
@@ -13592,55 +13264,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.writing.lessons.4":
       "По-силен и по-мъдър съм заради това преживяване",
 
-    "suggestions.breakfast.hardTruths.0":
-      "Яденето на закуска сам се усещаше празно",
-    "suggestions.breakfast.hardTruths.1":
-      "Сутрешните рутини ми напомняха за споделени моменти",
-    "suggestions.breakfast.hardTruths.2":
-      "Трябваше да се науча да започвам деня сам",
-    "suggestions.breakfast.hardTruths.3":
-      "Закуската без тях се усещаше непълна",
-    "suggestions.breakfast.hardTruths.4": "Сутрешното кафе върна спомени",
-    "suggestions.breakfast.goodFacts.0":
-      "Създавам собствена мирна сутрешна рутина",
-    "suggestions.breakfast.goodFacts.1":
-      "Закуската сам сега е мирен старт на деня ми",
-    "suggestions.breakfast.goodFacts.2":
-      "Мога да ям каквото искам, когато искам",
-    "suggestions.breakfast.goodFacts.3":
-      "Сутрешните рутини сега са мои да проектирам",
-    "suggestions.breakfast.goodFacts.4":
-      "Уча се да се наслаждавам на самостоятелни сутрини",
-    "suggestions.breakfast.lessons.0": "Мога да започна деня си добре сам",
-    "suggestions.breakfast.lessons.1":
-      "Сутрешните рутини могат да бъдат мирни самостоятелни дейности",
-    "suggestions.breakfast.lessons.2": "Не ми трябва компания за всяко хранене",
-    "suggestions.breakfast.lessons.3":
-      "Моят ден започва, когато избера да го започна",
-    "suggestions.breakfast.lessons.4":
-      "Простите сутрешни ритуали могат да бъдат изцеляващи",
-    "suggestions.dinner.hardTruths.0": "Вечерята сам се усещаше самотно",
-    "suggestions.dinner.hardTruths.1":
-      "Липсваше ми споделените вечерни хранения",
-    "suggestions.dinner.hardTruths.2":
-      "Вечерните хранения ми напомняха за заедно",
-    "suggestions.dinner.hardTruths.3": "Яденето сам стана символ на промяната",
-    "suggestions.dinner.hardTruths.4":
-      "Трябваше да се науча да се наслаждавам на самостоятелни вечери",
-    "suggestions.dinner.goodFacts.0": "Създавам мирни рутини за вечеря",
-    "suggestions.dinner.goodFacts.1": "Вечерята сам сега е мое време",
-    "suggestions.dinner.goodFacts.2":
-      "Мога да готвя и да ям каквото наистина харесвам",
-    "suggestions.dinner.goodFacts.3":
-      "Вечерните хранения са моменти на самообгрижаване",
-    "suggestions.dinner.goodFacts.4":
-      "Уча се да се наслаждавам на самостоятелно хранене",
-    "suggestions.dinner.lessons.0": "Мога да се наслаждавам на хранения сам",
-    "suggestions.dinner.lessons.1":
-      "Самостоятелното хранене може да бъде мирно и удовлетворяващо",
-    "suggestions.dinner.lessons.2": "Не ми трябва компания за всяко хранене",
-    "suggestions.dinner.lessons.3": "Вечерните рутини са мои да проектирам",
-    "suggestions.dinner.lessons.4": "Времето за вечеря е мое лично време",
     "suggestions.cooking.hardTruths.0":
       "Готвенето за един се усещаше безсмислено",
     "suggestions.cooking.hardTruths.1": "Липсваше ми да готвя заедно",
@@ -13661,26 +13284,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.cooking.lessons.2": "Не ми трябва някой да готви за",
     "suggestions.cooking.lessons.3": "Кухненското творчество е изцяло мое",
     "suggestions.cooking.lessons.4": "Готвенето ми носи радост и мир",
-    "suggestions.morning.hardTruths.0": "Сутрините се усещаха празни без тях",
-    "suggestions.morning.hardTruths.1": "Събуждането сам беше трудно",
-    "suggestions.morning.hardTruths.2":
-      "Сутрешните рутини ми напомняха за загуба",
-    "suggestions.morning.hardTruths.3": "Борех се да започна деня",
-    "suggestions.morning.hardTruths.4": "Сутрините върнаха болезнени спомени",
-    "suggestions.morning.goodFacts.0": "Създавам мирни сутрешни ритуали",
-    "suggestions.morning.goodFacts.1": "Сутрините сега са мои да проектирам",
-    "suggestions.morning.goodFacts.2":
-      "Мога да започна деня в собственото си темпо",
-    "suggestions.morning.goodFacts.3":
-      "Сутрешното време сега е за самообгрижаване",
-    "suggestions.morning.goodFacts.4":
-      "Уча се да се наслаждавам на тихи сутрини",
-    "suggestions.morning.lessons.0": "Мога да създам собствена сутрешна рутина",
-    "suggestions.morning.lessons.1":
-      "Сутрините могат да бъдат мирни и продуктивни",
-    "suggestions.morning.lessons.2": "Не ми трябва някой да започва деня",
-    "suggestions.morning.lessons.3": "Моята сутрин е моя да се наслаждавам",
-    "suggestions.morning.lessons.4": "Простите сутрешни ритуали изцеляват",
     "suggestions.evening.hardTruths.0": "Вечерите се усещаха дълги и самотни",
     "suggestions.evening.hardTruths.1":
       "Липсваше ми споделената вечерна рутина",
@@ -13700,22 +13303,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.evening.lessons.2": "Не ми трябва компания за всяка вечер",
     "suggestions.evening.lessons.3": "Моите вечери са мои да проектирам",
     "suggestions.evening.lessons.4": "Вечерните рутини носят мир",
-    "suggestions.night.hardTruths.0": "Нощите бяха най-трудните",
-    "suggestions.night.hardTruths.1": "Борех се да спя сам",
-    "suggestions.night.hardTruths.2": "Нощното време донесе тревожност",
-    "suggestions.night.hardTruths.3": "Тъмните часове се усещаха безкрайни",
-    "suggestions.night.hardTruths.4": "Липсваше ми нощният разговор",
-    "suggestions.night.goodFacts.0": "Уча се да намеря мир през нощта",
-    "suggestions.night.goodFacts.1": "Нощите стават все по-мирни",
-    "suggestions.night.goodFacts.2": "Мога да се наслаждавам на тихи нощи",
-    "suggestions.night.goodFacts.3":
-      "Нощното време сега е за почивка и размисъл",
-    "suggestions.night.goodFacts.4": "Изграждам по-добри навици за сън",
-    "suggestions.night.lessons.0": "Мога да намеря мир в тъмнината",
-    "suggestions.night.lessons.1": "Нощите могат да бъдат възстановяващи",
-    "suggestions.night.lessons.2": "Не ми трябва някой да спя добре",
-    "suggestions.night.lessons.3": "Моите нощи са мои да почивам",
-    "suggestions.night.lessons.4": "Мирът идва с времето",
     "suggestions.kitchen.hardTruths.0": "Кухнята се усещаше празна без тях",
     "suggestions.kitchen.hardTruths.1":
       "Готварските пространства ми напомняха за загуба",
@@ -13755,26 +13342,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.bathroom.lessons.2": "Не ми трябва помощ за основна грижа",
     "suggestions.bathroom.lessons.3": "Моето самообгрижаване е мой приоритет",
     "suggestions.bathroom.lessons.4": "Грижането за себе си е изцеляващо",
-    "suggestions.office.hardTruths.0":
-      "Офисът се усещаше различен след раздялата",
-    "suggestions.office.hardTruths.1": "Работната среда ми напомни за стреса",
-    "suggestions.office.hardTruths.2":
-      "Трябваше да се концентрирам въпреки емоционалната болка",
-    "suggestions.office.hardTruths.3": "Работата стана бягство и бреме",
-    "suggestions.office.hardTruths.4":
-      "Офисното пространство се усещаше празно",
-    "suggestions.office.goodFacts.0":
-      "Изграждам по-добър баланс между работа и живот",
-    "suggestions.office.goodFacts.1": "Офисът сега е само за работа",
-    "suggestions.office.goodFacts.2": "Мога да се фокусирам върху кариерата си",
-    "suggestions.office.goodFacts.3": "Работата осигурява стабилност",
-    "suggestions.office.goodFacts.4": "Постигам професионални цели",
-    "suggestions.office.lessons.0": "Мога да успея на работа независимо",
-    "suggestions.office.lessons.1":
-      "Работата и личният живот могат да бъдат отделени",
-    "suggestions.office.lessons.2": "Кариерата ми не зависи от тях",
-    "suggestions.office.lessons.3": "Професионалният растеж е мой",
-    "suggestions.office.lessons.4": "Работният успех е мое постижение",
     "suggestions.library.hardTruths.0":
       "Посещенията в библиотеката се усещаха самотни",
     "suggestions.library.hardTruths.1": "Ученето сам беше трудно",
@@ -13819,23 +13386,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.cafe.lessons.2": "Не ми трябва компания за кафе",
     "suggestions.cafe.lessons.3": "Моето време в кафене е мое",
     "suggestions.cafe.lessons.4": "Общественото усамотение е овластяващо",
-    "suggestions.reading.hardTruths.0": "Четенето сам се усещаше различно",
-    "suggestions.reading.hardTruths.1":
-      "Липсваше ми споделените моменти на четене",
-    "suggestions.reading.hardTruths.2": "Книгите ми напомняха за разговори",
-    "suggestions.reading.hardTruths.3": "Четенето загуби радостта си временно",
-    "suggestions.reading.hardTruths.4":
-      "Борех се да се концентрирам върху книгите",
-    "suggestions.reading.goodFacts.0": "Преоткривам любовта си към четенето",
-    "suggestions.reading.goodFacts.1": "Четенето сега е мирно и лично",
-    "suggestions.reading.goodFacts.2": "Мога да чета каквото искам",
-    "suggestions.reading.goodFacts.3": "Книгите са моите спътници",
-    "suggestions.reading.goodFacts.4": "Намирам нови любими автори",
-    "suggestions.reading.lessons.0": "Мога да се наслаждавам на четене сам",
-    "suggestions.reading.lessons.1": "Четенето е лично пътуване",
-    "suggestions.reading.lessons.2": "Книгите не изискват компания",
-    "suggestions.reading.lessons.3": "Времето ми за четене е свещено",
-    "suggestions.reading.lessons.4": "Историите ми помагат да се изцелявам",
     "suggestions.watching.hardTruths.0":
       "Гледането на предавания сам се усещаше празно",
     "suggestions.watching.hardTruths.1": "Липсваше ми споделеното гледане",
@@ -13894,23 +13444,6 @@ const translations: Record<Language, Translations> = {
     "suggestions.conversation.lessons.2": "Не ми трябват те, за да разговарям",
     "suggestions.conversation.lessons.3": "Моят глас има значение",
     "suggestions.conversation.lessons.4": "Честните разговори изцеляват",
-    "suggestions.meeting.hardTruths.0": "Срещите се усещаха неудобни",
-    "suggestions.meeting.hardTruths.1": "Обществените събирания бяха трудни",
-    "suggestions.meeting.hardTruths.2": "Усетих се извън място",
-    "suggestions.meeting.hardTruths.3":
-      "Груповите настройки подчертаха моето самота",
-    "suggestions.meeting.hardTruths.4": "Липсваше ми да имам спътник",
-    "suggestions.meeting.goodFacts.0": "Ставам по-удобен в групи",
-    "suggestions.meeting.goodFacts.1": "Срещите са по-малко стресиращи сега",
-    "suggestions.meeting.goodFacts.2": "Мога да навигирам социални ситуации",
-    "suggestions.meeting.goodFacts.3": "Изграждам социална увереност",
-    "suggestions.meeting.goodFacts.4": "Груповите настройки са управляеми",
-    "suggestions.meeting.lessons.0": "Мога да се справям със срещи независимо",
-    "suggestions.meeting.lessons.1": "Социалната увереност расте",
-    "suggestions.meeting.lessons.2": "Не ми трябва партньор за събития",
-    "suggestions.meeting.lessons.3": "Моето присъствие е достатъчно",
-    "suggestions.meeting.lessons.4":
-      "Уча се да се наслаждавам на социално време",
     "suggestions.bus.hardTruths.0": "Пътуванията с автобус се усещаха самотни",
     "suggestions.bus.hardTruths.1":
       "Общественият транспорт ми напомни за пътуването заедно",
@@ -14551,7 +14084,7 @@ const translations: Record<Language, Translations> = {
     "suggestions.liberation.lessons.3": "Освобождението носи мир",
     "suggestions.liberation.lessons.4": "Заслужавам да живея освободен живот",
   },
-};
+} as Record<Language, Translations>;
 
 export const getTranslation = (
   key: keyof Translations,

@@ -11,6 +11,20 @@ import type { LifeSphere } from "./JourneyProvider";
 // Runtime flag for mock AI requests (set to true to use slow mock requests for testing)
 const USE_MOCK_AI_REQUEST = __DEV__ && false; // Set to true to enable mock requests
 
+/** When UI is Bulgarian, force model output to Bulgarian even if the transcript is English (STT fallback). */
+function entityExtractionOutputLanguageRules(language: string): string {
+  if (language !== "bg") {
+    return "";
+  }
+  return `
+
+OUTPUT LANGUAGE (Bulgarian UI — mandatory):
+- The user's text may be entirely in English (speech recognition fallback). Ignore input language for OUTPUT.
+- Write every description in natural Bulgarian (Cyrillic). For entity titles, use Bulgarian for common activities/roles; keep proper personal names as the user said them if they are names.
+- Family field relationship: MUST be Bulgarian kinship words — сестра, майка, баща, брат, баба, дядо, леля, чичо, съпруг, съпруга, син, дъщеря, внук, внучка, братовчед, снаха, зет, и т.н. Never English sister, mother, father, brother, etc.
+- For hobbies, prefer a natural Bulgarian name when one exists (e.g. планински преходи, планинарство instead of leaving the title as "Hiking").`;
+}
+
 export interface AIMessage {
   role: "user" | "assistant" | "system";
   content: string;
@@ -25,20 +39,29 @@ export interface AIRequestContext {
   sferas: {
     relationships?: {
       name: string;
-      relationshipType?: string;
+      /** User's short label for this person (ex-partner, how they think of them) — may match story wording. */
+      description?: string;
       isOngoing?: boolean;
       startDate?: string;
       endDate?: string | null;
     }[];
     career?: {
       name: string;
+      /** Optional free-text the user added (company, role notes). */
+      description?: string;
       isCurrent?: boolean;
       startDate?: string;
       endDate?: string | null;
     }[];
-    family?: { name: string; relationship?: string }[];
-    friends?: string[];
-    hobbies?: string[];
+    family?: {
+      name: string;
+      /** Structured role, e.g. Mother, Brother. */
+      relationship?: string;
+      /** User free-text; often how they refer to this person in stories ("my mother", etc.). */
+      description?: string;
+    }[];
+    friends?: { name: string; description?: string }[];
+    hobbies?: { name: string; description?: string }[];
   };
   language?: string;
 }
@@ -113,19 +136,23 @@ export async function processMemoryPrompt(
   if (USE_MOCK_AI_REQUEST) {
     await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate delay
     return {
-      memory: {
-        title: "Mock Memory",
-        description: prompt.substring(0, 100),
-        date: new Date().toISOString(),
-      },
-      moments: [
+      memories: [
         {
-          type: "sunnyMoments",
-          text: "This is a mock sunny moment",
-        },
-        {
-          type: "lessonsLearned",
-          text: "This is a mock lesson",
+          memory: {
+            title: "Mock Memory",
+            description: prompt.substring(0, 100),
+            date: new Date().toISOString(),
+          },
+          moments: [
+            {
+              type: "sunnyMoments",
+              text: "This is a mock sunny moment",
+            },
+            {
+              type: "lessonsLearned",
+              text: "This is a mock lesson",
+            },
+          ],
         },
       ],
     };
@@ -136,66 +163,87 @@ export async function processMemoryPrompt(
 
   const responseSchema = Schema.object({
     properties: {
-      memory: Schema.object({
-        properties: {
-          title: Schema.string({
-            description: "Short title for the memory (3-6 words)",
-          }),
-          description: Schema.string({
-            description: "Brief description of the memory (1-2 sentences)",
-          }),
-          date: Schema.string({
-            description: "ISO date string for when this memory occurred",
-          }),
-        },
-        required: ["title", "description", "date"],
-      }),
       sphere: Schema.string({
         enum: ["relationships", "career", "family", "friends", "hobbies"],
         description:
-          "The life sphere this memory belongs to. Pick the best match based on the story content.",
+          "The default/best-fit life sphere for this story. Pick the best match based on story content.",
       }),
       entityName: Schema.string({
         description:
-          "Name of the specific entity (person, job, hobby, etc.) this memory is about. Must match one of the names from the user's Sferas context if provided.",
+          "The default/best-fit entity name for this story. Must match one of the names from the user's Sferas context if provided.",
       }),
-      moments: Schema.array({
+      memories: Schema.array({
         items: Schema.object({
           properties: {
-            type: Schema.string({
-              enum: ["sunnyMoments", "lessonsLearned", "hardTruths"],
-              description: "Type of moment",
+            memory: Schema.object({
+              properties: {
+                title: Schema.string({
+                  description: "Short title for the memory (3-6 words)",
+                }),
+                description: Schema.string({
+                  description: "Brief description of the memory (1-2 sentences)",
+                }),
+                date: Schema.string({
+                  description: "ISO date string for when this memory occurred",
+                }),
+              },
+              required: ["title", "description", "date"],
             }),
-            text: Schema.string({
+            moments: Schema.array({
+              items: Schema.object({
+                properties: {
+                  type: Schema.string({
+                    enum: ["sunnyMoments", "lessonsLearned", "hardTruths"],
+                    description: "Type of moment",
+                  }),
+                  text: Schema.string({
+                    description:
+                      'First-person moment text ("I", "my"). For lessonsLearned: a complete reflection in 1–3 sentences (full sentences, not a fragment). For others: as appropriate.',
+                  }),
+                  notificationMessage: Schema.string({
+                    description:
+                      "REQUIRED for sunnyMoments and lessonsLearned: As Sfera addressing the user. Use second person and REFLECT what they did/learned (e.g. 'You learned that...', 'You discovered...', 'You felt...'). Max 15-20 words. No imperatives. Use empty string for hardTruths.",
+                  }),
+                },
+                required: ["type", "text", "notificationMessage"],
+              }),
               description:
-                'First-person moment text ("I", "my"). For lessonsLearned: a complete reflection in 1–3 sentences (full sentences, not a fragment). For others: as appropriate.',
+                "Moments for this specific memory. Include 2-4 sunny moments, 1-2 lessons, 0-2 hard truths.",
             }),
-            notificationMessage: Schema.string({
+            sphere: Schema.string({
+              enum: ["relationships", "career", "family", "friends", "hobbies"],
               description:
-                "REQUIRED for sunnyMoments and lessonsLearned: As Sfera addressing the user. Use second person and REFLECT what they did/learned (e.g. 'You learned that...', 'You discovered...', 'You felt...'). Max 15-20 words. No imperatives. Use empty string for hardTruths.",
+                "Life sphere THIS memory belongs to (may differ from other memories in the same story).",
+            }),
+            entityName: Schema.string({
+              description:
+                "Entity THIS memory is about (person, job, family member, friend, hobby). Prefer the canonical **name** from User's Sferas context when the story refers to someone described there (e.g. user says 'my mother' and context shows name 'Tanya' with description or relationship indicating mother). If the story implies someone not in context, use the clearest label from the story.",
             }),
           },
-          required: ["type", "text", "notificationMessage"],
+          required: ["memory", "moments", "sphere", "entityName"],
         }),
       }),
     },
-    required: ["memory", "sphere", "entityName", "moments"],
+    required: ["sphere", "entityName", "memories"],
   });
 
-  const systemPrompt = `Sfera AI coach. Analyze the user's story and extract:
-1. ONE memory (title, description, date)
-2. The life sphere and entity name this memory belongs to
-3. Multiple moments: sunnyMoments (goodFacts), lessonsLearned, hardTruths
+  const systemPrompt = `Sfera AI coach. The user may tell one story that spans several life spheres and several people or roles. Analyze the story and extract:
+1. ONE OR MORE separate memories (each with title, description, date)
+2. For EACH memory you MUST assign:
+   - sphere: exactly one of relationships, career, family, friends, hobbies — the sphere that best fits THAT memory (different memories may use different spheres).
+   - entityName: the specific person, job, family member, friend, or hobby that memory is about — use the **name** field from User's Sferas context when the story clearly refers to that entity (match story phrases to each entity's **name**, **description**, **relationship**, dates, etc.). If nobody in context fits, use the clearest label from the story.
+3. For EACH memory, moments: sunnyMoments (goodFacts), lessonsLearned, hardTruths
 
 CRITICAL: Generate moments in FIRST PERSON ("I", "my", "me") as if the user wrote them.
 
 Respond in ${languageName} (${languageCode}). JSON only.
 
 Rules:
-- Memory: Realistic title and description based on the story
-- Sphere: Pick the best matching sphere (relationships, career, family, friends, hobbies)
-- Entity name: The specific person, job, family member, friend, or hobby name from the user's context. Must match an existing name if context is provided.
-- Moments: Extract 2-4 sunny moments, 1-2 lessons, 0-2 hard truths
+- Memories: Return 1-3 memories. Use more than one when the story clearly contains distinct episodes, time periods, or different people/spheres.
+- Do NOT attach every memory to the same sphere unless the story truly only concerns one sphere.
+- Top-level sphere and entityName: set to the best default for the overall story (often the first or dominant memory); each memory must still carry its own sphere and entityName.
+- User's Sferas context JSON may include optional **description** on each entity (user's own words) plus **relationship** for family. Use these to resolve indirect references (e.g. "my mother", "that job downtown") to the correct **name** in entityName.
+- For each memory's moments: Extract 2-4 sunny moments, 1-2 lessons, 0-2 hard truths
 - Use first person perspective ("I learned...", "I felt...", "My experience...")
 - Be honest about hard truths but compassionate
 - Lessons: write the full insight in 1–3 complete sentences (do not stop mid-thought); actionable and specific
@@ -249,9 +297,37 @@ REQUIRED: For EVERY sunnyMoments and lessonsLearned moment you MUST provide noti
   });
 
   const responseText = result.response.text();
-  const parsed = JSON.parse(responseText);
+  const parsed = JSON.parse(responseText) as AIMemoryResponse;
 
-  return parsed as AIMemoryResponse;
+  // Backward compatibility: older responses may still return single-memory shape.
+  if (!parsed.memories || parsed.memories.length === 0) {
+    const singleMemory = parsed.memory;
+    const singleMoments = parsed.moments;
+    if (singleMemory && Array.isArray(singleMoments)) {
+      return {
+        ...parsed,
+        memories: [
+          {
+            memory: singleMemory,
+            moments: singleMoments,
+            sphere: parsed.sphere,
+            entityName: parsed.entityName,
+          },
+        ],
+      };
+    }
+  }
+
+  // Fill per-memory sphere/entity from top-level fallbacks if the model omitted them.
+  if (parsed.memories?.length) {
+    parsed.memories = parsed.memories.map((m) => ({
+      ...m,
+      sphere: m.sphere ?? parsed.sphere!,
+      entityName: (m.entityName ?? parsed.entityName ?? "").trim(),
+    }));
+  }
+
+  return parsed;
 }
 
 /**
@@ -665,7 +741,9 @@ export async function processEntityCreationPrompt(
   if (sphere === "family") {
     entityProperties.relationship = Schema.string({
       description:
-        "Relationship type (e.g. mother, father, sister, brother, aunt, uncle, grandmother, grandfather, cousin)",
+        language === "bg"
+          ? "Вид роднина на български: майка, баща, сестра, брат, баба, дядо, леля, чичо, съпруг, съпруга, син, дъщеря, внук, внучка, братовчед, … (никога на английски)."
+          : "Relationship type (e.g. mother, father, sister, brother, aunt, uncle, grandmother, grandfather, cousin)",
     });
     requiredFields.push("relationship");
   }
@@ -693,10 +771,12 @@ export async function processEntityCreationPrompt(
 
   const familyGuidance =
     sphere === "family"
-      ? `\n- Include the relationship type (mother, father, sister, etc.) for each family member`
+      ? language === "bg"
+        ? `\n- За всяко семейно поле relationship използвай само български думи за роднина (сестра, майка, …).`
+        : `\n- Include the relationship type (mother, father, sister, etc.) for each family member`
       : "";
 
-  const systemPrompt = `Sfera AI coach. ${spherePrompts[sphere]}.
+  const systemPrompt = `Sfera AI coach. ${spherePrompts[sphere]}.${entityExtractionOutputLanguageRules(language)}
 
 Respond in ${languageName} (${languageCode}). JSON only.
 
@@ -733,17 +813,31 @@ Rules:
 }
 
 export interface AIMemoryResponse {
-  memory: {
+  memory?: {
     title: string;
     description: string;
     date: string;
   };
   sphere?: "relationships" | "career" | "family" | "friends" | "hobbies";
   entityName?: string;
-  moments: {
+  moments?: {
     type: "sunnyMoments" | "lessonsLearned" | "hardTruths";
     text: string;
     notificationMessage?: string;
+  }[];
+  memories: {
+    memory: {
+      title: string;
+      description: string;
+      date: string;
+    };
+    sphere: "relationships" | "career" | "family" | "friends" | "hobbies";
+    entityName: string;
+    moments: {
+      type: "sunnyMoments" | "lessonsLearned" | "hardTruths";
+      text: string;
+      notificationMessage?: string;
+    }[];
   }[];
 }
 
@@ -802,7 +896,12 @@ export async function processOnboardingPrompt(
       isCurrent: Schema.boolean({ description: "For relationships/career: whether current (true) or past (false)" }),
       startDate: Schema.string({ description: "For relationships/career: approximate start date YYYY-MM-DD" }),
       endDate: Schema.string({ description: "For relationships/career: end date YYYY-MM-DD if past" }),
-      relationship: Schema.string({ description: "For family only: relationship type (mother, father, sister, etc.)" }),
+      relationship: Schema.string({
+        description:
+          language === "bg"
+            ? "Само за семейство: вид роднина на български (майка, баща, сестра, брат, …), не на английски."
+            : "For family only: relationship type (mother, father, sister, etc.)",
+      }),
     },
     required: ["name", "description"],
   });
@@ -851,9 +950,11 @@ CRITICAL: Extract EVERY entity mentioned. Return entities grouped by sphere. For
 Rules:
 - relationships: Include isCurrent, startDate, endDate (if past). Do NOT suggest a relationship entity for being single—e.g. never create "Self" or similar when the user only says they are or have been single. This sphere is for actual romantic partners or ex-partners only; leave relationships array empty if none are mentioned.
 - career: Include isCurrent, startDate, endDate (if past)
-- family: Include relationship (mother, father, sister, brother, etc.)
+- family: Include relationship — ${language === "bg" ? "always Bulgarian kinship words (сестра, майка, баща, …), never English." : "mother, father, sister, brother, etc."}
 - friends, hobbies: Just name and description
 - Write descriptions in natural human language. Never use technical/meta labels like "user", "client", "subject", "person", or "entity" to refer to the storyteller; instead phrase directly (e.g. "Lives with me", "Works at X", "Close childhood friend").
+
+${entityExtractionOutputLanguageRules(language).trim()}
 
 Respond in ${languageName} (${languageCode}). JSON only.`;
 

@@ -1447,18 +1447,6 @@ export function OnboardingWizard({
           >
             {t("onboarding.language.title")}
           </ThemedText>
-          <ThemedText
-            size="m"
-            style={{
-              marginTop: 8 * fontScale,
-              color:
-                colorScheme === "dark"
-                  ? "rgba(255, 255, 255, 0.65)"
-                  : "rgba(0, 0, 0, 0.6)",
-            }}
-          >
-            {t("onboarding.language.subtitle")}
-          </ThemedText>
         </View>
         <View style={[styles.content, { justifyContent: "center", gap: 16 * fontScale }]}>
           <TouchableOpacity
@@ -2036,12 +2024,16 @@ export function OnboardingWizard({
               />
             ) : (
               <ThemedText
-                size="l"
+                size="m"
                 weight="bold"
                 style={{
                   color: "#FFFFFF",
                   textAlign: "center",
+                  paddingHorizontal: 10 * fontScale,
                 }}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.52}
               >
                 {t("onboarding.continueManualMode")}
               </ThemedText>

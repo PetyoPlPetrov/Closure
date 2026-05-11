@@ -17,6 +17,14 @@ import {
     type PendingAIResponse,
 } from "@/utils/ai-background-processor";
 import {
+    AI_MODAL_RESULTS_DRAFT_VERSION,
+    clearAIModalResultsDraft,
+    getAIModalResultsDraft,
+    getAIModalSessionKey,
+    saveAIModalResultsDraft,
+    type AIModalResultsDraftV1,
+} from "@/utils/ai-modal-results-draft";
+import {
   consumeAIRequestIfAvailable,
   getRemainingAIRequests,
   REQUESTS_PER_DAY_PREMIUM,
@@ -52,7 +60,7 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -116,6 +124,15 @@ interface AIMemoryItem {
   notificationMessage?: string;
 }
 
+interface AIMemoryDraft {
+  id: string;
+  title: string;
+  items: AIMemoryItem[];
+  sphere: LifeSphere | null;
+  entityId: string | null;
+  entityName: string | null;
+}
+
 export function AIModal({
   visible,
   onClose,
@@ -156,17 +173,19 @@ export function AIModal({
   const [currentView, setCurrentView] = useState<ModalView>("input");
   const [isPickingImage, setIsPickingImage] = useState(false);
   const [aiResponse, setAiResponse] = useState<AIMemoryResponse | null>(null);
-  const [memoryItems, setMemoryItems] = useState<AIMemoryItem[]>([]);
-  const [selectedSphere, setSelectedSphere] = useState<LifeSphere | null>(null);
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
-  const [selectedEntityName, setSelectedEntityName] = useState<string | null>(
+  const [memoryDrafts, setMemoryDrafts] = useState<AIMemoryDraft[]>([]);
+  const [expandedDraftIds, setExpandedDraftIds] = useState<string[]>([]);
+  const [spherePickerDraftId, setSpherePickerDraftId] = useState<string | null>(
     null,
   );
+  const [entityPickerDraftId, setEntityPickerDraftId] = useState<string | null>(
+    null,
+  );
+  const [addEntityDraftId, setAddEntityDraftId] = useState<string | null>(null);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSpherePicker, setShowSpherePicker] = useState(false);
   const [showEntityPicker, setShowEntityPicker] = useState(false);
-  const [showAddEntityForm, setShowAddEntityForm] = useState(false);
   const headerTitleFontSize = (windowWidth <= 430 ? 18 : 20) * fontScale;
 
   // Form fields for adding new entity
@@ -224,17 +243,6 @@ export function AIModal({
     disabled: isProcessing,
   });
   const { isRecording, isListening } = speechToText;
-
-  // Monitor app state to detect when app goes to background
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      setAppState(nextAppState);
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
 
   // Monitor keyboard visibility to adjust mic button size
   useEffect(() => {
@@ -314,10 +322,10 @@ export function AIModal({
 
   // Loading messages that rotate
   const loadingMessages = [
-    t("ai.loading.thinking") || "AI is thinking...",
-    t("ai.loading.analyzing") || "Analyzing your thoughts...",
-    t("ai.loading.processing") || "Processing memories...",
-    t("ai.loading.generating") || "Generating insights...",
+    t("ai.loading.thinking"),
+    t("ai.loading.analyzing"),
+    t("ai.loading.processing"),
+    t("ai.loading.generating"),
   ];
 
   // Animation values
@@ -335,53 +343,268 @@ export function AIModal({
 
   const inputRef = useRef<TextInput>(null);
 
-  // Check for pending AI response when modal opens or when pendingResponse prop changes
-  useEffect(() => {
-    if (visible) {
-      // Reset minimizing flag when modal opens
-      isMinimizingRef.current = false;
+  const openContextRef = useRef<{
+    goldenEventId: string | null | undefined;
+    onboardingSferaAI: AIModalProps["onboardingSferaAI"];
+  }>({ goldenEventId: null, onboardingSferaAI: null });
 
-      // Always check for pending response when modal opens
-      // This handles cases where modal was minimized and response arrived
-      const checkAndRestore = async () => {
-        // Ensure App Check token is ready before user can submit
-        // iOS-friendly approach: Use getToken(true) to request a fresh token
-        // This ensures the token is available when the user presses submit
-        if (isAppCheckInitialized()) {
-          await ensureAppCheckToken();
-        }
+  const unsavedResultsSnapshotRef = useRef<Omit<
+    AIModalResultsDraftV1,
+    "version" | "timestamp" | "sessionKey"
+  > | null>(null);
 
-        // First check prop (from parent component)
-        if (pendingResponse?.response) {
-          // Move to loading view first
-          setCurrentView("loading");
-          setIsProcessing(true);
-          // Process pending response from prop
-          // Don't clear AsyncStorage here - keep it until user saves or discards
-          try {
-            await processAIResponse(pendingResponse.response);
-          } catch (error) {
-            setIsProcessing(false);
-            const errorMsg =
-              error instanceof Error
-                ? error.message
-                : t("ai.error.send") || "Failed to process memory";
-            setErrorMessage(errorMsg);
-            setCurrentView("error");
-            if (backgroundRequestId) {
-              await stopBackgroundAIProcessing();
-              setBackgroundRequestId(null);
-            }
-          }
-        } else {
-          // Check storage for pending response (in case prop wasn't updated yet)
-          await checkPendingAIResponse();
-        }
-      };
+  const persistReviewDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
-      checkAndRestore();
+  /** Writes current unsaved review snapshot to AsyncStorage (used on close, debounced while editing, and on app background). */
+  const flushAIModalReviewDraftToStorage = useCallback(async () => {
+    const snap = unsavedResultsSnapshotRef.current;
+    const ctx = openContextRef.current;
+    if (
+      !snap?.aiResponse ||
+      !snap.memoryDrafts.some((d) => d.items.length > 0)
+    ) {
+      return;
     }
-  }, [visible, pendingResponse]);
+    const sessionKey = getAIModalSessionKey({
+      goldenEventId: ctx.goldenEventId ?? null,
+      onboardingSferaAI: ctx.onboardingSferaAI ?? null,
+    });
+    await saveAIModalResultsDraft({
+      version: AI_MODAL_RESULTS_DRAFT_VERSION,
+      timestamp: Date.now(),
+      sessionKey,
+      ...snap,
+    });
+  }, []);
+
+  /** Removes AsyncStorage draft + in-RAM snapshot so close/save/discard cannot resurrect old state. */
+  const forgetPersistedAIModalReviewState = useCallback(async () => {
+    if (persistReviewDraftTimerRef.current) {
+      clearTimeout(persistReviewDraftTimerRef.current);
+      persistReviewDraftTimerRef.current = null;
+    }
+    unsavedResultsSnapshotRef.current = null;
+    await clearAIModalResultsDraft();
+  }, []);
+
+  // App state: used for foreground AI send + persist unsaved review when app leaves foreground.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      setAppState(nextAppState);
+      if (nextAppState === "background" || nextAppState === "inactive") {
+        void flushAIModalReviewDraftToStorage();
+      }
+    });
+    return () => subscription.remove();
+  }, [flushAIModalReviewDraftToStorage]);
+
+  const pendingResponseRef = useRef(pendingResponse);
+  useEffect(() => {
+    pendingResponseRef.current = pendingResponse;
+  }, [pendingResponse]);
+
+  useEffect(() => {
+    openContextRef.current = { goldenEventId, onboardingSferaAI };
+  }, [goldenEventId, onboardingSferaAI]);
+
+  // While the modal is open, keep a snapshot for AsyncStorage if the user closes without saving.
+  // Also debounce-write to disk so force-kill shortly after editing still leaves a recoverable draft.
+  useEffect(() => {
+    if (persistReviewDraftTimerRef.current) {
+      clearTimeout(persistReviewDraftTimerRef.current);
+      persistReviewDraftTimerRef.current = null;
+    }
+
+    if (!visible) {
+      return;
+    }
+    if (
+      aiResponse &&
+      memoryDrafts.some((d) => d.items.length > 0)
+    ) {
+      unsavedResultsSnapshotRef.current = {
+        aiResponse,
+        memoryDrafts,
+        expandedDraftIds,
+        inputText,
+        addEntityDraftId,
+        showValidationErrors,
+        newEntityName,
+        newEntityDescription,
+        newEntityRelationship,
+        newEntityStartDateIso: newEntityStartDate
+          ? newEntityStartDate.toISOString()
+          : null,
+        newEntityEndDateIso: newEntityEndDate
+          ? newEntityEndDate.toISOString()
+          : null,
+        newEntityIsCurrent,
+        newEntityImage,
+      };
+      persistReviewDraftTimerRef.current = setTimeout(() => {
+        persistReviewDraftTimerRef.current = null;
+        void flushAIModalReviewDraftToStorage();
+      }, 700);
+    }
+
+    return () => {
+      if (persistReviewDraftTimerRef.current) {
+        clearTimeout(persistReviewDraftTimerRef.current);
+        persistReviewDraftTimerRef.current = null;
+      }
+    };
+  }, [
+    visible,
+    aiResponse,
+    memoryDrafts,
+    expandedDraftIds,
+    inputText,
+    addEntityDraftId,
+    showValidationErrors,
+    newEntityName,
+    newEntityDescription,
+    newEntityRelationship,
+    newEntityStartDate,
+    newEntityEndDate,
+    newEntityIsCurrent,
+    newEntityImage,
+    flushAIModalReviewDraftToStorage,
+  ]);
+
+  // Boot: pending AI pipeline, then restored unsaved review draft, then fresh onboarding/default.
+  useEffect(() => {
+    if (!visible) return;
+    isMinimizingRef.current = false;
+    let cancelled = false;
+
+    const boot = async () => {
+      if (isAppCheckInitialized()) {
+        await ensureAppCheckToken();
+      }
+      if (cancelled) return;
+
+      const sessionKey = getAIModalSessionKey({
+        goldenEventId: goldenEventId ?? null,
+        onboardingSferaAI: onboardingSferaAI ?? null,
+      });
+
+      const propPending = pendingResponseRef.current?.response;
+      if (propPending) {
+        setCurrentView("loading");
+        setIsProcessing(true);
+        try {
+          await processAIResponse(propPending);
+        } catch (error) {
+          setIsProcessing(false);
+          const errorMsg =
+            error instanceof Error
+              ? error.message
+              : t("ai.error.send");
+          setErrorMessage(errorMsg);
+          setCurrentView("error");
+          if (backgroundRequestId) {
+            await stopBackgroundAIProcessing();
+            setBackgroundRequestId(null);
+          }
+        }
+        return;
+      }
+
+      const pendingResp = await getPendingAIResponse();
+      const pendingReq = await getPendingAIRequest();
+      const isRunning = await isBackgroundTaskRunning();
+      if (cancelled) return;
+
+      if (pendingResp || pendingReq || isRunning) {
+        await checkPendingAIResponse();
+        return;
+      }
+
+      const draft = await getAIModalResultsDraft();
+      if (cancelled) return;
+
+      if (draft && draft.sessionKey !== sessionKey) {
+        await clearAIModalResultsDraft();
+      } else if (
+        draft &&
+        draft.sessionKey === sessionKey &&
+        Array.isArray(draft.memoryDrafts) &&
+        draft.memoryDrafts.some((m) => m.items?.length > 0)
+      ) {
+        setAiResponse(draft.aiResponse);
+        const migratedDrafts: AIMemoryDraft[] = draft.memoryDrafts.map((m) => ({
+          ...m,
+          sphere:
+            m.sphere ??
+            draft.selectedSphere ??
+            null,
+          entityId: m.entityId ?? draft.selectedEntityId ?? null,
+          entityName: m.entityName ?? draft.selectedEntityName ?? null,
+        }));
+        setMemoryDrafts(migratedDrafts);
+        const restoredExpanded =
+          draft.expandedDraftIds && draft.expandedDraftIds.length > 0
+            ? draft.expandedDraftIds
+            : migratedDrafts.map((d) => d.id);
+        setExpandedDraftIds(restoredExpanded);
+        setSpherePickerDraftId(null);
+        setEntityPickerDraftId(null);
+        setAddEntityDraftId(draft.addEntityDraftId ?? null);
+        setInputText(draft.inputText ?? "");
+        setShowValidationErrors(draft.showValidationErrors ?? false);
+        setNewEntityName(draft.newEntityName ?? "");
+        setNewEntityDescription(draft.newEntityDescription ?? "");
+        setNewEntityRelationship(draft.newEntityRelationship ?? "");
+        setNewEntityStartDate(
+          draft.newEntityStartDateIso
+            ? new Date(draft.newEntityStartDateIso)
+            : null,
+        );
+        setNewEntityEndDate(
+          draft.newEntityEndDateIso
+            ? new Date(draft.newEntityEndDateIso)
+            : null,
+        );
+        setNewEntityIsCurrent(draft.newEntityIsCurrent ?? false);
+        setNewEntityImage(draft.newEntityImage ?? null);
+        setCurrentView("loading");
+        setIsProcessing(false);
+        setErrorMessage(null);
+        setBackgroundRequestId(null);
+        return;
+      }
+
+      if (onboardingSferaAI) {
+        setSpherePickerDraftId(null);
+        setEntityPickerDraftId(null);
+        setAddEntityDraftId(null);
+        setShowSpherePicker(false);
+        setShowEntityPicker(false);
+        setInputText("");
+        setAiResponse(null);
+        setMemoryDrafts([]);
+        setExpandedDraftIds([]);
+        setCurrentView("input");
+        setErrorMessage(null);
+        setShowValidationErrors(false);
+        setBackgroundRequestId(null);
+      }
+    };
+
+    void boot();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    visible,
+    goldenEventId,
+    onboardingSferaAI?.entityId,
+    onboardingSferaAI?.sphere,
+    onboardingSferaAI?.entityName,
+    onboardingSferaAI?.contextBlurb,
+  ]);
 
   // Fetch remaining free AI memory creations when modal is open on input view (not golden event).
   // Also subscribe to badge changes so the displayed limit/remaining updates the moment a memory
@@ -407,30 +630,6 @@ export function AIModal({
     }
   }, [visible, currentView, hasAIEntitlement, goldenEventId, onboardingSferaAI]);
 
-  /** Lock sphere/entity while onboarding Sfera AI bundle is active. */
-  useEffect(() => {
-    if (!visible || !onboardingSferaAI) return;
-    const o = onboardingSferaAI;
-    setSelectedSphere(o.sphere);
-    setSelectedEntityId(o.entityId);
-    setSelectedEntityName(o.entityName);
-    setShowSpherePicker(false);
-    setShowEntityPicker(false);
-    setShowAddEntityForm(false);
-    setInputText("");
-    setAiResponse(null);
-    setMemoryItems([]);
-    setErrorMessage(null);
-    setShowValidationErrors(false);
-    setBackgroundRequestId(null);
-    setCurrentView("input");
-  }, [
-    visible,
-    onboardingSferaAI?.entityId,
-    onboardingSferaAI?.sphere,
-    onboardingSferaAI?.contextBlurb,
-  ]);
-
   // Watch for pendingResponse prop changes while modal is open (for when background task completes)
   useEffect(() => {
     if (visible && isProcessing && !aiResponse && pendingResponse?.response) {
@@ -445,7 +644,7 @@ export function AIModal({
           const errorMsg =
             error instanceof Error
               ? error.message
-              : t("ai.error.send") || "Failed to process memory";
+              : t("ai.error.send");
           setErrorMessage(errorMsg);
           setCurrentView("error");
           if (backgroundRequestId) {
@@ -525,7 +724,7 @@ export function AIModal({
           const errorMsg =
             error instanceof Error
               ? error.message
-              : t("ai.error.send") || "Failed to process memory";
+              : t("ai.error.send");
           setErrorMessage(errorMsg);
           setCurrentView("error");
           setBackgroundRequestId(null);
@@ -550,36 +749,28 @@ export function AIModal({
   // Process AI response and update state
   const processAIResponse = async (response: AIMemoryResponse) => {
     try {
-      // Map the moments[] array into the AIMemoryItem[] format the UI expects
+      await forgetPersistedAIModalReviewState();
+      // Map response memories into draft cards. Fallback to legacy single-memory shape.
       const momentTypeMap: Record<string, AIMemoryItem["type"]> = {
         sunnyMoments: "goodFact",
         hardTruths: "hardTruth",
         lessonsLearned: "lesson",
       };
 
-      const items: AIMemoryItem[] = (response.moments || []).map(
-        (moment, index) => ({
-          id: `${momentTypeMap[moment.type] || "goodFact"}_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 8)}`,
-          type: momentTypeMap[moment.type] || "goodFact",
-          text: moment.text,
-          notificationMessage:
-            (moment as { notificationMessage?: string }).notificationMessage,
-        }),
-      );
+      const responseMemories =
+        response.memories && response.memories.length > 0
+          ? response.memories
+          : response.memory && response.moments
+            ? [
+                {
+                  memory: response.memory,
+                  moments: response.moments,
+                  sphere: response.sphere,
+                  entityName: response.entityName,
+                },
+              ]
+            : [];
 
-      if (__DEV__) {
-        for (const m of response.moments || []) {
-          const nm = (m as { notificationMessage?: string }).notificationMessage;
-          if ((m.type === "sunnyMoments" || m.type === "lessonsLearned") && !nm?.trim()) {
-            console.warn("[AI Modal] Missing notificationMessage for", m.type, m.text?.slice(0, 50));
-          }
-        }
-      }
-
-      setAiResponse(response);
-      setMemoryItems(items);
-
-      // Map AI-suggested sphere and entity into the selection state (or lock during onboarding bundle)
       const validSpheres: LifeSphere[] = [
         "relationships",
         "career",
@@ -588,34 +779,90 @@ export function AIModal({
         "hobbies",
       ];
 
-      if (onboardingSferaAI) {
-        setSelectedSphere(onboardingSferaAI.sphere);
-        setSelectedEntityId(onboardingSferaAI.entityId);
-        setSelectedEntityName(onboardingSferaAI.entityName);
-      } else if (response.sphere && validSpheres.includes(response.sphere)) {
-        setSelectedSphere(response.sphere);
+      const entityLists: Record<LifeSphere, { id: string; name: string }[]> = {
+        relationships: profiles.map((p) => ({ id: p.id, name: p.name })),
+        career: jobs.map((j) => ({ id: j.id, name: j.name })),
+        family: familyMembers.map((f) => ({ id: f.id, name: f.name })),
+        friends: friends.map((f) => ({ id: f.id, name: f.name })),
+        hobbies: hobbies.map((h) => ({ id: h.id, name: h.name })),
+      };
 
-        // Try to match entityName to an existing entity in the sphere
-        if (response.entityName) {
-          const entityLists: Record<LifeSphere, { id: string; name: string }[]> = {
-            relationships: profiles.map((p) => ({ id: p.id, name: p.name })),
-            career: jobs.map((j) => ({ id: j.id, name: j.name })),
-            family: familyMembers.map((f) => ({ id: f.id, name: f.name })),
-            friends: friends.map((f) => ({ id: f.id, name: f.name })),
-            hobbies: hobbies.map((h) => ({ id: h.id, name: h.name })),
+      const drafts: AIMemoryDraft[] = responseMemories.map((entry, memoryIndex) => {
+        const items: AIMemoryItem[] = (entry.moments || []).map((moment, index) => ({
+          id: `${momentTypeMap[moment.type] || "goodFact"}_${Date.now()}_${memoryIndex}_${index}_${Math.random().toString(36).slice(2, 8)}`,
+          type: momentTypeMap[moment.type] || "goodFact",
+          text: moment.text,
+          notificationMessage:
+            (moment as { notificationMessage?: string }).notificationMessage,
+        }));
+
+        if (onboardingSferaAI) {
+          return {
+            id: `memory_${Date.now()}_${memoryIndex}_${Math.random().toString(36).slice(2, 8)}`,
+            title: entry.memory?.title?.trim() || `Memory ${memoryIndex + 1}`,
+            items,
+            sphere: onboardingSferaAI.sphere,
+            entityId: onboardingSferaAI.entityId,
+            entityName: onboardingSferaAI.entityName,
           };
+        }
 
-          const list = entityLists[response.sphere] || [];
+        const rawSphere = entry.sphere ?? response.sphere;
+        const sphere: LifeSphere | null =
+          rawSphere && validSpheres.includes(rawSphere as LifeSphere)
+            ? (rawSphere as LifeSphere)
+            : null;
+        const suggestedName = (entry.entityName ?? response.entityName ?? "").trim();
+
+        let entityId: string | null = null;
+        let entityName: string | null = suggestedName || null;
+        if (sphere && suggestedName) {
+          const list = entityLists[sphere] || [];
           const match = list.find(
-            (e) =>
-              e.name.toLowerCase() === response.entityName!.toLowerCase(),
+            (e) => e.name.toLowerCase() === suggestedName.toLowerCase(),
           );
           if (match) {
-            setSelectedEntityId(match.id);
-            setSelectedEntityName(match.name);
+            entityId = match.id;
+            entityName = match.name;
+          }
+        }
+
+        return {
+          id: `memory_${Date.now()}_${memoryIndex}_${Math.random().toString(36).slice(2, 8)}`,
+          title: entry.memory?.title?.trim() || `Memory ${memoryIndex + 1}`,
+          items,
+          sphere,
+          entityId,
+          entityName,
+        };
+      });
+
+      if (__DEV__) {
+        for (const entry of responseMemories) {
+          for (const m of entry.moments || []) {
+            const nm = (m as { notificationMessage?: string }).notificationMessage;
+            if (
+              (m.type === "sunnyMoments" || m.type === "lessonsLearned") &&
+              !nm?.trim()
+            ) {
+              console.warn(
+                "[AI Modal] Missing notificationMessage for",
+                m.type,
+                m.text?.slice(0, 50),
+              );
+            }
           }
         }
       }
+
+      setAiResponse(response);
+      setMemoryDrafts(drafts);
+      // Expand all cards by default so Sfera / entity / moments are visible without an extra tap.
+      setExpandedDraftIds(drafts.map((d) => d.id));
+
+      setSpherePickerDraftId(null);
+      setEntityPickerDraftId(null);
+      setAddEntityDraftId(null);
 
       setIsProcessing(false);
       // Stay on "loading" view — results render within it when aiResponse is set
@@ -624,7 +871,7 @@ export function AIModal({
       const errorMsg =
         error instanceof Error
           ? error.message
-          : t("ai.error.send") || "Failed to process memory";
+          : t("ai.error.send");
       setErrorMessage(errorMsg);
       setCurrentView("error");
       // Stop background processing if it was started
@@ -656,21 +903,31 @@ export function AIModal({
         return !!(pendingRequest || pendingResponse || isRunning);
       };
 
-      shouldPreserveState().then((preserve) => {
+      shouldPreserveState().then(async (preserve) => {
         if (!preserve) {
           // Actually closing (not minimizing) - reset all state
           // Close confirmation modal first if it's open
           setShowCloseConfirm(false);
+
+          const snap = unsavedResultsSnapshotRef.current;
+          if (
+            snap?.aiResponse &&
+            snap.memoryDrafts.some((d) => d.items.length > 0)
+          ) {
+            await flushAIModalReviewDraftToStorage();
+          }
+          unsavedResultsSnapshotRef.current = null;
 
           // Reset all state to initial values
           setInputText("");
           setIsProcessing(false);
           setCurrentView("input");
           setAiResponse(null);
-          setMemoryItems([]);
-          setSelectedSphere(null);
-          setSelectedEntityId(null);
-          setSelectedEntityName(null);
+          setMemoryDrafts([]);
+          setExpandedDraftIds([]);
+          setSpherePickerDraftId(null);
+          setEntityPickerDraftId(null);
+          setAddEntityDraftId(null);
           setShowSpherePicker(false);
           setShowEntityPicker(false);
           setLoadingMessageIndex(0);
@@ -723,7 +980,11 @@ export function AIModal({
       void speechToText.stop();
       setCurrentView("input");
       setAiResponse(null);
-      setMemoryItems([]);
+      setMemoryDrafts([]);
+      setExpandedDraftIds([]);
+      setSpherePickerDraftId(null);
+      setEntityPickerDraftId(null);
+      setAddEntityDraftId(null);
       setErrorMessage(null);
     }
   }, [visible]);
@@ -841,10 +1102,7 @@ export function AIModal({
 
     // Ensure App Check is initialized before making AI requests (skip in dev)
     if (!__DEV__ && !isAppCheckInitialized()) {
-      Alert.alert(
-        t("common.error") || "Error",
-        "App Check is not initialized. Please wait a moment and try again.",
-      );
+      Alert.alert(t("common.error"), t("ai.appCheck.notReady"));
       return;
     }
 
@@ -858,10 +1116,9 @@ export function AIModal({
           await showPaywallForUpgradeAccess();
         } else {
           Alert.alert(
-            t("ai.rateLimit.title") || "AI Request Limit Reached",
-            t("ai.rateLimit.premiumMessage") ||
-              "You've reached the daily limit. Try again tomorrow.",
-            [{ text: t("common.ok") || "OK", style: "default" }],
+            t("ai.rateLimit.title"),
+            t("ai.rateLimit.premiumMessage"),
+            [{ text: t("common.ok"), style: "default" }],
           );
         }
         return;
@@ -876,13 +1133,13 @@ export function AIModal({
     setIsProcessing(true);
 
     try {
-      // Prepare sferas with enriched entities (including relationship/role metadata) for AI context
+      // Prepare sferas for AI: include descriptions/roles so indirect references ("my mother", etc.) map to the right name.
       const sferas = {
         relationships:
           profiles.length > 0
             ? profiles.map((p) => ({
                 name: p.name,
-                relationshipType: p.description, // Could be "ex-partner", "ex-boyfriend", etc.
+                description: p.description?.trim() || undefined,
                 isOngoing:
                   p.relationshipEndDate === null ||
                   p.relationshipEndDate === undefined,
@@ -894,6 +1151,7 @@ export function AIModal({
           jobs.length > 0
             ? jobs.map((j) => ({
                 name: j.name,
+                description: j.description?.trim() || undefined,
                 isCurrent: j.endDate === null || j.endDate === undefined,
                 startDate: j.startDate,
                 endDate: j.endDate,
@@ -903,11 +1161,24 @@ export function AIModal({
           familyMembers.length > 0
             ? familyMembers.map((f) => ({
                 name: f.name,
-                relationship: f.relationship, // e.g., "Father", "Mother", "Brother", "Sister"
+                relationship: f.relationship?.trim() || undefined,
+                description: f.description?.trim() || undefined,
               }))
             : undefined,
-        friends: friends.length > 0 ? friends.map((f) => f.name) : undefined,
-        hobbies: hobbies.length > 0 ? hobbies.map((h) => h.name) : undefined,
+        friends:
+          friends.length > 0
+            ? friends.map((f) => ({
+                name: f.name,
+                description: f.description?.trim() || undefined,
+              }))
+            : undefined,
+        hobbies:
+          hobbies.length > 0
+            ? hobbies.map((h) => ({
+                name: h.name,
+                description: h.description?.trim() || undefined,
+              }))
+            : undefined,
       };
 
       const narrativeAppendix =
@@ -965,14 +1236,45 @@ export function AIModal({
     }
   };
 
-  const handleEditItem = (id: string, newText: string) => {
-    setMemoryItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, text: newText } : item)),
+  const handleToggleDraftExpanded = (draftId: string) => {
+    setExpandedDraftIds((prev) =>
+      prev.includes(draftId)
+        ? prev.filter((id) => id !== draftId)
+        : [...prev, draftId],
     );
   };
 
-  const handleRemoveItem = (id: string) => {
-    setMemoryItems((prev) => prev.filter((item) => item.id !== id));
+  const handleEditItem = (draftId: string, id: string, newText: string) => {
+    setMemoryDrafts((prev) =>
+      prev.map((draft) =>
+        draft.id === draftId
+          ? {
+              ...draft,
+              items: draft.items.map((item) =>
+                item.id === id ? { ...item, text: newText } : item,
+              ),
+            }
+          : draft,
+      ),
+    );
+  };
+
+  const handleRemoveItem = (draftId: string, id: string) => {
+    setMemoryDrafts((prev) =>
+      prev.map((draft) =>
+        draft.id === draftId
+          ? { ...draft, items: draft.items.filter((item) => item.id !== id) }
+          : draft,
+      ),
+    );
+  };
+
+  const handleEditDraftTitle = (draftId: string, title: string) => {
+    setMemoryDrafts((prev) =>
+      prev.map((draft) =>
+        draft.id === draftId ? { ...draft, title } : draft,
+      ),
+    );
   };
 
   const handleRetry = async () => {
@@ -983,20 +1285,26 @@ export function AIModal({
   };
 
   const handleBackToInput = () => {
+    void forgetPersistedAIModalReviewState();
     setCurrentView("input");
     setInputText("");
     setAiResponse(null);
-    setMemoryItems([]);
-    setSelectedSphere(null);
-    setSelectedEntityId(null);
-    setSelectedEntityName(null);
+    setMemoryDrafts([]);
+    setExpandedDraftIds([]);
+    setSpherePickerDraftId(null);
+    setEntityPickerDraftId(null);
+    setAddEntityDraftId(null);
   };
 
-  // Get available entities for the selected sphere
-  const availableEntitiesForSphere = useMemo(() => {
-    if (!selectedSphere) return [];
+  const isMemoryDraftComplete = (d: AIMemoryDraft) =>
+    Boolean(d.sphere && d.entityId && d.items.length > 0);
 
-    switch (selectedSphere) {
+  const entityPickerEntities = useMemo(() => {
+    if (!entityPickerDraftId) return [];
+    const draft = memoryDrafts.find((x) => x.id === entityPickerDraftId);
+    const sphere = draft?.sphere;
+    if (!sphere) return [];
+    switch (sphere) {
       case "relationships":
         return profiles.map((p) => ({ id: p.id, name: p.name }));
       case "career":
@@ -1010,62 +1318,123 @@ export function AIModal({
       default:
         return [];
     }
-  }, [selectedSphere, profiles, jobs, familyMembers, friends, hobbies]);
+  }, [
+    entityPickerDraftId,
+    memoryDrafts,
+    profiles,
+    jobs,
+    familyMembers,
+    friends,
+    hobbies,
+  ]);
 
-  // Automatically show validation error when results are displayed with invalid entity
-  // All spheres (relationships, career, family, friends, hobbies) require an entity
+  const listEntitiesForSphere = (
+    sphere: LifeSphere | null,
+  ): { id: string; name: string }[] => {
+    if (!sphere) return [];
+    switch (sphere) {
+      case "relationships":
+        return profiles.map((p) => ({ id: p.id, name: p.name }));
+      case "career":
+        return jobs.map((j) => ({ id: j.id, name: j.name }));
+      case "family":
+        return familyMembers.map((f) => ({ id: f.id, name: f.name }));
+      case "friends":
+        return friends.map((f) => ({ id: f.id, name: f.name }));
+      case "hobbies":
+        return hobbies.map((h) => ({ id: h.id, name: h.name }));
+      default:
+        return [];
+    }
+  };
+
+  const spherePickerLabels = useMemo(
+    (): Record<LifeSphere, string> => ({
+      relationships: t("spheres.relationships"),
+      career: t("spheres.career"),
+      family: t("spheres.family"),
+      friends: t("spheres.friends"),
+      hobbies: t("spheres.hobbies"),
+    }),
+    [t],
+  );
+
+  const sphereForActiveAddEntity = useMemo(() => {
+    if (!addEntityDraftId) return null;
+    return memoryDrafts.find((d) => d.id === addEntityDraftId)?.sphere ?? null;
+  }, [addEntityDraftId, memoryDrafts]);
+
+  const addEntityFormBlocksSave = Boolean(
+    addEntityDraftId &&
+      (!sphereForActiveAddEntity ||
+        !newEntityName.trim() ||
+        (sphereForActiveAddEntity === "family" &&
+          !newEntityRelationship.trim())),
+  );
+
+  const allMemoryDraftsReady =
+    memoryDrafts.length > 0 &&
+    memoryDrafts.every(isMemoryDraftComplete) &&
+    !addEntityFormBlocksSave;
+
   useEffect(() => {
-    const spheresRequiringEntity: LifeSphere[] = [
-      "relationships",
-      "career",
-      "family",
-      "friends",
-      "hobbies",
-    ];
-    if (
-      aiResponse &&
-      selectedSphere &&
-      spheresRequiringEntity.includes(selectedSphere) &&
-      !selectedEntityId
-    ) {
-      // Entity is required but not selected - show validation error immediately
-      setShowValidationErrors(true);
-    }
-  }, [aiResponse, selectedSphere, selectedEntityId]);
+    if (addEntityDraftId == null) return;
+    setNewEntityName("");
+    setNewEntityDescription("");
+    setNewEntityRelationship("");
+    setNewEntityStartDate(null);
+    setNewEntityEndDate(null);
+    setNewEntityIsCurrent(false);
+    setNewEntityImage(null);
+  }, [addEntityDraftId]);
 
-  // Handle sphere change - reset entity if sphere changes
-  const handleSphereChange = (sphere: LifeSphere) => {
-    setSelectedSphere(sphere);
-    setSelectedEntityId(null);
-    setSelectedEntityName(null);
+  const applyDraftSphere = (draftId: string, sphere: LifeSphere) => {
+    setMemoryDrafts((prev) =>
+      prev.map((d) =>
+        d.id === draftId
+          ? { ...d, sphere, entityId: null, entityName: null }
+          : d,
+      ),
+    );
     setShowSpherePicker(false);
+    setSpherePickerDraftId(null);
   };
 
-  // Handle entity change
-  const handleEntityChange = (entityId: string, entityName: string) => {
-    setSelectedEntityId(entityId);
-    setSelectedEntityName(entityName);
+  const applyDraftEntity = (
+    draftId: string,
+    entityId: string,
+    entityName: string,
+  ) => {
+    setMemoryDrafts((prev) =>
+      prev.map((d) =>
+        d.id === draftId ? { ...d, entityId, entityName } : d,
+      ),
+    );
     setShowEntityPicker(false);
-    // Clear validation error when entity is selected
-    if (showValidationErrors) {
-      setShowValidationErrors(false);
-    }
+    setEntityPickerDraftId(null);
+    if (showValidationErrors) setShowValidationErrors(false);
   };
 
-  // Validate entity form
   const isEntityFormValid = () => {
+    if (!addEntityDraftId || !sphereForActiveAddEntity) return false;
     if (!newEntityName.trim()) return false;
-    if (selectedSphere === "family" && !newEntityRelationship.trim())
+    if (
+      sphereForActiveAddEntity === "family" &&
+      !newEntityRelationship.trim()
+    )
       return false;
     return true;
   };
 
   // Handle saving new entity
   const handleSaveNewEntity = async () => {
-    if (!isEntityFormValid()) {
+    if (!isEntityFormValid() || !addEntityDraftId || !sphereForActiveAddEntity) {
       setShowValidationErrors(true);
       return;
     }
+
+    const targetDraftId = addEntityDraftId;
+    const sphere = sphereForActiveAddEntity;
 
     setIsSavingEntity(true);
     try {
@@ -1075,7 +1444,7 @@ export function AIModal({
 
       let newEntityId: string;
 
-      if (selectedSphere === "family") {
+      if (sphere === "family") {
         newEntityId = await addFamilyMember({
           name: newEntityName.trim(),
           description: newEntityDescription.trim() || undefined,
@@ -1084,7 +1453,7 @@ export function AIModal({
           setupProgress: 0,
           isCompleted: false,
         });
-      } else if (selectedSphere === "friends") {
+      } else if (sphere === "friends") {
         newEntityId = await addFriend({
           name: newEntityName.trim(),
           description: newEntityDescription.trim() || undefined,
@@ -1092,7 +1461,7 @@ export function AIModal({
           setupProgress: 0,
           isCompleted: false,
         });
-      } else if (selectedSphere === "career") {
+      } else if (sphere === "career") {
         newEntityId = await addJob({
           name: newEntityName.trim(),
           description: newEntityDescription.trim() || undefined,
@@ -1108,7 +1477,7 @@ export function AIModal({
           setupProgress: 0,
           isCompleted: false,
         });
-      } else if (selectedSphere === "hobbies") {
+      } else if (sphere === "hobbies") {
         newEntityId = await addHobby({
           name: newEntityName.trim(),
           description: newEntityDescription.trim() || undefined,
@@ -1116,7 +1485,7 @@ export function AIModal({
           setupProgress: 0,
           isCompleted: false,
         });
-      } else if (selectedSphere === "relationships") {
+      } else if (sphere === "relationships") {
         newEntityId = await addProfile({
           name: newEntityName.trim(),
           description: newEntityDescription.trim() || undefined,
@@ -1136,11 +1505,19 @@ export function AIModal({
         throw new Error("Invalid sphere");
       }
 
-      // Update selected entity
-      setSelectedEntityId(newEntityId);
-      setSelectedEntityName(newEntityName.trim());
+      setMemoryDrafts((prev) =>
+        prev.map((d) =>
+          d.id === targetDraftId
+            ? {
+                ...d,
+                entityId: newEntityId,
+                entityName: newEntityName.trim(),
+              }
+            : d,
+        ),
+      );
       setShowValidationErrors(false);
-      setShowAddEntityForm(false);
+      setAddEntityDraftId(null);
 
       // Reset form fields
       setNewEntityName("");
@@ -1152,10 +1529,9 @@ export function AIModal({
       setNewEntityImage(null);
     } catch (error) {
       Alert.alert(
-        t("common.error") || "Error",
+        t("common.error"),
         (error as Error).message ||
-          t("ai.entity.saveError") ||
-          "Failed to save entity",
+          t("ai.entity.saveError"),
       );
     } finally {
       setIsSavingEntity(false);
@@ -1163,189 +1539,173 @@ export function AIModal({
   };
 
   const handleSave = async () => {
-    if (!aiResponse || memoryItems.length === 0 || !selectedSphere) {
+    if (!aiResponse || memoryDrafts.length === 0) {
       return;
     }
 
-    // Entity is required for all spheres that support entities
-    // All spheres (relationships, career, family, friends, hobbies) require an entity
-    const spheresRequiringEntity: LifeSphere[] = [
-      "relationships",
-      "career",
-      "family",
-      "friends",
-      "hobbies",
-    ];
-    const needsEntity =
-      selectedSphere && spheresRequiringEntity.includes(selectedSphere);
-
-    // If form is expanded, check if it's valid
-    if (showAddEntityForm && !isEntityFormValid()) {
+    if (!allMemoryDraftsReady) {
       setShowValidationErrors(true);
       Alert.alert(
-        t("common.error") || "Error",
-        t("ai.results.selectEntity") || "Please fill all required fields",
+        t("common.error"),
+        t("ai.results.completeAllCards"),
       );
       return;
     }
 
-    // Entity is always required for these spheres
-    if (needsEntity && !selectedEntityId) {
-      setShowValidationErrors(true);
-      Alert.alert(
-        t("common.error") || "Error",
-        t("ai.results.selectEntity") || "Please select an entity",
-      );
-      return;
-    }
-
-    // Clear validation errors if validation passes
     setShowValidationErrors(false);
 
     setIsProcessing(true);
     try {
-      // Use selected sphere and entity
-      const finalSphere = selectedSphere;
-      const finalEntityId = selectedEntityId;
-
-      if (!finalEntityId) {
-        throw new Error("No entity selected");
+      const draftsToSave = memoryDrafts.filter(
+        (draft) =>
+          draft.items.length > 0 &&
+          draft.sphere &&
+          draft.entityId,
+      );
+      if (draftsToSave.length === 0) {
+        throw new Error("No memory items available to save.");
       }
 
-      // Convert memory items to the format expected by IdealizedMemory
-      const hardTruths = memoryItems
-        .filter((item) => item.type === "hardTruth")
-        .map((item, index) => ({
-          id: item.id,
-          text: item.text,
-        }));
+      const savedMemoryIds: string[] = [];
+      let totalSavedItemsCount = 0;
 
-      const goodFacts = memoryItems
-        .filter((item) => item.type === "goodFact")
-        .map((item, index) => ({
-          id: item.id,
-          text: item.text,
-        }));
+      for (const draft of draftsToSave) {
+        const finalSphere = draft.sphere!;
+        const finalEntityId = draft.entityId!;
+        const hardTruths = draft.items
+          .filter((item) => item.type === "hardTruth")
+          .map((item) => ({
+            id: item.id,
+            text: item.text,
+          }));
 
-      const lessonsLearned = memoryItems
-        .filter((item) => item.type === "lesson")
-        .map((item, index) => ({
-          id: item.id,
-          text: item.text,
-        }));
+        const goodFacts = draft.items
+          .filter((item) => item.type === "goodFact")
+          .map((item) => ({
+            id: item.id,
+            text: item.text,
+          }));
 
-      const resolvedMemoryImage = undefined;
+        const lessonsLearned = draft.items
+          .filter((item) => item.type === "lesson")
+          .map((item) => ({
+            id: item.id,
+            text: item.text,
+          }));
 
-      // Create the memory with AI suggestions (bypass limits - AI modal allows creation beyond free tier caps)
-      const memoryId = await addIdealizedMemory(
-        finalEntityId,
-        finalSphere,
-        {
-          title: aiResponse?.memory?.title || "", // Use AI-generated title
-          imageUri: resolvedMemoryImage,
-          hardTruths,
-          goodFacts,
-          lessonsLearned,
-          source: 'ai',
-        },
-        { bypassMemoryLimit: true }
-      );
-
-      // Limit reached and user dismissed paywall - don't proceed
-      if (!memoryId) {
-        setIsProcessing(false);
-        return;
-      }
-
-      // Persist moment notification summaries for lesson and goodFact items (batch to avoid stale state).
-      // Every persisted summary must carry an AI-specific message. If the initial memory-creation call
-      // did not attach `notificationMessage` to an item, we fill it via a dedicated batch AI request
-      // (which itself guarantees one message per input or throws).
-      const itemsNeedingSummary = memoryItems.filter(
-        (item) => item.type === "lesson" || item.type === "goodFact"
-      );
-      const lessonsWithoutMessage = itemsNeedingSummary.filter(
-        (item) => item.type === "lesson" && !item.notificationMessage?.trim()
-      );
-      const sunnyWithoutMessage = itemsNeedingSummary.filter(
-        (item) => item.type === "goodFact" && !item.notificationMessage?.trim()
-      );
-      const resolvedMessages: Record<string, string> = {};
-      if (lessonsWithoutMessage.length > 0 || sunnyWithoutMessage.length > 0) {
-        console.log(
-          `[AI Modal] Backfilling missing notificationMessages — lessons: ${lessonsWithoutMessage.length}, sunny: ${sunnyWithoutMessage.length}`
+        const memoryId = await addIdealizedMemory(
+          finalEntityId,
+          finalSphere,
+          {
+            title: draft.title || "",
+            imageUri: undefined,
+            hardTruths,
+            goodFacts,
+            lessonsLearned,
+            source: "ai",
+          },
+          { bypassMemoryLimit: true },
         );
-        const {
-          suggestNotificationMessagesForLessons,
-          suggestNotificationMessagesForSunnyMoments,
-        } = await import("@/utils/ai-service");
-        const lang = language === "bg" ? "bg" : "en";
-        const [lessonMap, sunnyMap] = await Promise.all([
-          lessonsWithoutMessage.length > 0
-            ? suggestNotificationMessagesForLessons(
-                lessonsWithoutMessage.map((l) => ({
-                  id: l.id,
-                  text: l.text,
-                  memoryTitle: aiResponse?.memory?.title,
-                  sphere: finalSphere,
-                })),
-                lang
-              )
-            : Promise.resolve({} as Record<string, string>),
-          sunnyWithoutMessage.length > 0
-            ? suggestNotificationMessagesForSunnyMoments(
-                sunnyWithoutMessage.map((s) => ({
-                  id: s.id,
-                  text: s.text,
-                  memoryTitle: aiResponse?.memory?.title,
-                  sphere: finalSphere,
-                })),
-                lang
-              )
-            : Promise.resolve({} as Record<string, string>),
-        ]);
-        Object.assign(resolvedMessages, lessonMap, sunnyMap);
-      }
-      const toPersist: Parameters<typeof addSummariesBatch>[0] = [];
-      const unresolvedItems: { id: string; type: AIMemoryItem["type"] }[] = [];
-      for (const item of itemsNeedingSummary) {
-        const message =
-          item.notificationMessage?.trim() || resolvedMessages[item.id]?.trim();
-        if (!message) {
-          unresolvedItems.push({ id: item.id, type: item.type });
-          continue;
+
+        // Limit reached and user dismissed paywall - don't proceed
+        if (!memoryId) {
+          setIsProcessing(false);
+          return;
         }
-        toPersist.push({
-          momentId: item.id,
-          memoryId,
-          entityId: finalEntityId,
-          sphere: finalSphere,
-          momentType: item.type === "lesson" ? "lesson" : "sunny",
-          momentText: item.text,
-          notificationMessage: message,
-          source: "ai_suggested",
-        });
-      }
-      if (unresolvedItems.length > 0) {
-        // Should be unreachable: the helper guarantees coverage or throws.
-        // Log loudly instead of silently persisting partial state.
-        console.error(
-          `[AI Modal] Coverage gap after backfill — ${unresolvedItems.length} item(s) without notificationMessage`,
-          { unresolvedItems }
-        );
-        throw new Error(
-          `AI could not generate notification messages for ${unresolvedItems.length} item(s). Please try again.`
-        );
-      }
-      if (toPersist.length > 0) {
-        await addSummariesBatch(toPersist);
-      }
-      console.log(
-        `[AI Modal] Persisted ${toPersist.length}/${itemsNeedingSummary.length} moment notification summaries`
-      );
 
-      // Log analytics event for AI memory saved
-      await logAIMemorySaved(finalSphere, false, memoryItems.length);
+        savedMemoryIds.push(memoryId);
+        totalSavedItemsCount += draft.items.length;
+
+        const itemsNeedingSummary = draft.items.filter(
+          (item) => item.type === "lesson" || item.type === "goodFact",
+        );
+        const lessonsWithoutMessage = itemsNeedingSummary.filter(
+          (item) => item.type === "lesson" && !item.notificationMessage?.trim(),
+        );
+        const sunnyWithoutMessage = itemsNeedingSummary.filter(
+          (item) => item.type === "goodFact" && !item.notificationMessage?.trim(),
+        );
+
+        const resolvedMessages: Record<string, string> = {};
+        if (lessonsWithoutMessage.length > 0 || sunnyWithoutMessage.length > 0) {
+          console.log(
+            `[AI Modal] Backfilling missing notificationMessages — lessons: ${lessonsWithoutMessage.length}, sunny: ${sunnyWithoutMessage.length}`,
+          );
+          const {
+            suggestNotificationMessagesForLessons,
+            suggestNotificationMessagesForSunnyMoments,
+          } = await import("@/utils/ai-service");
+          const lang = language === "bg" ? "bg" : "en";
+          const [lessonMap, sunnyMap] = await Promise.all([
+            lessonsWithoutMessage.length > 0
+              ? suggestNotificationMessagesForLessons(
+                  lessonsWithoutMessage.map((l) => ({
+                    id: l.id,
+                    text: l.text,
+                    memoryTitle: draft.title,
+                    sphere: finalSphere,
+                  })),
+                  lang,
+                )
+              : Promise.resolve({} as Record<string, string>),
+            sunnyWithoutMessage.length > 0
+              ? suggestNotificationMessagesForSunnyMoments(
+                  sunnyWithoutMessage.map((s) => ({
+                    id: s.id,
+                    text: s.text,
+                    memoryTitle: draft.title,
+                    sphere: finalSphere,
+                  })),
+                  lang,
+                )
+              : Promise.resolve({} as Record<string, string>),
+          ]);
+          Object.assign(resolvedMessages, lessonMap, sunnyMap);
+        }
+
+        const toPersist: Parameters<typeof addSummariesBatch>[0] = [];
+        const unresolvedItems: { id: string; type: AIMemoryItem["type"] }[] = [];
+        for (const item of itemsNeedingSummary) {
+          const message =
+            item.notificationMessage?.trim() || resolvedMessages[item.id]?.trim();
+          if (!message) {
+            unresolvedItems.push({ id: item.id, type: item.type });
+            continue;
+          }
+          toPersist.push({
+            momentId: item.id,
+            memoryId,
+            entityId: finalEntityId,
+            sphere: finalSphere,
+            momentType: item.type === "lesson" ? "lesson" : "sunny",
+            momentText: item.text,
+            notificationMessage: message,
+            source: "ai_suggested",
+          });
+        }
+        if (unresolvedItems.length > 0) {
+          console.error(
+            `[AI Modal] Coverage gap after backfill — ${unresolvedItems.length} item(s) without notificationMessage`,
+            { unresolvedItems },
+          );
+          throw new Error(
+            `AI could not generate notification messages for ${unresolvedItems.length} item(s). Please try again.`,
+          );
+        }
+        if (toPersist.length > 0) {
+          await addSummariesBatch(toPersist);
+        }
+        console.log(
+          `[AI Modal] Persisted ${toPersist.length}/${itemsNeedingSummary.length} moment notification summaries`,
+        );
+      }
+
+      // Log analytics event for AI memory saved (sphere from last saved memory)
+      await logAIMemorySaved(
+        draftsToSave[draftsToSave.length - 1]!.sphere!,
+        false,
+        totalSavedItemsCount,
+      );
 
       // Count AI-created memories toward streak/badges (same as manual creation).
       // This is what keeps/earns badges for AI modal saves too.
@@ -1435,6 +1795,7 @@ export function AIModal({
       await clearPendingAIResponse();
       await clearPendingAIRequest();
       await stopBackgroundAIProcessing();
+      await forgetPersistedAIModalReviewState();
 
       // Golden event AI access: mark one-time use as consumed and clear all reminders for this event
       if (goldenEventId) {
@@ -1452,17 +1813,19 @@ export function AIModal({
       } else {
         // Show success alert with option to open memory
         Alert.alert(
-          t("ai.save.success") || "Memory saved successfully!",
-          t("ai.save.successMessage") ||
-            "Your memory has been created with AI suggestions.",
+          t("ai.save.success"),
+          t("ai.save.successMessage"),
           [
             {
-              text: t("common.close") || "Close",
+              text: t("common.close"),
               style: "cancel",
             },
             {
-              text: t("ai.openMemory") || "Open memory",
+              text: t("ai.openMemory"),
               onPress: () => {
+                const first = draftsToSave[0]!;
+                const openSphere = first.sphere!;
+                const openEntityId = first.entityId!;
                 const detailParams: {
                   sphere: LifeSphere;
                   entityId: string;
@@ -1474,17 +1837,17 @@ export function AIModal({
                   friendId?: string;
                   hobbyId?: string;
                 } = {
-                  sphere: finalSphere,
-                  entityId: finalEntityId,
-                  focusedMemoryId: memoryId,
+                  sphere: openSphere,
+                  entityId: openEntityId,
+                  focusedMemoryId: savedMemoryIds[0]!,
                   source: "ai_modal_save",
                 };
 
-                if (finalSphere === "relationships") detailParams.profileId = finalEntityId;
-                else if (finalSphere === "career") detailParams.jobId = finalEntityId;
-                else if (finalSphere === "family") detailParams.familyMemberId = finalEntityId;
-                else if (finalSphere === "friends") detailParams.friendId = finalEntityId;
-                else if (finalSphere === "hobbies") detailParams.hobbyId = finalEntityId;
+                if (openSphere === "relationships") detailParams.profileId = openEntityId;
+                else if (openSphere === "career") detailParams.jobId = openEntityId;
+                else if (openSphere === "family") detailParams.familyMemberId = openEntityId;
+                else if (openSphere === "friends") detailParams.friendId = openEntityId;
+                else if (openSphere === "hobbies") detailParams.hobbyId = openEntityId;
 
                 router.replace({
                   pathname: "/" as const,
@@ -1497,15 +1860,642 @@ export function AIModal({
       }
     } catch (error) {
       Alert.alert(
-        t("common.error") || "Error",
+        t("common.error"),
         (error as Error).message ||
-          t("ai.save.error") ||
-          "Failed to save memory",
+          t("ai.save.error"),
       );
     } finally {
       setIsProcessing(false);
     }
   };
+
+  const closeAddEntityFormWithoutSave = () => {
+    setAddEntityDraftId(null);
+    setNewEntityName("");
+    setNewEntityDescription("");
+    setNewEntityRelationship("");
+    setNewEntityStartDate(null);
+    setNewEntityEndDate(null);
+    setNewEntityIsCurrent(false);
+    setNewEntityImage(null);
+    setShowValidationErrors(false);
+  };
+
+  const renderAddEntityFormForDraft = (draft: AIMemoryDraft) => {
+    if (addEntityDraftId !== draft.id || !draft.sphere) return null;
+    const formSphere = draft.sphere;
+    return (
+                                <View style={styles.addEntityForm}>
+                                  <View style={styles.addEntityFormHeader}>
+                                    <ThemedText size="sm" weight="bold">
+                                      {formSphere === "family"
+                                        ? t("profile.familyMember.add")
+                                        : formSphere === "friends"
+                                          ? t("profile.friend.add")
+                                          : formSphere === "career"
+                                            ? t("profile.job.add")
+                                            : formSphere === "hobbies"
+                                              ? t("profile.hobby.add")
+                                              : t("profile.relationship.add")}
+                                    </ThemedText>
+                                    <TouchableOpacity
+                                      onPress={closeAddEntityFormWithoutSave}
+                                    >
+                                      <MaterialIcons
+                                        name="close"
+                                        size={20 * fontScale}
+                                        color={colors.text}
+                                      />
+                                    </TouchableOpacity>
+                                  </View>
+
+                                  {/* Name field - required for all */}
+                                  <View style={styles.formField}>
+                                    <ThemedText
+                                      size="xs"
+                                      weight="medium"
+                                      style={styles.formLabel}
+                                    >
+                                      {t("profile.name")} *
+                                    </ThemedText>
+                                    <TextInput
+                                      style={[
+                                        styles.formInput,
+                                        !newEntityName.trim() &&
+                                          showValidationErrors &&
+                                          styles.formInputError,
+                                      ]}
+                                      value={newEntityName}
+                                      onChangeText={setNewEntityName}
+                                      placeholder={
+                                        t("profile.name.placeholder")
+                                      }
+                                      placeholderTextColor={
+                                        colorScheme === "dark"
+                                          ? colors.textMediumEmphasis
+                                          : colors.text + "80"
+                                      }
+                                    />
+                                  </View>
+
+                                  {/* Relationship field - required for family */}
+                                  {formSphere === "family" && (
+                                    <View style={styles.formField}>
+                                      <ThemedText
+                                        size="xs"
+                                        weight="medium"
+                                        style={styles.formLabel}
+                                      >
+                                        {t("profile.familyMember.relationship")}{" "}
+                                        *
+                                      </ThemedText>
+                                      <TextInput
+                                        style={[
+                                          styles.formInput,
+                                          !newEntityRelationship.trim() &&
+                                            showValidationErrors &&
+                                            styles.formInputError,
+                                        ]}
+                                        value={newEntityRelationship}
+                                        onChangeText={setNewEntityRelationship}
+                                        placeholder={
+                                          t(
+                                            "profile.familyMember.relationship.placeholder",
+                                          )
+                                        }
+                                        placeholderTextColor={
+                                          colorScheme === "dark"
+                                            ? colors.textMediumEmphasis
+                                            : colors.text + "80"
+                                        }
+                                      />
+                                    </View>
+                                  )}
+
+                                  {/* Date fields - for jobs and relationships */}
+                                  {(formSphere === "career" ||
+                                    formSphere === "relationships") && (
+                                    <>
+                                      <View style={styles.formField}>
+                                        <ThemedText
+                                          size="xs"
+                                          weight="medium"
+                                          style={styles.formLabel}
+                                        >
+                                          {t("profile.job.startDate")}
+                                        </ThemedText>
+                                        <TouchableOpacity
+                                          style={styles.dateButton}
+                                          onPress={() => {
+                                            setStartDatePickerTemp(
+                                              newEntityStartDate || new Date(),
+                                            );
+                                            setShowStartDatePicker(true);
+                                          }}
+                                        >
+                                          <ThemedText size="sm">
+                                            {newEntityStartDate
+                                              ? newEntityStartDate.toLocaleDateString()
+                                              : t("profile.job.selectStartDate")}
+                                          </ThemedText>
+                                          <MaterialIcons
+                                            name="calendar-today"
+                                            size={20 * fontScale}
+                                            color={colors.primary}
+                                          />
+                                        </TouchableOpacity>
+                                        {showStartDatePicker &&
+                                          (Platform.OS === "ios" ? (
+                                            <RNModal
+                                              visible
+                                              transparent
+                                              animationType="slide"
+                                              onRequestClose={() =>
+                                                setShowStartDatePicker(false)
+                                              }
+                                            >
+                                              <View
+                                                style={{
+                                                  flex: 1,
+                                                  justifyContent: "flex-end",
+                                                  backgroundColor:
+                                                    "rgba(0, 0, 0, 0.5)",
+                                                }}
+                                              >
+                                                <View
+                                                  style={{
+                                                    backgroundColor:
+                                                      colorScheme === "dark"
+                                                        ? "#1E3A52"
+                                                        : "#FFFFFF",
+                                                    borderTopLeftRadius: 20,
+                                                    borderTopRightRadius: 20,
+                                                    paddingTop: 20,
+                                                    paddingBottom: 40,
+                                                  }}
+                                                >
+                                                  <View
+                                                    style={{
+                                                      flexDirection: "row",
+                                                      justifyContent:
+                                                        "space-between",
+                                                      alignItems: "center",
+                                                      paddingHorizontal: 20,
+                                                      paddingBottom: 10,
+                                                      borderBottomWidth: 1,
+                                                      borderBottomColor:
+                                                        colorScheme === "dark"
+                                                          ? "rgba(255, 255, 255, 0.1)"
+                                                          : "rgba(0, 0, 0, 0.1)",
+                                                    }}
+                                                  >
+                                                    <TouchableOpacity
+                                                      onPress={() =>
+                                                        setShowStartDatePicker(
+                                                          false,
+                                                        )
+                                                      }
+                                                    >
+                                                      <ThemedText
+                                                        size="l"
+                                                        style={{
+                                                          color: colors.primary,
+                                                        }}
+                                                      >
+                                                        {t("common.cancel")}
+                                                      </ThemedText>
+                                                    </TouchableOpacity>
+                                                    <ThemedText
+                                                      size="l"
+                                                      weight="semibold"
+                                                    >
+                                                      {t("profile.job.startDate")}
+                                                    </ThemedText>
+                                                    <TouchableOpacity
+                                                      onPress={() => {
+                                                        setNewEntityStartDate(
+                                                          startDatePickerTemp,
+                                                        );
+                                                        setShowStartDatePicker(
+                                                          false,
+                                                        );
+                                                      }}
+                                                    >
+                                                      <ThemedText
+                                                        size="l"
+                                                        style={{
+                                                          color: colors.primary,
+                                                          fontWeight: "600",
+                                                        }}
+                                                      >
+                                                        {t("common.ok")}
+                                                      </ThemedText>
+                                                    </TouchableOpacity>
+                                                  </View>
+                                                  <DateTimePicker
+                                                    value={startDatePickerTemp}
+                                                    mode="date"
+                                                    display="spinner"
+                                                    onChange={(_, d) => {
+                                                      if (d)
+                                                        setStartDatePickerTemp(d);
+                                                    }}
+                                                    maximumDate={
+                                                      newEntityEndDate || undefined
+                                                    }
+                                                    style={{ height: 200 }}
+                                                  />
+                                                </View>
+                                              </View>
+                                            </RNModal>
+                                          ) : (
+                                            <DateTimePicker
+                                              value={
+                                                newEntityStartDate || new Date()
+                                              }
+                                              mode="date"
+                                              display="default"
+                                              onChange={(event, date) => {
+                                                setShowStartDatePicker(false);
+                                                if (event.type === "set" && date) {
+                                                  setNewEntityStartDate(date);
+                                                }
+                                              }}
+                                            />
+                                          ))}
+                                      </View>
+
+                                      <View style={styles.formField}>
+                                        <TouchableOpacity
+                                          style={styles.checkboxContainer}
+                                          onPress={() => {
+                                            setNewEntityIsCurrent(
+                                              !newEntityIsCurrent,
+                                            );
+                                            if (!newEntityIsCurrent) {
+                                              setNewEntityEndDate(null);
+                                            }
+                                          }}
+                                        >
+                                          <MaterialIcons
+                                            name={
+                                              newEntityIsCurrent
+                                                ? "check-box"
+                                                : "check-box-outline-blank"
+                                            }
+                                            size={24 * fontScale}
+                                            color={
+                                              newEntityIsCurrent
+                                                ? colors.primary
+                                                : colors.text
+                                            }
+                                          />
+                                          <ThemedText
+                                            size="sm"
+                                            style={{ marginLeft: 8 * fontScale }}
+                                          >
+                                            {t("profile.job.current")}
+                                          </ThemedText>
+                                        </TouchableOpacity>
+                                      </View>
+
+                                      {!newEntityIsCurrent && (
+                                        <View style={styles.formField}>
+                                          <ThemedText
+                                            size="xs"
+                                            weight="medium"
+                                            style={styles.formLabel}
+                                          >
+                                            {t("profile.job.endDate")}
+                                          </ThemedText>
+                                          <TouchableOpacity
+                                            style={styles.dateButton}
+                                            onPress={() => {
+                                              setEndDatePickerTemp(
+                                                newEntityEndDate ||
+                                                  newEntityStartDate ||
+                                                  new Date(),
+                                              );
+                                              setShowEndDatePicker(true);
+                                            }}
+                                          >
+                                            <ThemedText size="sm">
+                                              {newEntityEndDate
+                                                ? newEntityEndDate.toLocaleDateString()
+                                                : t("profile.job.selectEndDate")}
+                                            </ThemedText>
+                                            <MaterialIcons
+                                              name="calendar-today"
+                                              size={20 * fontScale}
+                                              color={colors.primary}
+                                            />
+                                          </TouchableOpacity>
+                                          {showEndDatePicker &&
+                                            (Platform.OS === "ios" ? (
+                                              <RNModal
+                                                visible
+                                                transparent
+                                                animationType="slide"
+                                                onRequestClose={() =>
+                                                  setShowEndDatePicker(false)
+                                                }
+                                              >
+                                                <View
+                                                  style={{
+                                                    flex: 1,
+                                                    justifyContent: "flex-end",
+                                                    backgroundColor:
+                                                      "rgba(0, 0, 0, 0.5)",
+                                                  }}
+                                                >
+                                                  <View
+                                                    style={{
+                                                      backgroundColor:
+                                                        colorScheme === "dark"
+                                                          ? "#1E3A52"
+                                                          : "#FFFFFF",
+                                                      borderTopLeftRadius: 20,
+                                                      borderTopRightRadius: 20,
+                                                      paddingTop: 20,
+                                                      paddingBottom: 40,
+                                                    }}
+                                                  >
+                                                    <View
+                                                      style={{
+                                                        flexDirection: "row",
+                                                        justifyContent:
+                                                          "space-between",
+                                                        alignItems: "center",
+                                                        paddingHorizontal: 20,
+                                                        paddingBottom: 10,
+                                                        borderBottomWidth: 1,
+                                                        borderBottomColor:
+                                                          colorScheme === "dark"
+                                                            ? "rgba(255, 255, 255, 0.1)"
+                                                            : "rgba(0, 0, 0, 0.1)",
+                                                      }}
+                                                    >
+                                                      <TouchableOpacity
+                                                        onPress={() =>
+                                                          setShowEndDatePicker(
+                                                            false,
+                                                          )
+                                                        }
+                                                      >
+                                                        <ThemedText
+                                                          size="l"
+                                                          style={{
+                                                            color: colors.primary,
+                                                          }}
+                                                        >
+                                                          {t("common.cancel")}
+                                                        </ThemedText>
+                                                      </TouchableOpacity>
+                                                      <ThemedText
+                                                        size="l"
+                                                        weight="semibold"
+                                                      >
+                                                        {t("profile.job.endDate")}
+                                                      </ThemedText>
+                                                      <TouchableOpacity
+                                                        onPress={() => {
+                                                          if (
+                                                            newEntityStartDate &&
+                                                            endDatePickerTemp <
+                                                              newEntityStartDate
+                                                          ) {
+                                                            Alert.alert(
+                                                              t("common.error"),
+                                                              t(
+                                                                "profile.date.error.endBeforeStart",
+                                                              ),
+                                                              [
+                                                                {
+                                                                  text:
+                                                                    t(
+                                                                      "common.ok",
+                                                                    ),
+                                                                },
+                                                              ],
+                                                            );
+                                                            return;
+                                                          }
+                                                          setNewEntityEndDate(
+                                                            endDatePickerTemp,
+                                                          );
+                                                          setShowEndDatePicker(
+                                                            false,
+                                                          );
+                                                        }}
+                                                      >
+                                                        <ThemedText
+                                                          size="l"
+                                                          style={{
+                                                            color: colors.primary,
+                                                            fontWeight: "600",
+                                                          }}
+                                                        >
+                                                          {t("common.ok")}
+                                                        </ThemedText>
+                                                      </TouchableOpacity>
+                                                    </View>
+                                                    <DateTimePicker
+                                                      value={endDatePickerTemp}
+                                                      mode="date"
+                                                      display="spinner"
+                                                      onChange={(_, d) => {
+                                                        if (d)
+                                                          setEndDatePickerTemp(d);
+                                                      }}
+                                                      minimumDate={
+                                                        newEntityStartDate ||
+                                                        undefined
+                                                      }
+                                                      style={{ height: 200 }}
+                                                    />
+                                                  </View>
+                                                </View>
+                                              </RNModal>
+                                            ) : (
+                                              <DateTimePicker
+                                                value={
+                                                  newEntityEndDate || new Date()
+                                                }
+                                                mode="date"
+                                                display="default"
+                                                onChange={(event, date) => {
+                                                  setShowEndDatePicker(false);
+                                                  if (
+                                                    event.type === "set" &&
+                                                    date
+                                                  ) {
+                                                    setNewEntityEndDate(date);
+                                                  }
+                                                }}
+                                              />
+                                            ))}
+                                        </View>
+                                      )}
+                                    </>
+                                  )}
+
+                                  {/* Description field - optional for all */}
+                                  <View style={styles.formField}>
+                                    <ThemedText
+                                      size="xs"
+                                      weight="medium"
+                                      style={styles.formLabel}
+                                    >
+                                      {t("profile.description")}
+                                    </ThemedText>
+                                    <TextInput
+                                      style={[
+                                        styles.formInput,
+                                        styles.formTextArea,
+                                      ]}
+                                      value={newEntityDescription}
+                                      onChangeText={setNewEntityDescription}
+                                      placeholder={
+                                        t("profile.description.placeholder")
+                                      }
+                                      placeholderTextColor={
+                                        colorScheme === "dark"
+                                          ? colors.textMediumEmphasis
+                                          : colors.text + "80"
+                                      }
+                                      multiline
+                                      numberOfLines={3}
+                                      textAlignVertical="top"
+                                    />
+                                  </View>
+
+                                  {/* Image upload - optional for all */}
+                                  <View style={styles.formField}>
+                                    <ThemedText
+                                      size="xs"
+                                      weight="medium"
+                                      style={styles.formLabel}
+                                    >
+                                      {t("profile.image")}
+                                    </ThemedText>
+                                    {newEntityImage ? (
+                                      <View
+                                        style={
+                                          styles.addEntityImagePreviewContainer
+                                        }
+                                      >
+                                        <Image
+                                          source={{ uri: newEntityImage }}
+                                          style={styles.addEntityImagePreview}
+                                        />
+                                        <TouchableOpacity
+                                          style={styles.addEntityRemoveImageButton}
+                                          onPress={() => setNewEntityImage(null)}
+                                        >
+                                          <MaterialIcons
+                                            name="close"
+                                            size={16 * fontScale}
+                                            color="#ffffff"
+                                          />
+                                        </TouchableOpacity>
+                                      </View>
+                                    ) : (
+                                      <TouchableOpacity
+                                        style={styles.addEntityImageUploadButton}
+                                        onPress={async () => {
+                                          setIsPickingImage(true);
+                                          try {
+                                            const result =
+                                              await ImagePicker.launchImageLibraryAsync(
+                                                {
+                                                  mediaTypes:
+                                                    ImagePicker.MediaTypeOptions
+                                                      .Images,
+                                                  allowsEditing: true,
+                                                  aspect: [1, 1],
+                                                  quality: 0.8,
+                                                },
+                                              );
+                                            if (
+                                              !result.canceled &&
+                                              result.assets[0]
+                                            ) {
+                                              setNewEntityImage(
+                                                result.assets[0].uri,
+                                              );
+                                            }
+                                          } finally {
+                                            setIsPickingImage(false);
+                                          }
+                                        }}
+                                        disabled={isPickingImage}
+                                      >
+                                        {isPickingImage ? (
+                                          <ActivityIndicator
+                                            size="small"
+                                            color={colors.primary}
+                                          />
+                                        ) : (
+                                          <>
+                                            <MaterialIcons
+                                              name="add-photo-alternate"
+                                              size={24 * fontScale}
+                                              color={colors.primary}
+                                            />
+                                            <ThemedText
+                                              size="xs"
+                                              style={{
+                                                color: colors.primary,
+                                                marginTop: 4 * fontScale,
+                                              }}
+                                            >
+                                              {t("profile.image.add")}
+                                            </ThemedText>
+                                          </>
+                                        )}
+                                      </TouchableOpacity>
+                                    )}
+                                  </View>
+
+                                  {/* Save button */}
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.saveEntityButton,
+                                      (!isEntityFormValid() || isSavingEntity) &&
+                                        styles.saveEntityButtonDisabled,
+                                    ]}
+                                    onPress={handleSaveNewEntity}
+                                    disabled={
+                                      !isEntityFormValid() || isSavingEntity
+                                    }
+                                    activeOpacity={0.8}
+                                  >
+                                    {isSavingEntity ? (
+                                      <ActivityIndicator color="#FFFFFF" />
+                                    ) : (
+                                      <ThemedText
+                                        size="sm"
+                                        weight="bold"
+                                        style={{ color: "#FFFFFF" }}
+                                      >
+                                        {t("common.save")}
+                                      </ThemedText>
+                                    )}
+                                  </TouchableOpacity>
+                                </View>
+    );
+  };
+
+  const spherePickerTargetDraft =
+    spherePickerDraftId != null
+      ? memoryDrafts.find((d) => d.id === spherePickerDraftId)
+      : undefined;
+  const spherePickerSelected = spherePickerTargetDraft?.sphere ?? null;
+
+  const entityPickerTargetDraft =
+    entityPickerDraftId != null
+      ? memoryDrafts.find((d) => d.id === entityPickerDraftId)
+      : undefined;
 
   const animatedModalStyle = useAnimatedStyle(() => ({
     opacity: modalOpacity.value,
@@ -1829,6 +2819,67 @@ export function AIModal({
         colorScheme === "dark"
           ? "rgba(255, 255, 255, 0.1)"
           : "rgba(0, 0, 0, 0.1)",
+    },
+    suggestedMemoriesIntro: {
+      marginBottom: 14 * fontScale,
+      paddingBottom: 14 * fontScale,
+      borderBottomWidth: 1,
+      borderBottomColor:
+        colorScheme === "dark"
+          ? "rgba(255, 255, 255, 0.1)"
+          : "rgba(0, 0, 0, 0.08)",
+    },
+    memoryDraftCardWrap: {
+      position: "relative" as const,
+      marginBottom: 14 * fontScale,
+    },
+    memoryDraftReviewDot: {
+      position: "absolute" as const,
+      top: 10 * fontScale,
+      right: 12 * fontScale,
+      width: 10 * fontScale,
+      height: 10 * fontScale,
+      borderRadius: 5 * fontScale,
+      backgroundColor: "#FF3B30",
+      zIndex: 2,
+    },
+    memoryDraftCard: {
+      backgroundColor:
+        colorScheme === "dark"
+          ? "rgba(255, 255, 255, 0.06)"
+          : "rgba(0, 0, 0, 0.04)",
+      borderWidth: 1,
+      borderColor:
+        colorScheme === "dark"
+          ? "rgba(100, 181, 246, 0.35)"
+          : "rgba(74, 144, 226, 0.45)",
+      borderRadius: 16 * fontScale,
+      padding: 14 * fontScale,
+    },
+    memoryDraftCardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10 * fontScale,
+      marginBottom: 0,
+    },
+    memoryDraftTitleField: {
+      marginTop: 14 * fontScale,
+      marginBottom: 10 * fontScale,
+    },
+    memoryDraftTitleInput: {
+      marginTop: 6 * fontScale,
+      fontSize: 16 * fontScale,
+      lineHeight: 22 * fontScale,
+      color: colors.text,
+      borderWidth: 1,
+      borderColor:
+        colorScheme === "dark"
+          ? "rgba(255, 255, 255, 0.14)"
+          : "rgba(0, 0, 0, 0.12)",
+      borderRadius: 12 * fontScale,
+      paddingHorizontal: 12 * fontScale,
+      paddingVertical: 10 * fontScale,
     },
     memoryItem: {
       backgroundColor:
@@ -2193,12 +3244,11 @@ export function AIModal({
                         adjustsFontSizeToFit
                         minimumFontScale={0.92}
                       >
-                        {t("ai.title") || "Create a memory with Sferas AI"}
+                        {t("ai.title")}
                       </ThemedText>
                     </View>
                     <ThemedText size="sm" style={styles.headerSubtitle}>
-                      {t("ai.subtitle") ||
-                        "Sfera AI will structure your story into moments and lessons."}
+                      {t("ai.subtitle")}
                     </ThemedText>
                     {currentView !== "input" &&
                       !onboardingSferaAI &&
@@ -2214,8 +3264,7 @@ export function AIModal({
                             },
                           ]}
                         >
-                          {t("ai.rateLimit.premiumMessage") ||
-                            "You've reached the daily limit. Try again tomorrow."}
+                          {t("ai.rateLimit.premiumMessage")}
                         </ThemedText>
                       ) : (
                         <ThemedText
@@ -2228,8 +3277,7 @@ export function AIModal({
                             },
                           ]}
                         >
-                          {(t("ai.remainingCreations") ||
-                            "{count} of {limit} free AI memory creations left today")
+                          {t("ai.remainingCreations")
                             .replace("{count}", String(remainingAIRequests))
                             .replace(
                               "{limit}",
@@ -2319,7 +3367,7 @@ export function AIModal({
                         onChangeText={setInputTextWithLimit}
                         maxLength={MAX_INPUT_LENGTH}
                         placeholder={
-                          t("ai.placeholder.input") || "Share your memory or tell a story here…"
+                          t("ai.placeholder.input")
                         }
                         placeholderTextColor={
                           colors.textMediumEmphasis || colors.text + "80"
@@ -2370,7 +3418,7 @@ export function AIModal({
                           }
                         />
                         <ThemedText size="sm" style={{ opacity: 0.7 }}>
-                          {t("ai.listening") || "Listening..."}
+                          {t("ai.listening")}
                         </ThemedText>
                       </View>
                     )}
@@ -2461,7 +3509,7 @@ export function AIModal({
                                   : "#1F2937",
                           }}
                         >
-                          {t("ai.submit") || "Submit"}
+                          {t("ai.submit")}
                         </ThemedText>
                       </View>
                     </LinearGradient>
@@ -2479,8 +3527,7 @@ export function AIModal({
                           },
                         ]}
                       >
-                        {t("ai.rateLimit.premiumMessage") ||
-                          "You've reached the daily limit. Try again tomorrow."}
+                        {t("ai.rateLimit.premiumMessage")}
                       </ThemedText>
                     ) : (
                       <ThemedText
@@ -2493,8 +3540,7 @@ export function AIModal({
                           },
                         ]}
                       >
-                        {(t("ai.remainingCreations") ||
-                          "{count} of {limit} free AI memory creations left today")
+                        {t("ai.remainingCreations")
                           .replace("{count}", String(remainingAIRequests))
                           .replace(
                             "{limit}",
@@ -2517,8 +3563,7 @@ export function AIModal({
                         marginTop: 8,
                       }}
                     >
-                      {t("ai.error.minimumWords") ||
-                        "Please enter at least 10 words"}
+                      {t("ai.error.minimumWords")}
                     </ThemedText>
                   )}
                   {exceedsMaxLength && !isProcessing && (
@@ -2530,8 +3575,7 @@ export function AIModal({
                         marginTop: 8,
                       }}
                     >
-                      {t("ai.error.maximumLength", { max: MAX_INPUT_LENGTH }) ||
-                        `Text is too long. Maximum ${MAX_INPUT_LENGTH} characters allowed.`}
+                      {t("ai.error.maximumLength", { max: MAX_INPUT_LENGTH })}
                     </ThemedText>
                   )}
                 </>
@@ -2555,7 +3599,7 @@ export function AIModal({
                         weight="semibold"
                         style={styles.headerTitle}
                       >
-                        {t("ai.error.title") || "AI Processing Failed"}
+                        {t("ai.error.title")}
                       </ThemedText>
                     </View>
                     <TouchableOpacity
@@ -2602,7 +3646,7 @@ export function AIModal({
                         color: colorScheme === "dark" ? "#FF6B6B" : "#D93025",
                       }}
                     >
-                      {t("ai.error.title") || "AI Processing Failed"}
+                      {t("ai.error.title")}
                     </ThemedText>
                     <ThemedText
                       size="sm"
@@ -2640,7 +3684,7 @@ export function AIModal({
                         }}
                       >
                         <ThemedText size="sm" weight="medium">
-                          {t("common.cancel") || "Cancel"}
+                          {t("common.cancel")}
                         </ThemedText>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -2685,7 +3729,7 @@ export function AIModal({
                               weight="bold"
                               style={{ color: "#ffffff" }}
                             >
-                              {t("common.retry") || "Retry"}
+                              {t("common.retry")}
                             </ThemedText>
                           </View>
                         </LinearGradient>
@@ -2775,948 +3819,439 @@ export function AIModal({
                     {/* Results (shown when AI response arrives) */}
                     {aiResponse && (
                       <>
-                        {/* Memory Title */}
+                        {/* Suggested memories — cards first so they are not pushed below the fold */}
                         <View
                           style={[
-                            styles.resultsHeader,
-                            { marginTop: 24 * fontScale },
+                            styles.suggestedMemoriesIntro,
+                            { marginTop: 20 * fontScale },
                           ]}
                         >
-                          <View style={styles.dropdownContainer}>
-                            <ThemedText
-                              size="xs"
-                              weight="medium"
-                              style={styles.dropdownLabel}
-                            >
-                              {t("memory.title") || "Title"}
-                            </ThemedText>
-                            <View style={styles.titleDisplay}>
-                              <ThemedText size="sm" weight="semibold">
-                                {aiResponse?.memory?.title || ""}
-                              </ThemedText>
-                            </View>
-                          </View>
+                          <ThemedText size="m" weight="bold">
+                            {t("ai.results.suggestedMemories")}
+                          </ThemedText>
+                          <ThemedText
+                            size="xs"
+                            style={{
+                              marginTop: 6 * fontScale,
+                              opacity: 0.72,
+                              lineHeight: 18 * fontScale,
+                            }}
+                          >
+                            {t("ai.results.suggestedMemoriesHint")}
+                          </ThemedText>
                         </View>
 
-                        {/* Sphere and Entity Selectors */}
-                        <View style={styles.resultsHeader}>
-                          {/* Sphere Dropdown */}
-                          <View style={styles.dropdownContainer}>
-                            <ThemedText
-                              size="xs"
-                              weight="medium"
-                              style={styles.dropdownLabel}
-                            >
-                              {t("ai.results.sphere") || "Sfera"}
-                            </ThemedText>
-                            {onboardingSferaAI ? (
-                              <View style={styles.dropdownButton}>
-                                <ThemedText size="sm" weight="semibold">
-                                  {selectedSphere
-                                    ? (t(`onboarding.sphere.${selectedSphere}`) ||
-                                      selectedSphere)
-                                    : ""}
-                                </ThemedText>
-                              </View>
-                            ) : (
-                              <Pressable
-                                style={styles.dropdownButton}
-                                onPress={() => setShowSpherePicker(true)}
-                              >
-                                <ThemedText size="sm" weight="semibold">
-                                  {selectedSphere || ""}
-                                </ThemedText>
-                                <MaterialIcons
-                                  name="arrow-drop-down"
-                                  size={24 * fontScale}
-                                  color={colors.text}
-                                />
-                              </Pressable>
-                            )}
-                          </View>
-
-                          {/* Entity Dropdown - Show when sphere is selected, hide when form is expanded */}
-                          {selectedSphere && !showAddEntityForm && (
+                        {memoryDrafts.map((draft, draftIndex) => {
+                          const isExpanded = expandedDraftIds.includes(draft.id);
+                          const draftEntities = listEntitiesForSphere(draft.sphere);
+                          return (
                             <View
-                              style={[
-                                styles.dropdownContainer,
-                                { marginTop: 12 * fontScale },
-                              ]}
+                              key={draft.id}
+                              style={styles.memoryDraftCardWrap}
                             >
-                              <ThemedText
-                                size="xs"
-                                weight="medium"
-                                style={styles.dropdownLabel}
-                              >
-                                {t("ai.results.entity") || "Entity"}
-                              </ThemedText>
-                              {onboardingSferaAI ? (
-                                <View style={styles.dropdownButton}>
-                                  <ThemedText size="sm" weight="semibold">
-                                    {selectedEntityName || ""}
-                                  </ThemedText>
-                                </View>
-                              ) : availableEntitiesForSphere.length > 0 ? (
-                                <>
-                                  <Pressable
-                                    style={[
-                                      styles.dropdownButton,
-                                      // Show error border if validation errors are shown AND no entity is selected
-                                      // OR if entity is required (entities available) but not selected
-                                      (showValidationErrors ||
-                                        (availableEntitiesForSphere.length >
-                                          0 &&
-                                          !selectedEntityId)) &&
-                                      !selectedEntityId
-                                        ? styles.dropdownButtonError
-                                        : null,
-                                    ].filter(Boolean)}
-                                    onPress={() => {
-                                      setShowEntityPicker(true);
-                                      if (showValidationErrors) {
-                                        setShowValidationErrors(false);
-                                      }
-                                    }}
-                                  >
-                                    <ThemedText size="sm" weight="semibold">
-                                      {selectedEntityName ||
-                                        t("ai.results.selectEntity") ||
-                                        "Select entity..."}
+                              {!isMemoryDraftComplete(draft) ? (
+                                <View
+                                  style={styles.memoryDraftReviewDot}
+                                  pointerEvents="none"
+                                />
+                              ) : null}
+                              <View style={styles.memoryDraftCard}>
+                                <TouchableOpacity
+                                  style={styles.memoryDraftCardHeader}
+                                  onPress={() =>
+                                    handleToggleDraftExpanded(draft.id)
+                                  }
+                                  activeOpacity={0.85}
+                                  accessibilityRole="button"
+                                  accessibilityState={{ expanded: isExpanded }}
+                                  accessibilityLabel={
+                                    t("ai.results.memoryCardToggle") as string
+                                  }
+                                >
+                                  <View style={{ flex: 1, minWidth: 0 }}>
+                                    <ThemedText
+                                      size="sm"
+                                      weight="bold"
+                                      numberOfLines={2}
+                                    >
+                                      {draft.title || `Memory ${draftIndex + 1}`}
                                     </ThemedText>
-                                    <MaterialIcons
-                                      name="arrow-drop-down"
-                                      size={24 * fontScale}
-                                      color={colors.text}
-                                    />
-                                  </Pressable>
-
-                                  {/* Helper text/button - always show to allow adding new entity */}
-                                  <TouchableOpacity
-                                    style={[
-                                      styles.helperButton,
-                                      selectedEntityId &&
-                                        styles.helperButtonValid,
-                                    ]}
-                                    onPress={() => {
-                                      setShowAddEntityForm(true);
-                                      setShowEntityPicker(false);
-                                    }}
-                                    activeOpacity={0.7}
-                                  >
                                     <ThemedText
                                       size="xs"
-                                      style={[
-                                        styles.helperText,
-                                        selectedEntityId &&
-                                          styles.helperTextValid,
-                                      ]}
+                                      style={{
+                                        marginTop: 4 * fontScale,
+                                        opacity: 0.7,
+                                      }}
                                     >
-                                      {(() => {
-                                        const sphere =
-                                          selectedSphere;
-                                        const expandKey =
-                                          sphere &&
-                                          [
-                                            "family",
-                                            "friends",
-                                            "hobbies",
-                                            "relationships",
-                                            "career",
-                                          ].includes(sphere)
-                                            ? (`ai.results.expandToAdd.${sphere}` as const)
-                                            : "ai.results.expandToAdd.default";
-                                        const expandText = t(expandKey);
-                                        return !selectedEntityId
-                                          ? `${t("ai.results.unrecognizedEntity") || "Unrecognized entity."} ${expandText}`
-                                          : expandText;
-                                      })()}
+                                      {`${draft.items.length} ${draft.items.length === 1 ? "moment" : "moments"}`}
+                                      {!isExpanded
+                                        ? ` · ${t("ai.results.tapToExpand")}`
+                                        : ""}
                                     </ThemedText>
-                                    <MaterialIcons
-                                      name="expand-more"
-                                      size={16 * fontScale}
-                                      color={
-                                        selectedEntityId
-                                          ? colors.primary
-                                          : "#FF3B30"
-                                      }
-                                    />
-                                  </TouchableOpacity>
-                                </>
-                              ) : (
-                                /* No entities exist - show helper button to add first entity */
-                                <TouchableOpacity
-                                  style={styles.helperButton}
-                                  onPress={() => {
-                                    setShowAddEntityForm(true);
-                                    setShowEntityPicker(false);
-                                  }}
-                                  activeOpacity={0.7}
-                                >
-                                  <ThemedText
-                                    size="xs"
-                                    style={styles.helperText}
-                                  >
-                                    {(() => {
-                                      const sphere =
-                                        selectedSphere;
-                                      const expandKey =
-                                        sphere &&
-                                        [
-                                          "family",
-                                          "friends",
-                                          "hobbies",
-                                          "relationships",
-                                          "career",
-                                        ].includes(sphere)
-                                          ? (`ai.results.expandToAdd.${sphere}` as const)
-                                          : "ai.results.expandToAdd.default";
-                                      return t(expandKey);
-                                    })()}
-                                  </ThemedText>
+                                  </View>
                                   <MaterialIcons
-                                    name="expand-more"
-                                    size={16 * fontScale}
+                                    name={
+                                      isExpanded ? "expand-less" : "expand-more"
+                                    }
+                                    size={26 * fontScale}
                                     color={colors.primary}
                                   />
                                 </TouchableOpacity>
-                              )}
-                            </View>
-                          )}
 
-                          {/* Expandable form for adding new entity */}
-                          {showAddEntityForm && selectedSphere && (
-                            <View style={styles.addEntityForm}>
-                              <View style={styles.addEntityFormHeader}>
-                                <ThemedText size="sm" weight="bold">
-                                  {selectedSphere === "family"
-                                    ? t("profile.familyMember.add") ||
-                                      "Add Family Member"
-                                    : selectedSphere === "friends"
-                                      ? t("profile.friend.add") || "Add Friend"
-                                      : selectedSphere === "career"
-                                        ? t("profile.job.add") || "Add Job"
-                                        : selectedSphere === "hobbies"
-                                          ? t("profile.hobby.add") ||
-                                            "Add Hobby"
-                                          : t("profile.relationship.add") ||
-                                            "Add Relationship"}
-                                </ThemedText>
-                                <TouchableOpacity
-                                  onPress={() => {
-                                    setShowAddEntityForm(false);
-                                    // Reset form fields
-                                    setNewEntityName("");
-                                    setNewEntityDescription("");
-                                    setNewEntityRelationship("");
-                                    setNewEntityStartDate(null);
-                                    setNewEntityEndDate(null);
-                                    setNewEntityIsCurrent(false);
-                                    setNewEntityImage(null);
-                                  }}
-                                >
-                                  <MaterialIcons
-                                    name="close"
-                                    size={20 * fontScale}
-                                    color={colors.text}
-                                  />
-                                </TouchableOpacity>
-                              </View>
-
-                              {/* Name field - required for all */}
-                              <View style={styles.formField}>
-                                <ThemedText
-                                  size="xs"
-                                  weight="medium"
-                                  style={styles.formLabel}
-                                >
-                                  {t("profile.name") || "Name"} *
-                                </ThemedText>
-                                <TextInput
-                                  style={[
-                                    styles.formInput,
-                                    !newEntityName.trim() &&
-                                      showValidationErrors &&
-                                      styles.formInputError,
-                                  ]}
-                                  value={newEntityName}
-                                  onChangeText={setNewEntityName}
-                                  placeholder={
-                                    t("profile.name.placeholder") ||
-                                    "Enter name"
-                                  }
-                                  placeholderTextColor={
-                                    colorScheme === "dark"
-                                      ? colors.textMediumEmphasis
-                                      : colors.text + "80"
-                                  }
-                                />
-                              </View>
-
-                              {/* Relationship field - required for family */}
-                              {selectedSphere === "family" && (
-                                <View style={styles.formField}>
-                                  <ThemedText
-                                    size="xs"
-                                    weight="medium"
-                                    style={styles.formLabel}
-                                  >
-                                    {t("profile.familyMember.relationship") ||
-                                      "Relationship"}{" "}
-                                    *
-                                  </ThemedText>
-                                  <TextInput
-                                    style={[
-                                      styles.formInput,
-                                      !newEntityRelationship.trim() &&
-                                        showValidationErrors &&
-                                        styles.formInputError,
-                                    ]}
-                                    value={newEntityRelationship}
-                                    onChangeText={setNewEntityRelationship}
-                                    placeholder={
-                                      t(
-                                        "profile.familyMember.relationship.placeholder",
-                                      ) || "e.g., Mother, Brother"
-                                    }
-                                    placeholderTextColor={
-                                      colorScheme === "dark"
-                                        ? colors.textMediumEmphasis
-                                        : colors.text + "80"
-                                    }
-                                  />
-                                </View>
-                              )}
-
-                              {/* Date fields - for jobs and relationships */}
-                              {(selectedSphere === "career" ||
-                                selectedSphere === "relationships") && (
-                                <>
-                                  <View style={styles.formField}>
-                                    <ThemedText
-                                      size="xs"
-                                      weight="medium"
-                                      style={styles.formLabel}
-                                    >
-                                      {t("profile.job.startDate") ||
-                                        "Start Date"}
-                                    </ThemedText>
-                                    <TouchableOpacity
-                                      style={styles.dateButton}
-                                      onPress={() => {
-                                        setStartDatePickerTemp(
-                                          newEntityStartDate || new Date(),
-                                        );
-                                        setShowStartDatePicker(true);
-                                      }}
-                                    >
-                                      <ThemedText size="sm">
-                                        {newEntityStartDate
-                                          ? newEntityStartDate.toLocaleDateString()
-                                          : t("profile.job.selectStartDate") ||
-                                            "Select start date"}
-                                      </ThemedText>
-                                      <MaterialIcons
-                                        name="calendar-today"
-                                        size={20 * fontScale}
-                                        color={colors.primary}
-                                      />
-                                    </TouchableOpacity>
-                                    {showStartDatePicker &&
-                                      (Platform.OS === "ios" ? (
-                                        <RNModal
-                                          visible
-                                          transparent
-                                          animationType="slide"
-                                          onRequestClose={() =>
-                                            setShowStartDatePicker(false)
-                                          }
-                                        >
-                                          <View
-                                            style={{
-                                              flex: 1,
-                                              justifyContent: "flex-end",
-                                              backgroundColor:
-                                                "rgba(0, 0, 0, 0.5)",
-                                            }}
-                                          >
-                                            <View
-                                              style={{
-                                                backgroundColor:
-                                                  colorScheme === "dark"
-                                                    ? "#1E3A52"
-                                                    : "#FFFFFF",
-                                                borderTopLeftRadius: 20,
-                                                borderTopRightRadius: 20,
-                                                paddingTop: 20,
-                                                paddingBottom: 40,
-                                              }}
-                                            >
-                                              <View
-                                                style={{
-                                                  flexDirection: "row",
-                                                  justifyContent:
-                                                    "space-between",
-                                                  alignItems: "center",
-                                                  paddingHorizontal: 20,
-                                                  paddingBottom: 10,
-                                                  borderBottomWidth: 1,
-                                                  borderBottomColor:
-                                                    colorScheme === "dark"
-                                                      ? "rgba(255, 255, 255, 0.1)"
-                                                      : "rgba(0, 0, 0, 0.1)",
-                                                }}
-                                              >
-                                                <TouchableOpacity
-                                                  onPress={() =>
-                                                    setShowStartDatePicker(
-                                                      false,
-                                                    )
-                                                  }
-                                                >
-                                                  <ThemedText
-                                                    size="l"
-                                                    style={{
-                                                      color: colors.primary,
-                                                    }}
-                                                  >
-                                                    {t("common.cancel") ||
-                                                      "Cancel"}
-                                                  </ThemedText>
-                                                </TouchableOpacity>
-                                                <ThemedText
-                                                  size="l"
-                                                  weight="semibold"
-                                                >
-                                                  {t("profile.job.startDate") ||
-                                                    "Start Date"}
-                                                </ThemedText>
-                                                <TouchableOpacity
-                                                  onPress={() => {
-                                                    setNewEntityStartDate(
-                                                      startDatePickerTemp,
-                                                    );
-                                                    setShowStartDatePicker(
-                                                      false,
-                                                    );
-                                                  }}
-                                                >
-                                                  <ThemedText
-                                                    size="l"
-                                                    style={{
-                                                      color: colors.primary,
-                                                      fontWeight: "600",
-                                                    }}
-                                                  >
-                                                    {t("common.ok") || "OK"}
-                                                  </ThemedText>
-                                                </TouchableOpacity>
-                                              </View>
-                                              <DateTimePicker
-                                                value={startDatePickerTemp}
-                                                mode="date"
-                                                display="spinner"
-                                                onChange={(_, d) => {
-                                                  if (d)
-                                                    setStartDatePickerTemp(d);
-                                                }}
-                                                maximumDate={
-                                                  newEntityEndDate || undefined
-                                                }
-                                                style={{ height: 200 }}
-                                              />
-                                            </View>
-                                          </View>
-                                        </RNModal>
-                                      ) : (
-                                        <DateTimePicker
-                                          value={
-                                            newEntityStartDate || new Date()
-                                          }
-                                          mode="date"
-                                          display="default"
-                                          onChange={(event, date) => {
-                                            setShowStartDatePicker(false);
-                                            if (event.type === "set" && date) {
-                                              setNewEntityStartDate(date);
-                                            }
-                                          }}
-                                        />
-                                      ))}
-                                  </View>
-
-                                  <View style={styles.formField}>
-                                    <TouchableOpacity
-                                      style={styles.checkboxContainer}
-                                      onPress={() => {
-                                        setNewEntityIsCurrent(
-                                          !newEntityIsCurrent,
-                                        );
-                                        if (!newEntityIsCurrent) {
-                                          setNewEntityEndDate(null);
-                                        }
-                                      }}
-                                    >
-                                      <MaterialIcons
-                                        name={
-                                          newEntityIsCurrent
-                                            ? "check-box"
-                                            : "check-box-outline-blank"
-                                        }
-                                        size={24 * fontScale}
-                                        color={
-                                          newEntityIsCurrent
-                                            ? colors.primary
-                                            : colors.text
-                                        }
-                                      />
-                                      <ThemedText
-                                        size="sm"
-                                        style={{ marginLeft: 8 * fontScale }}
-                                      >
-                                        {t("profile.job.current") || "Current"}
-                                      </ThemedText>
-                                    </TouchableOpacity>
-                                  </View>
-
-                                  {!newEntityIsCurrent && (
-                                    <View style={styles.formField}>
+                                {isExpanded ? (
+                                  <>
+                                    <View style={styles.memoryDraftTitleField}>
                                       <ThemedText
                                         size="xs"
                                         weight="medium"
-                                        style={styles.formLabel}
+                                        style={styles.dropdownLabel}
                                       >
-                                        {t("profile.job.endDate") || "End Date"}
+                                        {t("memory.title")}
                                       </ThemedText>
-                                      <TouchableOpacity
-                                        style={styles.dateButton}
-                                        onPress={() => {
-                                          setEndDatePickerTemp(
-                                            newEntityEndDate ||
-                                              newEntityStartDate ||
-                                              new Date(),
-                                          );
-                                          setShowEndDatePicker(true);
-                                        }}
-                                      >
-                                        <ThemedText size="sm">
-                                          {newEntityEndDate
-                                            ? newEntityEndDate.toLocaleDateString()
-                                            : t("profile.job.selectEndDate") ||
-                                              "Select end date"}
-                                        </ThemedText>
-                                        <MaterialIcons
-                                          name="calendar-today"
-                                          size={20 * fontScale}
-                                          color={colors.primary}
-                                        />
-                                      </TouchableOpacity>
-                                      {showEndDatePicker &&
-                                        (Platform.OS === "ios" ? (
-                                          <RNModal
-                                            visible
-                                            transparent
-                                            animationType="slide"
-                                            onRequestClose={() =>
-                                              setShowEndDatePicker(false)
-                                            }
-                                          >
-                                            <View
-                                              style={{
-                                                flex: 1,
-                                                justifyContent: "flex-end",
-                                                backgroundColor:
-                                                  "rgba(0, 0, 0, 0.5)",
-                                              }}
-                                            >
-                                              <View
-                                                style={{
-                                                  backgroundColor:
-                                                    colorScheme === "dark"
-                                                      ? "#1E3A52"
-                                                      : "#FFFFFF",
-                                                  borderTopLeftRadius: 20,
-                                                  borderTopRightRadius: 20,
-                                                  paddingTop: 20,
-                                                  paddingBottom: 40,
-                                                }}
-                                              >
-                                                <View
-                                                  style={{
-                                                    flexDirection: "row",
-                                                    justifyContent:
-                                                      "space-between",
-                                                    alignItems: "center",
-                                                    paddingHorizontal: 20,
-                                                    paddingBottom: 10,
-                                                    borderBottomWidth: 1,
-                                                    borderBottomColor:
-                                                      colorScheme === "dark"
-                                                        ? "rgba(255, 255, 255, 0.1)"
-                                                        : "rgba(0, 0, 0, 0.1)",
-                                                  }}
-                                                >
-                                                  <TouchableOpacity
-                                                    onPress={() =>
-                                                      setShowEndDatePicker(
-                                                        false,
-                                                      )
-                                                    }
-                                                  >
-                                                    <ThemedText
-                                                      size="l"
-                                                      style={{
-                                                        color: colors.primary,
-                                                      }}
-                                                    >
-                                                      {t("common.cancel") ||
-                                                        "Cancel"}
-                                                    </ThemedText>
-                                                  </TouchableOpacity>
-                                                  <ThemedText
-                                                    size="l"
-                                                    weight="semibold"
-                                                  >
-                                                    {t("profile.job.endDate") ||
-                                                      "End Date"}
-                                                  </ThemedText>
-                                                  <TouchableOpacity
-                                                    onPress={() => {
-                                                      if (
-                                                        newEntityStartDate &&
-                                                        endDatePickerTemp <
-                                                          newEntityStartDate
-                                                      ) {
-                                                        Alert.alert(
-                                                          t("common.error") ||
-                                                            "Error",
-                                                          t(
-                                                            "profile.date.error.endBeforeStart",
-                                                          ) ||
-                                                            "End date must be after start date.",
-                                                          [
-                                                            {
-                                                              text:
-                                                                t(
-                                                                  "common.ok",
-                                                                ) || "OK",
-                                                            },
-                                                          ],
-                                                        );
-                                                        return;
-                                                      }
-                                                      setNewEntityEndDate(
-                                                        endDatePickerTemp,
-                                                      );
-                                                      setShowEndDatePicker(
-                                                        false,
-                                                      );
-                                                    }}
-                                                  >
-                                                    <ThemedText
-                                                      size="l"
-                                                      style={{
-                                                        color: colors.primary,
-                                                        fontWeight: "600",
-                                                      }}
-                                                    >
-                                                      {t("common.ok") || "OK"}
-                                                    </ThemedText>
-                                                  </TouchableOpacity>
-                                                </View>
-                                                <DateTimePicker
-                                                  value={endDatePickerTemp}
-                                                  mode="date"
-                                                  display="spinner"
-                                                  onChange={(_, d) => {
-                                                    if (d)
-                                                      setEndDatePickerTemp(d);
-                                                  }}
-                                                  minimumDate={
-                                                    newEntityStartDate ||
-                                                    undefined
-                                                  }
-                                                  style={{ height: 200 }}
-                                                />
-                                              </View>
-                                            </View>
-                                          </RNModal>
-                                        ) : (
-                                          <DateTimePicker
-                                            value={
-                                              newEntityEndDate || new Date()
-                                            }
-                                            mode="date"
-                                            display="default"
-                                            onChange={(event, date) => {
-                                              setShowEndDatePicker(false);
-                                              if (
-                                                event.type === "set" &&
-                                                date
-                                              ) {
-                                                setNewEntityEndDate(date);
-                                              }
-                                            }}
-                                          />
-                                        ))}
-                                    </View>
-                                  )}
-                                </>
-                              )}
-
-                              {/* Description field - optional for all */}
-                              <View style={styles.formField}>
-                                <ThemedText
-                                  size="xs"
-                                  weight="medium"
-                                  style={styles.formLabel}
-                                >
-                                  {t("profile.description") || "Description"}
-                                </ThemedText>
-                                <TextInput
-                                  style={[
-                                    styles.formInput,
-                                    styles.formTextArea,
-                                  ]}
-                                  value={newEntityDescription}
-                                  onChangeText={setNewEntityDescription}
-                                  placeholder={
-                                    t("profile.description.placeholder") ||
-                                    "Optional description"
-                                  }
-                                  placeholderTextColor={
-                                    colorScheme === "dark"
-                                      ? colors.textMediumEmphasis
-                                      : colors.text + "80"
-                                  }
-                                  multiline
-                                  numberOfLines={3}
-                                  textAlignVertical="top"
-                                />
-                              </View>
-
-                              {/* Image upload - optional for all */}
-                              <View style={styles.formField}>
-                                <ThemedText
-                                  size="xs"
-                                  weight="medium"
-                                  style={styles.formLabel}
-                                >
-                                  {t("profile.image") || "Image"}
-                                </ThemedText>
-                                {newEntityImage ? (
-                                  <View
-                                    style={
-                                      styles.addEntityImagePreviewContainer
-                                    }
-                                  >
-                                    <Image
-                                      source={{ uri: newEntityImage }}
-                                      style={styles.addEntityImagePreview}
-                                    />
-                                    <TouchableOpacity
-                                      style={styles.addEntityRemoveImageButton}
-                                      onPress={() => setNewEntityImage(null)}
-                                    >
-                                      <MaterialIcons
-                                        name="close"
-                                        size={16 * fontScale}
-                                        color="#ffffff"
-                                      />
-                                    </TouchableOpacity>
-                                  </View>
-                                ) : (
-                                  <TouchableOpacity
-                                    style={styles.addEntityImageUploadButton}
-                                    onPress={async () => {
-                                      setIsPickingImage(true);
-                                      try {
-                                        const result =
-                                          await ImagePicker.launchImageLibraryAsync(
-                                            {
-                                              mediaTypes:
-                                                ImagePicker.MediaTypeOptions
-                                                  .Images,
-                                              allowsEditing: true,
-                                              aspect: [1, 1],
-                                              quality: 0.8,
-                                            },
-                                          );
-                                        if (
-                                          !result.canceled &&
-                                          result.assets[0]
-                                        ) {
-                                          setNewEntityImage(
-                                            result.assets[0].uri,
-                                          );
+                                      <TextInput
+                                        style={styles.memoryDraftTitleInput}
+                                        value={draft.title}
+                                        onChangeText={(text) =>
+                                          handleEditDraftTitle(draft.id, text)
                                         }
-                                      } finally {
-                                        setIsPickingImage(false);
-                                      }
-                                    }}
-                                    disabled={isPickingImage}
-                                  >
-                                    {isPickingImage ? (
-                                      <ActivityIndicator
-                                        size="small"
-                                        color={colors.primary}
+                                        placeholder={
+                                          t("memory.title.placeholder")
+                                        }
+                                        placeholderTextColor={
+                                          colors.textMediumEmphasis ||
+                                          colors.text + "80"
+                                        }
                                       />
-                                    ) : (
-                                      <>
-                                        <MaterialIcons
-                                          name="add-photo-alternate"
-                                          size={24 * fontScale}
-                                          color={colors.primary}
-                                        />
+                                    </View>
+
+                                    <View
+                                      style={{
+                                        marginTop: 4 * fontScale,
+                                        paddingTop: 14 * fontScale,
+                                        borderTopWidth: 1,
+                                        borderTopColor:
+                                          colorScheme === "dark"
+                                            ? "rgba(255, 255, 255, 0.08)"
+                                            : "rgba(0, 0, 0, 0.06)",
+                                      }}
+                                    >
+                                      <View style={styles.dropdownContainer}>
                                         <ThemedText
                                           size="xs"
-                                          style={{
-                                            color: colors.primary,
-                                            marginTop: 4 * fontScale,
-                                          }}
+                                          weight="medium"
+                                          style={styles.dropdownLabel}
                                         >
-                                          {t("profile.image.add") ||
-                                            "Add photo"}
+                                          {t("ai.results.sphere")}
                                         </ThemedText>
-                                      </>
-                                    )}
-                                  </TouchableOpacity>
-                                )}
-                              </View>
+                                        {onboardingSferaAI ? (
+                                          <View style={styles.dropdownButton}>
+                                            <ThemedText
+                                              size="sm"
+                                              weight="semibold"
+                                            >
+                                              {draft.sphere
+                                                ? (t(
+                                                    `onboarding.sphere.${draft.sphere}`,
+                                                  ) || draft.sphere)
+                                                : "—"}
+                                            </ThemedText>
+                                          </View>
+                                        ) : (
+                                          <Pressable
+                                            style={styles.dropdownButton}
+                                            onPress={() => {
+                                              setSpherePickerDraftId(draft.id);
+                                              setShowSpherePicker(true);
+                                            }}
+                                          >
+                                            <ThemedText
+                                              size="sm"
+                                              weight="semibold"
+                                            >
+                                              {draft.sphere
+                                                ? spherePickerLabels[draft.sphere]
+                                                : t("ai.results.selectSphere")}
+                                            </ThemedText>
+                                            <MaterialIcons
+                                              name="arrow-drop-down"
+                                              size={24 * fontScale}
+                                              color={colors.text}
+                                            />
+                                          </Pressable>
+                                        )}
+                                      </View>
 
-                              {/* Save button */}
-                              <TouchableOpacity
-                                style={[
-                                  styles.saveEntityButton,
-                                  (!isEntityFormValid() || isSavingEntity) &&
-                                    styles.saveEntityButtonDisabled,
-                                ]}
-                                onPress={handleSaveNewEntity}
-                                disabled={
-                                  !isEntityFormValid() || isSavingEntity
-                                }
-                                activeOpacity={0.8}
-                              >
-                                {isSavingEntity ? (
-                                  <ActivityIndicator color="#FFFFFF" />
-                                ) : (
-                                  <ThemedText
-                                    size="sm"
-                                    weight="bold"
-                                    style={{ color: "#FFFFFF" }}
-                                  >
-                                    {t("common.save") || "Save"}
-                                  </ThemedText>
-                                )}
-                              </TouchableOpacity>
+                                      {draft.sphere &&
+                                      addEntityDraftId !== draft.id ? (
+                                        <View
+                                          style={[
+                                            styles.dropdownContainer,
+                                            { marginTop: 12 * fontScale },
+                                          ]}
+                                        >
+                                          <ThemedText
+                                            size="xs"
+                                            weight="medium"
+                                            style={styles.dropdownLabel}
+                                          >
+                                            {t("ai.results.entity")}
+                                          </ThemedText>
+                                          {onboardingSferaAI ? (
+                                            <View style={styles.dropdownButton}>
+                                              <ThemedText
+                                                size="sm"
+                                                weight="semibold"
+                                              >
+                                                {draft.entityName || ""}
+                                              </ThemedText>
+                                            </View>
+                                          ) : draftEntities.length > 0 ? (
+                                            <>
+                                              <Pressable
+                                                style={[
+                                                  styles.dropdownButton,
+                                                  !draft.entityId &&
+                                                  (showValidationErrors ||
+                                                    draftEntities.length > 0)
+                                                    ? styles.dropdownButtonError
+                                                    : null,
+                                                ].filter(Boolean)}
+                                                onPress={() => {
+                                                  setEntityPickerDraftId(
+                                                    draft.id,
+                                                  );
+                                                  setShowEntityPicker(true);
+                                                  if (showValidationErrors) {
+                                                    setShowValidationErrors(
+                                                      false,
+                                                    );
+                                                  }
+                                                }}
+                                              >
+                                                <ThemedText
+                                                  size="sm"
+                                                  weight="semibold"
+                                                >
+                                                  {draft.entityName ||
+                                                    t(
+                                                      "ai.results.selectEntity",
+                                                    )}
+                                                </ThemedText>
+                                                <MaterialIcons
+                                                  name="arrow-drop-down"
+                                                  size={24 * fontScale}
+                                                  color={colors.text}
+                                                />
+                                              </Pressable>
+                                              <TouchableOpacity
+                                                style={[
+                                                  styles.helperButton,
+                                                  draft.entityId &&
+                                                    styles.helperButtonValid,
+                                                ]}
+                                                onPress={() => {
+                                                  setAddEntityDraftId(draft.id);
+                                                  setShowEntityPicker(false);
+                                                  setExpandedDraftIds((prev) =>
+                                                    prev.includes(draft.id)
+                                                      ? prev
+                                                      : [...prev, draft.id],
+                                                  );
+                                                }}
+                                                activeOpacity={0.7}
+                                              >
+                                                <ThemedText
+                                                  size="xs"
+                                                  style={[
+                                                    styles.helperText,
+                                                    draft.entityId &&
+                                                      styles.helperTextValid,
+                                                  ]}
+                                                >
+                                                  {(() => {
+                                                    const sphere = draft.sphere;
+                                                    const expandKey =
+                                                      sphere &&
+                                                      [
+                                                        "family",
+                                                        "friends",
+                                                        "hobbies",
+                                                        "relationships",
+                                                        "career",
+                                                      ].includes(sphere)
+                                                        ? (`ai.results.expandToAdd.${sphere}` as const)
+                                                        : "ai.results.expandToAdd.default";
+                                                    const expandText = t(expandKey);
+                                                    return !draft.entityId
+                                                      ? `${t("ai.results.unrecognizedEntity")} ${expandText}`
+                                                      : expandText;
+                                                  })()}
+                                                </ThemedText>
+                                                <MaterialIcons
+                                                  name="expand-more"
+                                                  size={16 * fontScale}
+                                                  color={
+                                                    draft.entityId
+                                                      ? colors.primary
+                                                      : "#FF3B30"
+                                                  }
+                                                />
+                                              </TouchableOpacity>
+                                            </>
+                                          ) : (
+                                            <TouchableOpacity
+                                              style={styles.helperButton}
+                                              onPress={() => {
+                                                setAddEntityDraftId(draft.id);
+                                                setShowEntityPicker(false);
+                                                setExpandedDraftIds((prev) =>
+                                                  prev.includes(draft.id)
+                                                    ? prev
+                                                    : [...prev, draft.id],
+                                                );
+                                              }}
+                                              activeOpacity={0.7}
+                                            >
+                                              <ThemedText
+                                                size="xs"
+                                                style={styles.helperText}
+                                              >
+                                                {(() => {
+                                                  const sphere = draft.sphere;
+                                                  const expandKey =
+                                                    sphere &&
+                                                    [
+                                                      "family",
+                                                      "friends",
+                                                      "hobbies",
+                                                      "relationships",
+                                                      "career",
+                                                    ].includes(sphere)
+                                                      ? (`ai.results.expandToAdd.${sphere}` as const)
+                                                      : "ai.results.expandToAdd.default";
+                                                  return t(expandKey);
+                                                })()}
+                                              </ThemedText>
+                                              <MaterialIcons
+                                                name="expand-more"
+                                                size={16 * fontScale}
+                                                color={colors.primary}
+                                              />
+                                            </TouchableOpacity>
+                                          )}
+                                        </View>
+                                      ) : null}
+
+                                      {renderAddEntityFormForDraft(draft)}
+                                    </View>
+
+                                    {draft.items
+                                    .slice()
+                                    .sort((a, b) => {
+                                      const order: Record<string, number> = {
+                                        goodFact: 0,
+                                        hardTruth: 1,
+                                        lesson: 2,
+                                      };
+                                      return (
+                                        (order[a.type] || 99) -
+                                        (order[b.type] || 99)
+                                      );
+                                    })
+                                    .map((item) => (
+                                      <Pressable
+                                        key={item.id}
+                                        style={styles.memoryItem}
+                                        onPress={() => {
+                                          if (isKeyboardVisible)
+                                            Keyboard.dismiss();
+                                        }}
+                                      >
+                                        <View style={styles.memoryItemHeader}>
+                                          <MaterialIcons
+                                            name={
+                                              item.type === "hardTruth"
+                                                ? "cloud"
+                                                : item.type === "goodFact"
+                                                  ? "wb-sunny"
+                                                  : "lightbulb"
+                                            }
+                                            size={20 * fontScale}
+                                            color={
+                                              item.type === "hardTruth"
+                                                ? Colors.dark.primary
+                                                : item.type === "goodFact"
+                                                  ? momentColors.sunny.background
+                                                  : momentColors.lesson.background
+                                            }
+                                          />
+                                          <ThemedText
+                                            size="sm"
+                                            weight="medium"
+                                            style={{
+                                              marginLeft: 8 * fontScale,
+                                              opacity: 0.7,
+                                            }}
+                                          >
+                                            {item.type === "hardTruth"
+                                              ? t("ai.results.hardTruth")
+                                              : item.type === "goodFact"
+                                                ? t("ai.results.goodFact")
+                                                : t("ai.results.lesson")}
+                                          </ThemedText>
+                                          <TouchableOpacity
+                                            style={styles.removeItemButton}
+                                            onPress={() =>
+                                              handleRemoveItem(draft.id, item.id)
+                                            }
+                                          >
+                                            <MaterialIcons
+                                              name="close"
+                                              size={16 * fontScale}
+                                              color={
+                                                colors.textMediumEmphasis ||
+                                                colors.text
+                                              }
+                                            />
+                                          </TouchableOpacity>
+                                        </View>
+                                        <TextInput
+                                          style={styles.memoryItemText}
+                                          value={item.text}
+                                          onChangeText={(text) =>
+                                            handleEditItem(draft.id, item.id, text)
+                                          }
+                                          multiline
+                                          scrollEnabled={false}
+                                          placeholderTextColor={
+                                            colors.textMediumEmphasis ||
+                                            colors.text + "80"
+                                          }
+                                        />
+                                      </Pressable>
+                                    ))}
+                                  </>
+                                ) : null}
+                              </View>
                             </View>
-                          )}
-                        </View>
+                          );
+                        })}
 
-                        {/* Memory Items List */}
-                        {memoryItems
-                          .sort((a, b) => {
-                            // Order: goodFact first, then hardTruth, then lesson
-                            const order: Record<string, number> = {
-                              goodFact: 0,
-                              hardTruth: 1,
-                              lesson: 2,
-                            };
-                            return (
-                              (order[a.type] || 99) - (order[b.type] || 99)
-                            );
-                          })
-                          .map((item) => (
-                            <Pressable
-                              key={item.id}
-                              style={styles.memoryItem}
-                              onPress={() => {
-                                if (isKeyboardVisible) {
-                                  Keyboard.dismiss();
-                                }
-                              }}
-                            >
-                              <View style={styles.memoryItemHeader}>
-                                <MaterialIcons
-                                  name={
-                                    item.type === "hardTruth"
-                                      ? "cloud"
-                                      : item.type === "goodFact"
-                                        ? "wb-sunny"
-                                        : "lightbulb"
-                                  }
-                                  size={20 * fontScale}
-                                  color={
-                                    item.type === "hardTruth"
-                                      ? Colors.dark.primary
-                                      : item.type === "goodFact"
-                                        ? momentColors.sunny.background
-                                        : momentColors.lesson.background
-                                  }
-                                />
-                                <ThemedText
-                                  size="sm"
-                                  weight="medium"
-                                  style={{
-                                    marginLeft: 8 * fontScale,
-                                    opacity: 0.7,
-                                  }}
-                                >
-                                  {item.type === "hardTruth"
-                                    ? t("ai.results.hardTruth") || "Hard Truth"
-                                    : item.type === "goodFact"
-                                      ? t("ai.results.goodFact") || "Good Fact"
-                                      : t("ai.results.lesson") || "Lesson"}
-                                </ThemedText>
-                                <TouchableOpacity
-                                  style={styles.removeItemButton}
-                                  onPress={() => handleRemoveItem(item.id)}
-                                >
-                                  <MaterialIcons
-                                    name="close"
-                                    size={16 * fontScale}
-                                    color={
-                                      colors.textMediumEmphasis || colors.text
-                                    }
-                                  />
-                                </TouchableOpacity>
-                              </View>
-                              <TextInput
-                                style={styles.memoryItemText}
-                                value={item.text}
-                                onChangeText={(text) =>
-                                  handleEditItem(item.id, text)
-                                }
-                                multiline
-                                scrollEnabled={false}
-                                placeholderTextColor={
-                                  colors.textMediumEmphasis ||
-                                  colors.text + "80"
-                                }
-                              />
-                            </Pressable>
-                          ))}
                       </>
                     )}
                   </ScrollView>
 
                   {/* Save Button - Always visible outside scroll */}
-                  {aiResponse && memoryItems.length > 0 && (
+                  {aiResponse &&
+                    memoryDrafts.some((draft) => draft.items.length > 0) && (
                     <TouchableOpacity
                       style={[
                         styles.saveButton,
-                        (isProcessing ||
-                          !selectedSphere ||
-                          !selectedEntityId ||
-                          (showAddEntityForm && !isEntityFormValid())) &&
+                        (isProcessing || !allMemoryDraftsReady) &&
                           styles.saveButtonDisabled,
                       ]}
                       onPress={handleSave}
-                      disabled={
-                        isProcessing ||
-                        !selectedSphere ||
-                        !selectedEntityId ||
-                        (showAddEntityForm && !isEntityFormValid())
-                      }
+                      disabled={isProcessing || !allMemoryDraftsReady}
                       activeOpacity={0.8}
                     >
                       {isProcessing ? (
@@ -3730,7 +4265,7 @@ export function AIModal({
                               marginLeft: 8 * fontScale,
                             }}
                           >
-                            {t("ai.saving") || "Saving..."}
+                            {t("ai.saving")}
                           </ThemedText>
                         </>
                       ) : (
@@ -3748,7 +4283,7 @@ export function AIModal({
                               marginLeft: 8 * fontScale,
                             }}
                           >
-                            {t("ai.save") || "Save"}
+                            {t("ai.save")}
                           </ThemedText>
                         </>
                       )}
@@ -3765,11 +4300,17 @@ export function AIModal({
           visible={showSpherePicker}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setShowSpherePicker(false)}
+          onRequestClose={() => {
+            setShowSpherePicker(false);
+            setSpherePickerDraftId(null);
+          }}
         >
           <Pressable
             style={styles.pickerOverlay}
-            onPress={() => setShowSpherePicker(false)}
+            onPress={() => {
+              setShowSpherePicker(false);
+              setSpherePickerDraftId(null);
+            }}
           >
             <Pressable
               style={styles.pickerContainer}
@@ -3777,9 +4318,14 @@ export function AIModal({
             >
               <View style={styles.pickerHeader}>
                 <ThemedText size="l" weight="bold">
-                  {t("ai.results.selectSphere") || "Select Sfera"}
+                  {t("ai.results.selectSphere")}
                 </ThemedText>
-                <Pressable onPress={() => setShowSpherePicker(false)}>
+                <Pressable
+                  onPress={() => {
+                    setShowSpherePicker(false);
+                    setSpherePickerDraftId(null);
+                  }}
+                >
                   <MaterialIcons
                     name="close"
                     size={24 * fontScale}
@@ -3799,28 +4345,37 @@ export function AIModal({
                 ).map((sphere) => {
                   const sphereLabels: Record<LifeSphere, string> = {
                     relationships:
-                      t("spheres.relationships") || "Relationships",
-                    career: t("spheres.career") || "Career",
-                    family: t("spheres.family") || "Family",
-                    friends: t("spheres.friends") || "Friends",
-                    hobbies: t("spheres.hobbies") || "Hobbies",
+                      t("spheres.relationships"),
+                    career: t("spheres.career"),
+                    family: t("spheres.family"),
+                    friends: t("spheres.friends"),
+                    hobbies: t("spheres.hobbies"),
                   };
                   return (
                     <Pressable
                       key={sphere}
                       style={[
                         styles.pickerItem,
-                        selectedSphere === sphere && styles.pickerItemSelected,
+                        spherePickerSelected === sphere &&
+                          styles.pickerItemSelected,
                       ]}
-                      onPress={() => handleSphereChange(sphere)}
+                      onPress={() => {
+                        if (spherePickerDraftId) {
+                          applyDraftSphere(spherePickerDraftId, sphere);
+                        } else {
+                          setShowSpherePicker(false);
+                        }
+                      }}
                     >
                       <ThemedText
                         size="sm"
-                        weight={selectedSphere === sphere ? "bold" : "normal"}
+                        weight={
+                          spherePickerSelected === sphere ? "bold" : "normal"
+                        }
                       >
                         {sphereLabels[sphere]}
                       </ThemedText>
-                      {selectedSphere === sphere && (
+                      {spherePickerSelected === sphere && (
                         <MaterialIcons
                           name="check"
                           size={20 * fontScale}
@@ -3840,11 +4395,17 @@ export function AIModal({
           visible={showEntityPicker}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setShowEntityPicker(false)}
+          onRequestClose={() => {
+            setShowEntityPicker(false);
+            setEntityPickerDraftId(null);
+          }}
         >
           <Pressable
             style={styles.pickerOverlay}
-            onPress={() => setShowEntityPicker(false)}
+            onPress={() => {
+              setShowEntityPicker(false);
+              setEntityPickerDraftId(null);
+            }}
           >
             <Pressable
               style={styles.pickerContainer}
@@ -3852,9 +4413,14 @@ export function AIModal({
             >
               <View style={styles.pickerHeader}>
                 <ThemedText size="l" weight="bold">
-                  {t("ai.results.entity") || "Select Entity"}
+                  {t("ai.results.entityPickerTitle")}
                 </ThemedText>
-                <Pressable onPress={() => setShowEntityPicker(false)}>
+                <Pressable
+                  onPress={() => {
+                    setShowEntityPicker(false);
+                    setEntityPickerDraftId(null);
+                  }}
+                >
                   <MaterialIcons
                     name="close"
                     size={24 * fontScale}
@@ -3863,25 +4429,37 @@ export function AIModal({
                 </Pressable>
               </View>
               <ScrollView style={styles.pickerList}>
-                {availableEntitiesForSphere.map((entity) => (
+                {entityPickerEntities.map((entity) => (
                   <Pressable
                     key={entity.id}
                     style={[
                       styles.pickerItem,
-                      selectedEntityId === entity.id &&
+                      entityPickerTargetDraft?.entityId === entity.id &&
                         styles.pickerItemSelected,
                     ]}
-                    onPress={() => handleEntityChange(entity.id, entity.name)}
+                    onPress={() => {
+                      if (entityPickerDraftId) {
+                        applyDraftEntity(
+                          entityPickerDraftId,
+                          entity.id,
+                          entity.name,
+                        );
+                      } else {
+                        setShowEntityPicker(false);
+                      }
+                    }}
                   >
                     <ThemedText
                       size="sm"
                       weight={
-                        selectedEntityId === entity.id ? "bold" : "normal"
+                        entityPickerTargetDraft?.entityId === entity.id
+                          ? "bold"
+                          : "normal"
                       }
                     >
                       {entity.name}
                     </ThemedText>
-                    {selectedEntityId === entity.id && (
+                    {entityPickerTargetDraft?.entityId === entity.id && (
                       <MaterialIcons
                         name="check"
                         size={20 * fontScale}
@@ -3915,7 +4493,7 @@ export function AIModal({
                 weight="bold"
                 style={{ marginBottom: 16 * fontScale }}
               >
-                {t("ai.closeConfirm.title") || "Discard changes?"}
+                {t("ai.closeConfirm.title")}
               </ThemedText>
               <ThemedText
                 size="sm"
@@ -3925,8 +4503,7 @@ export function AIModal({
                   textAlign: "center",
                 }}
               >
-                {t("ai.closeConfirm.message") ||
-                  "Your progress will be lost if you close this modal."}
+                {t("ai.closeConfirm.message")}
               </ThemedText>
               <View style={styles.confirmButtonContainer}>
                 <Pressable
@@ -3934,7 +4511,7 @@ export function AIModal({
                   onPress={() => setShowCloseConfirm(false)}
                 >
                   <ThemedText size="sm" weight="semibold">
-                    {t("common.cancel") || "Cancel"}
+                    {t("common.cancel")}
                   </ThemedText>
                 </Pressable>
                 <Pressable
@@ -3947,6 +4524,7 @@ export function AIModal({
                     await clearPendingAIResponse();
                     await clearPendingAIRequest();
                     await stopBackgroundAIProcessing();
+                    await forgetPersistedAIModalReviewState();
                     // Use setTimeout to ensure confirmation modal closes first
                     setTimeout(() => {
                       onClose();
@@ -3958,7 +4536,7 @@ export function AIModal({
                     weight="semibold"
                     style={{ color: "#ffffff" }}
                   >
-                    {t("ai.closeConfirm.discard") || "Discard"}
+                    {t("ai.closeConfirm.discard")}
                   </ThemedText>
                 </Pressable>
               </View>
