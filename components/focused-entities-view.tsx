@@ -34,12 +34,12 @@ import { useIsFocused } from "@react-navigation/native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
-  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -73,6 +73,11 @@ const COSMIC_INNER_LIGHT = [
 
 /** Auto-advance interval for cycling sfera insight modes (ms). */
 const SFERA_INSIGHT_AUTO_MS = 5000;
+/** Swipe on insight card: horizontal pan activates before tap (RNGH `activeOffsetX`). */
+const INSIGHT_CARD_SWIPE_ACTIVATION_PX = 12;
+const INSIGHT_CARD_SWIPE_COMMIT_PX = 20;
+const INSIGHT_CARD_SWIPE_FAIL_Y_PX = 28;
+const INSIGHT_CARD_TAP_MAX_DISTANCE_PX = 14;
 
 /** Title row crossfade when switching insight modes (ms). */
 const INSIGHT_TITLE_OUT_MS = 260;
@@ -1064,7 +1069,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     width: `${progress.value * 100}%` as `${number}%`,
   }));
 
-  // Keep latest nav callbacks in refs so PanResponder (created once) can call them
+  // Keep latest nav callbacks in refs for auto-advance and swipe worklets
   const goNextRef = useRef(goNext);
   goNextRef.current = goNext;
   const goPrevRef = useRef(goPrev);
@@ -1095,25 +1100,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       cancelAnimation(progress);
     };
   }, [advanceInsightOnJS, modeIdx, numEntities, numModes, progress, animationsEnabled, isAutoLoopPaused]);
-  const cardPanResponder = useRef(
-    PanResponder.create({
-      // Do not claim touches on start; allow nearby orbit avatars to receive taps.
-      onStartShouldSetPanResponder: () => false,
-      onStartShouldSetPanResponderCapture: () => false,
-      // Claim only intentional horizontal drags for card insight navigation.
-      onMoveShouldSetPanResponder: (_, gs) =>
-        Math.abs(gs.dx) > 12 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.3,
-      onMoveShouldSetPanResponderCapture: () => false,
-      onPanResponderRelease: (_, gs) => {
-        if (Math.abs(gs.dx) > 20 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5) {
-          if (gs.dx < 0) goNextRef.current();
-          else goPrevRef.current();
-        } else if (Math.abs(gs.dx) < 8 && Math.abs(gs.dy) < 8) {
-          setIsAutoLoopPaused((prev) => !prev);
-        }
-      },
-    }),
-  ).current;
 
   const insightLabelAnimStyle = useAnimatedStyle(() => ({
     opacity: insightLabelOpacity.value,
@@ -1296,6 +1282,40 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     }
     openEntity();
   }, [mode, openEntity, getModeMemory, entityIdx, openMemory]);
+
+  const insightCardGesture = useMemo(() => {
+    const pan = Gesture.Pan()
+      .activeOffsetX([
+        -INSIGHT_CARD_SWIPE_ACTIVATION_PX,
+        INSIGHT_CARD_SWIPE_ACTIVATION_PX,
+      ])
+      .failOffsetY([
+        -INSIGHT_CARD_SWIPE_FAIL_Y_PX,
+        INSIGHT_CARD_SWIPE_FAIL_Y_PX,
+      ])
+      .onEnd((e) => {
+        const tx = e.translationX;
+        const ty = e.translationY;
+        if (
+          Math.abs(tx) > INSIGHT_CARD_SWIPE_COMMIT_PX &&
+          Math.abs(tx) > Math.abs(ty) * 1.5
+        ) {
+          if (tx < 0) {
+            runOnJS(goPrevRef.current)();
+          } else {
+            runOnJS(goNextRef.current)();
+          }
+        }
+      });
+
+    const tap = Gesture.Tap()
+      .maxDistance(INSIGHT_CARD_TAP_MAX_DISTANCE_PX)
+      .onEnd(() => {
+        runOnJS(openInsightTarget)();
+      });
+
+    return Gesture.Exclusive(pan, tap);
+  }, [openInsightTarget]);
 
   const emptyEntityCardStyle = {
     flex: 1,
@@ -1481,14 +1501,15 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         <View style={{ width: INSIGHT_ARROW_HIT }} />
       )}
 
-      {/* Card — pan responder handles both swipe (next/prev) and tap (entity nav) */}
-      <Pressable
-        style={{ flex: 1, height: cardHeight }}
-        onPress={openInsightTarget}
-        accessibilityRole="button"
-        accessibilityLabel={entity ? `${cardLabel}: ${entityName}` : undefined}
-        {...cardPanResponder.panHandlers}
-      >
+      {/* Card — RNGH Exclusive(Pan,Tap): horizontal swipe changes mode; tap opens insight target */}
+      <GestureDetector gesture={insightCardGesture}>
+        <View
+          style={{ flex: 1, height: cardHeight }}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={entity ? `${cardLabel}: ${entityName}` : undefined}
+          collapsable={false}
+        >
         <View
           style={{
             flex: 1,
@@ -1866,7 +1887,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           </Pressable>
           </View>
         </View>
-      </Pressable>
+        </View>
+      </GestureDetector>
 
       {/* Right arrow */}
       {numModes > 1 ? (

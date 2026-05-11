@@ -2213,6 +2213,14 @@ const COSMIC_INNER_LIGHT = [
 // ───────────────────── Sfera Insight Card ─────────────────────
 
 const INSIGHT_CARD_SIZE = scaleFocused(120);
+/** Horizontal pan wins over tap once exceeded (RNGH Pan `activeOffsetX`). */
+const INSIGHT_CARD_SWIPE_ACTIVATION_PX = 12;
+/** Release threshold to commit prev/next mode (same intent as former PanResponder). */
+const INSIGHT_CARD_SWIPE_COMMIT_PX = 20;
+/** Let vertical drags fall through to orbit/parent before horizontal swipe steals the gesture. */
+const INSIGHT_CARD_SWIPE_FAIL_Y_PX = 28;
+/** Tap stays a tap if finger stays within this distance (matches orbit tap-vs-pan tuning). */
+const INSIGHT_CARD_TAP_MAX_DISTANCE_PX = 14;
 
 const SferaInsightCard = React.memo(function SferaInsightCard({
   sphere,
@@ -2362,21 +2370,101 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     width: `${progress.value * 100}%` as any,
   }));
 
-  const swipePanResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dx) > 8 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
-      onPanResponderRelease: (_, gestureState) => {
-        if (Math.abs(gestureState.dx) > 20) {
-          cycleModeRef.current(gestureState.dx < 0 ? 1 : -1);
-        }
-      },
-    }),
-  ).current;
-
   const modeAnimStyle = useAnimatedStyle(() => ({
     opacity: modeOpacity.value,
   }));
+
+  const MODES = useMemo(
+    () => [
+      {
+        icon: "person-outline" as keyof typeof MaterialIcons.glyphMap,
+        idx: leastMemoriesIdx,
+        subtext: t("sferaInsight.leastMemories"),
+      },
+      {
+        icon: "star",
+        idx: mostMemoriesIdx,
+        subtext: t("sferaInsight.mostMemories"),
+      },
+      {
+        icon: "schedule",
+        idx: lastUpdatedIdx,
+        subtext: t("sferaInsight.lastUpdated"),
+      },
+    ],
+    [leastMemoriesIdx, mostMemoriesIdx, lastUpdatedIdx, t],
+  );
+
+  const currentMode = useMemo(
+    () => MODES[mode % numModes],
+    [MODES, mode, numModes],
+  );
+
+  const entityIdx = currentMode.idx;
+  const entityId = entityIds[entityIdx] ?? "";
+  const entityName = entityNames[entityIdx] ?? "";
+
+  const handleEntityTap = useCallback(() => {
+    if (entityId) {
+      const now = Date.now();
+      const isDoubleTap = now - lastTapRef.current < 300;
+      lastTapRef.current = now;
+      if (isDoubleTap) {
+        if (singleTapTimerRef.current) {
+          clearTimeout(singleTapTimerRef.current);
+          singleTapTimerRef.current = null;
+        }
+        const mems = entityMemories[entityIdx] ?? [];
+        if (mems.length === 0) {
+          onNeedMemoriesHintCenter?.();
+          return;
+        }
+        onEntitySelect(entityId, sphere);
+        return;
+      }
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+      }
+      singleTapTimerRef.current = setTimeout(() => {
+        singleTapTimerRef.current = null;
+        setIsAutoCyclePaused((prev) => !prev);
+      }, 300);
+    }
+  }, [
+    entityId,
+    entityIdx,
+    entityMemories,
+    onEntitySelect,
+    onNeedMemoriesHintCenter,
+    sphere,
+  ]);
+
+  const insightCardGesture = useMemo(() => {
+    const pan = Gesture.Pan()
+      .activeOffsetX([
+        -INSIGHT_CARD_SWIPE_ACTIVATION_PX,
+        INSIGHT_CARD_SWIPE_ACTIVATION_PX,
+      ])
+      .failOffsetY([
+        -INSIGHT_CARD_SWIPE_FAIL_Y_PX,
+        INSIGHT_CARD_SWIPE_FAIL_Y_PX,
+      ])
+      .onEnd((e) => {
+        if (Math.abs(e.translationX) > INSIGHT_CARD_SWIPE_COMMIT_PX) {
+          runOnJS(cycleModeRef.current)(
+            e.translationX < 0 ? -1 : 1,
+          );
+        }
+      });
+
+    const tap = Gesture.Tap()
+      .maxDistance(INSIGHT_CARD_TAP_MAX_DISTANCE_PX)
+      .onEnd(() => {
+        runOnJS(handleEntityTap)();
+      });
+
+    return Gesture.Exclusive(pan, tap);
+  }, [handleEntityTap]);
 
   const insightCardBg =
     colorScheme === "dark" ? COSMIC_INNER_DARK[2] : COSMIC_INNER_LIGHT[2];
@@ -2558,62 +2646,6 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     );
   }
 
-  // Insight modes
-  const MODES: {
-    icon: keyof typeof MaterialIcons.glyphMap;
-    idx: number;
-    subtext: string;
-  }[] = [
-    {
-      icon: "person-outline",
-      idx: leastMemoriesIdx,
-      subtext: t("sferaInsight.leastMemories"),
-    },
-    {
-      icon: "star",
-      idx: mostMemoriesIdx,
-      subtext: t("sferaInsight.mostMemories"),
-    },
-    {
-      icon: "schedule",
-      idx: lastUpdatedIdx,
-      subtext: t("sferaInsight.lastUpdated"),
-    },
-  ];
-
-  const currentMode = MODES[mode];
-  const entityIdx = currentMode.idx;
-  const entityId = entityIds[entityIdx] ?? "";
-  const entityName = entityNames[entityIdx] ?? "";
-
-  const handleEntityTap = () => {
-    if (entityId) {
-      const now = Date.now();
-      const isDoubleTap = now - lastTapRef.current < 300;
-      lastTapRef.current = now;
-      if (isDoubleTap) {
-        if (singleTapTimerRef.current) {
-          clearTimeout(singleTapTimerRef.current);
-          singleTapTimerRef.current = null;
-        }
-        const mems = entityMemories[entityIdx] ?? [];
-        if (mems.length === 0) {
-          onNeedMemoriesHintCenter?.();
-          return;
-        }
-        onEntitySelect(entityId, sphere);
-        return;
-      }
-      if (singleTapTimerRef.current) {
-        clearTimeout(singleTapTimerRef.current);
-      }
-      singleTapTimerRef.current = setTimeout(() => {
-        singleTapTimerRef.current = null;
-        setIsAutoCyclePaused((prev) => !prev);
-      }, 300);
-    }
-  };
-
   const insightCardMainSurfaceStyle = {
     flex: 1,
     borderRadius: 20,
@@ -2627,7 +2659,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     overflow: "hidden" as const,
   };
 
-  const insightCardMainBody = (
+  const insightCardSwipeArea = (
     <>
       <View
         style={{
@@ -2679,26 +2711,38 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
           {currentMode.subtext}
         </ThemedText>
       </Animated.View>
+    </>
+  );
 
-      {numModes > 1 && (
-        <Pressable
-          onPress={() => cycleMode()}
-          hitSlop={8}
-          style={{ flexDirection: "row", gap: 4, paddingTop: 4 }}
-        >
-          {MODES.map((_, i) => (
-            <View
-              key={i}
-              style={{
-                width: i === mode ? 12 : 5,
-                height: 5,
-                borderRadius: 2.5,
-                backgroundColor: i === mode ? shadowColor : shadowColor + "55",
-              }}
-            />
-          ))}
-        </Pressable>
-      )}
+  const insightCardPagination =
+    numModes > 1 ? (
+      <Pressable
+        onPress={() => cycleMode()}
+        hitSlop={8}
+        style={{ flexDirection: "row", gap: 4, paddingTop: 4 }}
+      >
+        {MODES.map((_, i) => (
+          <View
+            key={i}
+            style={{
+              width: i === mode ? 12 : 5,
+              height: 5,
+              borderRadius: 2.5,
+              backgroundColor: i === mode ? shadowColor : shadowColor + "55",
+            }}
+          />
+        ))}
+      </Pressable>
+    ) : null;
+
+  const insightCardFilledSurface = (
+    <>
+      <GestureDetector gesture={insightCardGesture}>
+        <View style={{ flex: 1, minHeight: 0 }} collapsable={false}>
+          {insightCardSwipeArea}
+        </View>
+      </GestureDetector>
+      {insightCardPagination}
     </>
   );
 
@@ -2714,22 +2758,30 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
       }}
       pointerEvents="box-none"
     >
-    <Pressable style={{ width: cardSize, height: cardSize }} onPress={handleEntityTap} {...swipePanResponder.panHandlers}>
+    <View style={{ width: cardSize, height: cardSize }}>
       {sphere3DEffect ? (
-        <LinearGradient colors={[...gradientColors]} style={insightCardMainSurfaceStyle}>
-          {insightCardMainBody}
+        <LinearGradient
+          colors={[...gradientColors]}
+          style={[
+            insightCardMainSurfaceStyle,
+            { width: cardSize, height: cardSize },
+          ]}
+        >
+          {insightCardFilledSurface}
         </LinearGradient>
       ) : (
         <View
           style={{
             ...insightCardMainSurfaceStyle,
             backgroundColor: insightCardBg,
+            width: cardSize,
+            height: cardSize,
           }}
         >
-          {insightCardMainBody}
+          {insightCardFilledSurface}
         </View>
       )}
-    </Pressable>
+    </View>
     {showNeedMemoriesHintBelowCard && totalMemoriesCount > 0 ? (
       <View
         style={{
