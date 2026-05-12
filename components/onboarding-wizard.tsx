@@ -22,6 +22,7 @@ import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { setFocusedDisplayMode } from "@/utils/focused-display-mode-storage";
+import { useOnboardingGate } from "@/utils/OnboardingGateContext";
 import type { OnboardingPostEntityState } from "@/utils/onboarding-storage";
 import {
   loadOrderedMemoryWizardPickRows,
@@ -684,6 +685,7 @@ export function OnboardingWizard({
   } = useJourney();
 
   const aiConsent = useAIInsightsConsent();
+  const onboardingGate = useOnboardingGate();
 
   const [step, setStep] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6>(0);
   const [inputText, setInputText] = useState("");
@@ -931,6 +933,7 @@ export function OnboardingWizard({
   const finishOnboardingAndLeave = useCallback(async () => {
     try {
       await setOnboardingCompleted(true);
+      onboardingGate?.dismissOnboarding();
       router.replace("/(tabs)");
       // Persist non-critical onboarding cleanup in background so app entry
       // is never blocked by storage latency/failures.
@@ -953,12 +956,13 @@ export function OnboardingWizard({
         err instanceof Error ? err.message : "Failed to complete onboarding",
       );
     }
-  }, [t]);
+  }, [onboardingGate, t]);
 
   const finishOnboardingManualWithoutAI = useCallback(async () => {
     setManualExitBusy(true);
     try {
       await setOnboardingCompleted(true);
+      onboardingGate?.dismissOnboarding();
       router.replace("/(tabs)");
       // Persist non-critical onboarding/manual-mode preferences in background
       // so navigation is never blocked by storage latency/failures.
@@ -985,7 +989,7 @@ export function OnboardingWizard({
     } finally {
       setManualExitBusy(false);
     }
-  }, [aiConsent, t]);
+  }, [aiConsent, onboardingGate, t]);
 
   const persistWizardIndex = useCallback(async (idx: number) => {
     const prev = await getOnboardingPostEntityState();
@@ -1218,6 +1222,32 @@ export function OnboardingWizard({
           alignItems: "center",
           marginBottom: 16 * fontScale,
         },
+        stepperHeaderRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: 16 * fontScale,
+        },
+        stepperSideSlot: {
+          width: 44 * fontScale,
+          height: 44 * fontScale,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        stepperCenterSlot: {
+          flex: 1,
+          marginHorizontal: 10 * fontScale,
+        },
+        backButton: {
+          width: 44 * fontScale,
+          height: 44 * fontScale,
+          borderRadius: 22 * fontScale,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor:
+            colorScheme === "dark"
+              ? "rgba(255, 255, 255, 0.08)"
+              : "rgba(0, 0, 0, 0.06)",
+        },
         stepDot: {
           width: 10 * fontScale,
           height: 10 * fontScale,
@@ -1404,38 +1434,24 @@ export function OnboardingWizard({
       <View style={styles.container}>
         <View style={styles.header}>
           {(canExitEarly && onExit ? (
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 16 * fontScale,
-              }}
-            >
-              <TouchableOpacity
-                onPress={() => onExit()}
-                style={{
-                  width: 44 * fontScale,
-                  height: 44 * fontScale,
-                  borderRadius: 22 * fontScale,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 8 * fontScale,
-                  backgroundColor:
-                    colorScheme === "dark"
-                      ? "rgba(255, 255, 255, 0.08)"
-                      : "rgba(0, 0, 0, 0.06)",
-                }}
-                activeOpacity={0.7}
-              >
-                <MaterialIcons
-                  name="arrow-back"
-                  size={24 * fontScale}
-                  color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"}
-                />
-              </TouchableOpacity>
-              <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
+            <View style={styles.stepperHeaderRow}>
+              <View style={styles.stepperSideSlot}>
+                <TouchableOpacity
+                  onPress={() => onExit()}
+                  style={styles.backButton}
+                  activeOpacity={0.7}
+                >
+                  <MaterialIcons
+                    name="arrow-back"
+                    size={24 * fontScale}
+                    color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"}
+                  />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.stepperCenterSlot}>
                 {renderMainStepper(0, true)}
               </View>
+              <View style={styles.stepperSideSlot} />
             </View>
           ) : (
             renderMainStepper(0)
@@ -1541,33 +1557,26 @@ export function OnboardingWizard({
           <OnboardingSparkles />
         </View>
         <View style={styles.header}>
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 * fontScale }}>
-            <TouchableOpacity
-              onPress={() => {
-                if (slideIndex === 0) {
-                  setStep(0);
-                } else {
-                  setStep((step - 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6);
-                }
-              }}
-              style={{
-                width: 44 * fontScale,
-                height: 44 * fontScale,
-                borderRadius: 22 * fontScale,
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 8 * fontScale,
-                backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons name="arrow-back" size={24 * fontScale} color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"} />
-            </TouchableOpacity>
-            <View style={{ flex: 1 }}>
-              <View style={{ marginBottom: 8 * fontScale }}>
-                {renderMainStepper(step, true)}
-              </View>
+          <View style={styles.stepperHeaderRow}>
+            <View style={styles.stepperSideSlot}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (slideIndex === 0) {
+                    setStep(0);
+                  } else {
+                    setStep((step - 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6);
+                  }
+                }}
+                style={styles.backButton}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons name="arrow-back" size={24 * fontScale} color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"} />
+              </TouchableOpacity>
             </View>
+            <View style={styles.stepperCenterSlot}>
+              {renderMainStepper(step, true)}
+            </View>
+            <View style={styles.stepperSideSlot} />
           </View>
         </View>
 
@@ -1717,38 +1726,24 @@ export function OnboardingWizard({
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={{ flex: 1 }} collapsable={false}>
         <Pressable style={styles.header} onPress={Keyboard.dismiss}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 16 * fontScale,
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => setStep(4)}
-              style={{
-                width: 44 * fontScale,
-                height: 44 * fontScale,
-                borderRadius: 22 * fontScale,
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 8 * fontScale,
-                backgroundColor:
-                  colorScheme === "dark"
-                    ? "rgba(255, 255, 255, 0.08)"
-                    : "rgba(0, 0, 0, 0.06)",
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons
-                name="arrow-back"
-                size={24 * fontScale}
-                color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"}
-              />
-            </TouchableOpacity>
-            <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
+          <View style={styles.stepperHeaderRow}>
+            <View style={styles.stepperSideSlot}>
+              <TouchableOpacity
+                onPress={() => setStep(4)}
+                style={styles.backButton}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons
+                  name="arrow-back"
+                  size={24 * fontScale}
+                  color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.stepperCenterSlot}>
               {renderMainStepper(5, true)}
             </View>
+            <View style={styles.stepperSideSlot} />
           </View>
           <ThemedText
             size="xl"
@@ -2088,38 +2083,24 @@ export function OnboardingWizard({
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 16 * fontScale,
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => setStep(5)}
-              style={{
-                width: 44 * fontScale,
-                height: 44 * fontScale,
-                borderRadius: 22 * fontScale,
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 8 * fontScale,
-                backgroundColor:
-                  colorScheme === "dark"
-                    ? "rgba(255, 255, 255, 0.08)"
-                    : "rgba(0, 0, 0, 0.06)",
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons
-                name="arrow-back"
-                size={24 * fontScale}
-                color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"}
-              />
-            </TouchableOpacity>
-            <View style={[styles.stepper, { flex: 1, marginBottom: 0 }]}>
+          <View style={styles.stepperHeaderRow}>
+            <View style={styles.stepperSideSlot}>
+              <TouchableOpacity
+                onPress={() => setStep(5)}
+                style={styles.backButton}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons
+                  name="arrow-back"
+                  size={24 * fontScale}
+                  color={colorScheme === "dark" ? "#FFF5E6" : "#533A08"}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.stepperCenterSlot}>
               {renderMainStepper(6, true)}
             </View>
+            <View style={styles.stepperSideSlot} />
           </View>
           <ThemedText size="xl" weight="bold">
             {t("onboarding.review")}

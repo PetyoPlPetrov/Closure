@@ -1338,6 +1338,12 @@ export interface Translations {
   "ai.results.goodFact": string;
   "ai.results.lesson": string;
   "ai.results.momentPicture": string;
+  "ai.results.completeAllCards": string;
+  "ai.results.suggestedMemories": string;
+  "ai.results.suggestedMemoriesHint": string;
+  "ai.results.memoryCardToggle": string;
+  "ai.results.tapToExpand": string;
+  "ai.results.entityPickerTitle": string;
   "ai.save": string;
   "ai.saving": string;
   "ai.save.success": string;
@@ -5512,7 +5518,7 @@ const translations = {
     // AI
     "ai.title": "Create a memory with Sferas AI",
     "ai.subtitle":
-      "Sferas AI will structure your story into moments and lessons.",
+      "Sferas AI will structure your story into memories—with sunny moments, cloudy moments, and lessons.",
     "ai.placeholder.input": "Share your memory or tell a story here…",
     "ai.placeholder.recording":
       "[Voice recording - speech-to-text integration needed]",
@@ -5572,6 +5578,13 @@ const translations = {
     "ai.results.goodFact": "Good Fact",
     "ai.results.lesson": "Lesson",
     "ai.results.momentPicture": "Moment picture",
+    "ai.results.completeAllCards":
+      "Complete every suggested memory: choose Sfera and object, and add at least one moment for each, before saving.",
+    "ai.results.suggestedMemories": "Suggested memories",
+    "ai.results.suggestedMemoriesHint": "Expand the memory to edit.",
+    "ai.results.memoryCardToggle": "Expand or collapse memory",
+    "ai.results.tapToExpand": "Tap to expand",
+    "ai.results.entityPickerTitle": "Choose object",
     "ai.save": "Save",
     "ai.saving": "Saving...",
     "ai.save.success": "Memory saved successfully!",
@@ -9404,7 +9417,7 @@ const translations = {
     "onboarding.postEntity.blurbRequired":
       "Добавете текст за всеки избран обект, преди да продължите.",
     "onboarding.postEntity.memoryWizard.subtitle":
-      "Включено Sferas AI — един начален спомен тук; след това можете да добавяте колкото желаете.",
+      "Използвай безплатно Sferas AI за да създадеш първите си спомени.",
     "onboarding.postEntity.memoryWizard.createAi": "Създай с Sferas AI",
     "onboarding.postEntity.memoryWizard.tapAiCircleForName":
       "Докоснете бутона Sparkle, за да създадете първия спомен с {name}, за да продължите.",
@@ -10502,7 +10515,8 @@ const translations = {
 
     // AI
     "ai.title": "Създай спомен с AI",
-    "ai.subtitle": "Sferas AI ще подреди историята Ви в моменти и уроци.",
+    "ai.subtitle":
+      "Sferas AI ще подреди историята Ви в спомени със слънчеви и облачни моменти и уроци.",
     "ai.placeholder.input": "Споделете спомен или разкажете история тук…",
     "ai.placeholder.recording":
       "[Гласов запис - необходима интеграция за реч към текст]",
@@ -10564,6 +10578,13 @@ const translations = {
     "ai.results.goodFact": "Добър факт",
     "ai.results.lesson": "Урок",
     "ai.results.momentPicture": "Снимка на момента",
+    "ai.results.completeAllCards":
+      "Попълнете всеки предложен спомен: изберете сфера и обект и добавете поне един момент, преди да запазите.",
+    "ai.results.suggestedMemories": "Предложени спомени",
+    "ai.results.suggestedMemoriesHint": "Разгънете спомена за редактиране.",
+    "ai.results.memoryCardToggle": "Разгъни или сгъни спомена",
+    "ai.results.tapToExpand": "Докоснете за разгъване",
+    "ai.results.entityPickerTitle": "Изберете обект",
     "ai.save": "Запази",
     "ai.saving": "Запазване...",
     "ai.save.success": "Споменът е запазен успешно!",

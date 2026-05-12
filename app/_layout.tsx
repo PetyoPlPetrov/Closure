@@ -13,7 +13,7 @@ import * as Notifications from "expo-notifications";
 import { router, Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AppState,
   type AppStateStatus,
@@ -132,6 +132,15 @@ function AppContent() {
     await setOnboardingCompleted(false);
     setOnboardingRequestTrigger((t) => t + 1);
   }, []);
+
+  const dismissOnboarding = useCallback(() => {
+    setShowOnboarding(false);
+  }, []);
+
+  const onboardingGateContextValue = useMemo(
+    () => ({ requestShowOnboarding, dismissOnboarding }),
+    [requestShowOnboarding, dismissOnboarding],
+  );
 
   const openMemoryModal = useCallback(() => {
     setAiMemoryModalVisible(true);
@@ -588,9 +597,7 @@ function AppContent() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <View style={styles.appContainer}>
         <AIMemoryModalContext.Provider value={{ openMemoryModal }}>
-        <OnboardingGateContext.Provider
-          value={{ requestShowOnboarding }}
-        >
+        <OnboardingGateContext.Provider value={onboardingGateContextValue}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
@@ -713,9 +720,6 @@ function AppContent() {
             }}
           />
         )}
-      </OnboardingGateContext.Provider>
-      </AIMemoryModalContext.Provider>
-
         {showOnboarding === true && (
           <View
             style={StyleSheet.absoluteFillObject}
@@ -727,6 +731,7 @@ function AppContent() {
                 isReRun
                   ? async () => {
                       await setOnboardingCompleted(true);
+                      setShowOnboarding(false);
                       setOnboardingRequestTrigger((t) => t + 1);
                     }
                   : undefined
@@ -734,6 +739,8 @@ function AppContent() {
             />
           </View>
         )}
+      </OnboardingGateContext.Provider>
+      </AIMemoryModalContext.Provider>
       </View>
     </ThemeProvider>
   );

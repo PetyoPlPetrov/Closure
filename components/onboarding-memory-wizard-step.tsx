@@ -192,7 +192,9 @@ export function OnboardingMemoryWizardStep({
   ]);
 
   const onPressContinue = useCallback(async () => {
-    if (continueBusy || !showFinishContinue) return;
+    if (continueBusy || !showFinishContinue) {
+      return;
+    }
     setContinueBusy(true);
     try {
       await onAllComplete();
@@ -307,16 +309,32 @@ export function OnboardingMemoryWizardStep({
           marginBottom: 20 * fontScale,
           alignItems: "stretch",
         },
+        badgeHeroWrap: {
+          alignSelf: "center",
+          marginBottom: 14 * fontScale,
+          position: "relative",
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        badgeHeroWrapWithAccent: {
+          width: 98 * fontScale,
+          minHeight: 86 * fontScale,
+        },
+        celebrationAccentSlot: {
+          ...StyleSheet.absoluteFillObject,
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 0,
+        },
         celebrationBadge: {
           width: 74 * fontScale,
           height: 74 * fontScale,
           borderRadius: 37 * fontScale,
-          alignSelf: "center",
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: 14 * fontScale,
           overflow: "hidden",
           borderWidth: 2,
+          zIndex: 1,
           borderColor:
             colorScheme === "dark"
               ? "rgba(255, 255, 255, 0.72)"
@@ -374,7 +392,7 @@ export function OnboardingMemoryWizardStep({
         ]}
       >
         <View style={styles.hero}>
-          {!resolved.imageUri ? (
+          {!showFinishContinue && !resolved.imageUri ? (
             <View
               style={{
                 flexDirection: "row",
@@ -383,45 +401,71 @@ export function OnboardingMemoryWizardStep({
               }}
             >
               <MaterialIcons
-                name={showFinishContinue ? "celebration" : "psychology-alt"}
+                name="psychology-alt"
                 size={36 * fontScale}
                 color={colors.primary}
               />
             </View>
           ) : null}
           {showFinishContinue ? (
-            <View style={styles.celebrationBadge}>
-              <LinearGradient
-                colors={[
-                  currentBadge?.colorGradient[0] ?? "#5DA4EF",
-                  currentBadge?.colorGradient[1] ?? "#357ABD",
-                ]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[
-                  StyleSheet.absoluteFill,
-                  { borderRadius: 37 * fontScale },
-                ]}
-              />
-              <View
-                style={[
-                  StyleSheet.absoluteFill,
-                  {
-                    borderRadius: 37 * fontScale,
-                    backgroundColor: isDark
-                      ? "rgba(0, 0, 0, 0.18)"
-                      : "rgba(0, 0, 0, 0.08)",
-                  },
-                ]}
-              />
-              <ThemedText
-                style={{
-                  fontSize: 34 * fontScale,
-                  lineHeight: 40 * fontScale,
-                }}
-              >
-                {currentBadge?.emoji ?? "✨"}
-              </ThemedText>
+            <View
+              style={[
+                styles.badgeHeroWrap,
+                !resolved.imageUri ? styles.badgeHeroWrapWithAccent : null,
+              ]}
+            >
+              {!resolved.imageUri ? (
+                <View
+                  style={styles.celebrationAccentSlot}
+                  pointerEvents="none"
+                >
+                  <View
+                    style={{
+                      opacity: isDark ? 0.24 : 0.2,
+                      transform: [{ translateY: -10 * fontScale }],
+                    }}
+                  >
+                    <MaterialIcons
+                      name="celebration"
+                      size={56 * fontScale}
+                      color={colors.primary}
+                    />
+                  </View>
+                </View>
+              ) : null}
+              <View style={styles.celebrationBadge}>
+                <LinearGradient
+                  colors={[
+                    currentBadge?.colorGradient[0] ?? "#5DA4EF",
+                    currentBadge?.colorGradient[1] ?? "#357ABD",
+                  ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { borderRadius: 37 * fontScale },
+                  ]}
+                />
+                <View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {
+                      borderRadius: 37 * fontScale,
+                      backgroundColor: isDark
+                        ? "rgba(0, 0, 0, 0.18)"
+                        : "rgba(0, 0, 0, 0.08)",
+                    },
+                  ]}
+                />
+                <ThemedText
+                  style={{
+                    fontSize: 34 * fontScale,
+                    lineHeight: 40 * fontScale,
+                  }}
+                >
+                  {currentBadge?.emoji ?? "✨"}
+                </ThemedText>
+              </View>
             </View>
           ) : null}
           {showFinishContinue ? (

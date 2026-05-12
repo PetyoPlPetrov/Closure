@@ -11,18 +11,12 @@ import type { LifeSphere } from "./JourneyProvider";
 // Runtime flag for mock AI requests (set to true to use slow mock requests for testing)
 const USE_MOCK_AI_REQUEST = __DEV__ && false; // Set to true to enable mock requests
 
-/** When UI is Bulgarian, force model output to Bulgarian even if the transcript is English (STT fallback). */
+/** Bulgarian UI: transcript may be English (STT fallback)—output must still be Bulgarian. */
 function entityExtractionOutputLanguageRules(language: string): string {
-  if (language !== "bg") {
-    return "";
-  }
+  if (language !== "bg") return "";
   return `
 
-OUTPUT LANGUAGE (Bulgarian UI — mandatory):
-- The user's text may be entirely in English (speech recognition fallback). Ignore input language for OUTPUT.
-- Write every description in natural Bulgarian (Cyrillic). For entity titles, use Bulgarian for common activities/roles; keep proper personal names as the user said them if they are names.
-- Family field relationship: MUST be Bulgarian kinship words — сестра, майка, баща, брат, баба, дядо, леля, чичо, съпруг, съпруга, син, дъщеря, внук, внучка, братовчед, снаха, зет, и т.н. Never English sister, mother, father, brother, etc.
-- For hobbies, prefer a natural Bulgarian name when one exists (e.g. планински преходи, планинарство instead of leaving the title as "Hiking").`;
+Bulgarian UI: input may be English (speech-to-text). Output Bulgarian (Cyrillic) for descriptions; Bulgarian kinship only for family relationship (сестра, майка, …)—never sister/mother/…. Natural Bulgarian hobby/role titles when a common term exists; keep real personal names as spoken.`;
 }
 
 export interface AIMessage {
@@ -742,7 +736,7 @@ export async function processEntityCreationPrompt(
     entityProperties.relationship = Schema.string({
       description:
         language === "bg"
-          ? "Вид роднина на български: майка, баща, сестра, брат, баба, дядо, леля, чичо, съпруг, съпруга, син, дъщеря, внук, внучка, братовчед, … (никога на английски)."
+          ? "Роднина на български (майка, баща, сестра, брат, …); не sister/mother/…"
           : "Relationship type (e.g. mother, father, sister, brother, aunt, uncle, grandmother, grandfather, cousin)",
     });
     requiredFields.push("relationship");
@@ -766,28 +760,19 @@ export async function processEntityCreationPrompt(
 
   const dateGuidance =
     sphere === "relationships" || sphere === "career"
-      ? `\n- Include startDate (YYYY-MM-DD) and isCurrent flag for each entity\n- If the entity has ended, include endDate (YYYY-MM-DD)`
+      ? `\n- dates: YYYY-MM-DD start + isCurrent; endDate if past.`
       : "";
 
   const familyGuidance =
     sphere === "family"
-      ? language === "bg"
-        ? `\n- За всяко семейно поле relationship използвай само български думи за роднина (сестра, майка, …).`
-        : `\n- Include the relationship type (mother, father, sister, etc.) for each family member`
+      ? `\n- family: set relationship for each member (see schema).`
       : "";
 
   const systemPrompt = `Sfera AI coach. ${spherePrompts[sphere]}.${entityExtractionOutputLanguageRules(language)}
 
-Respond in ${languageName} (${languageCode}). JSON only.
+Return ≥1 entity (never empty). Extract every mention (up to ~5); if vague, infer the best fit. Each entity: name + description; sphere="${sphere}".${dateGuidance}${familyGuidance} Tone: honest, compassionate.
 
-CRITICAL: You MUST return at least 1 entity. Never return an empty entities array. If the user mentions people, places, activities, or experiences, create entities from them. If the text is vague, infer the most likely entity from context.
-
-Rules:
-- Extract ALL entities mentioned in the story (1-5 entities)
-- You MUST always create at least 1 entity from the user's text
-- For each entity provide a name and brief description
-- Set sphere to "${sphere}"${dateGuidance}${familyGuidance}
-- Be honest but compassionate`;
+Respond in ${languageName} (${languageCode}). Output valid JSON only.`;
 
   const app = getApp();
   const ai = getAI(app, {
@@ -899,7 +884,7 @@ export async function processOnboardingPrompt(
       relationship: Schema.string({
         description:
           language === "bg"
-            ? "Само за семейство: вид роднина на български (майка, баща, сестра, брат, …), не на английски."
+            ? "Семейство: роднина на български (майка, баща, сестра, …); не sister/mother/…"
             : "For family only: relationship type (mother, father, sister, etc.)",
       }),
     },
@@ -936,25 +921,16 @@ export async function processOnboardingPrompt(
     required: ["entitiesBySphere"],
   });
 
-  const systemPrompt = `Sfera AI coach. Analyze the user's personal story and extract ALL possible entities across their life spheres.
+  const systemPrompt = `Sfera AI coach. From the user's story, extract entities across spheres: family, friends, career, relationships, hobbies.
 
-The user is introducing themselves to Sfera - their universe of life spheres and memories. They may mention:
-- Family: parents, siblings, children, relatives
-- Friends: close friends, social circle
-- Career: jobs, companies, roles, work history
-- Relationships: romantic partners, ex-partners, current/past relationships
-- Hobbies: interests, activities, things they enjoy
-
-CRITICAL: Extract EVERY entity mentioned. Return entities grouped by sphere. For each sphere that has mentions, include an array of entities. Omit spheres with no mentions (or use empty array).
+Fill entitiesBySphere; use an empty array [] for any sphere not mentioned. Extract every mention.${entityExtractionOutputLanguageRules(language)}
 
 Rules:
-- relationships: Include isCurrent, startDate, endDate (if past). Do NOT suggest a relationship entity for being single—e.g. never create "Self" or similar when the user only says they are or have been single. This sphere is for actual romantic partners or ex-partners only; leave relationships array empty if none are mentioned.
-- career: Include isCurrent, startDate, endDate (if past)
-- family: Include relationship — ${language === "bg" ? "always Bulgarian kinship words (сестра, майка, баща, …), never English." : "mother, father, sister, brother, etc."}
-- friends, hobbies: Just name and description
-- Write descriptions in natural human language. Never use technical/meta labels like "user", "client", "subject", "person", or "entity" to refer to the storyteller; instead phrase directly (e.g. "Lives with me", "Works at X", "Close childhood friend").
-
-${entityExtractionOutputLanguageRules(language).trim()}
+- relationships: isCurrent, startDate, endDate if past. Only real partners/exes—empty if none; never invent "Self" for being single alone.
+- career: isCurrent, startDate, endDate when relevant.
+- family: relationship + name + description (${language === "bg" ? "relationship = Bulgarian kinship per schema" : "e.g. mother, sister"}).
+- friends, hobbies: name + description.
+- Natural wording; never label the storyteller "user"/"entity"/"subject"/"client".
 
 Respond in ${languageName} (${languageCode}). JSON only.`;
 
