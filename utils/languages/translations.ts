@@ -4391,7 +4391,7 @@ const translations = {
     "onboarding.subtitle":
       "Describe the most important Sferas Objects in your life with a few words about each one.",
     "onboarding.placeholder":
-      "My family has ... people. My brother is called .... He is ... years old, and he is very kind and supportive.\nMy best friend is ... and has always been there for me...\nI've been working at ... for 2 years. Before that I worked at ... for 3 years.\nI like hiking and the gym. In my free time I also do cooking classes and podcasts.\nI've been dating ... for 2 months. Before that I was single for 1 year after a ...-year relationship with my ex.",
+      "My best friend is ... and has always been there for me...\nI've been working at ... for 2 years. Before that I worked at ... for 3 years.\nI like hiking and the gym. In my free time I also do cooking classes and podcasts.\nI've been dating ... for 2 months. Before that I was single for 1 year after a ...-year relationship with my ex.",
     "onboarding.analyze": "Set up all my Sferas",
     "onboarding.geminiConsent": "I agree Sferas AI to process it using AI.",
     "onboarding.continueManualMode": "Continue to Sferas on manual mode",
@@ -9366,9 +9366,9 @@ const translations = {
     "onboarding.language.title": "Изберете език",
     "onboarding.title": "Създайте своите Sferas",
     "onboarding.subtitle":
-      "Опишете всички Обекти в Sferas и добавете по няколко думи за всеки.",
+      "Опишете най-важните обекти във вашите Sferas с по няколко думи за всеки.",
     "onboarding.placeholder":
-      "Обхванете всяка Sfera. Добавете всеки Обект с кратка бележка.\n\nСемейство:\n- Мама: подкрепяща, живее наблизо\n- Татко: практичен, обича планини\n\nКариера:\n- Продуктов дизайнер: 3 години, дистанционно\n\nПриятели:\n- Алекс: приятел от училище, чуваме се всяка седмица\n\nХобита:\n- Бягане: 3 пъти седмично\n\nВръзки:\n- Крис: партньор, много грижовен",
+      "Най-добрият ми приятел е ... и винаги е до мен...\nРаботя в ... от 2 години. Преди това работих в ... 3 години.\nОбичам да ходя в планината и на фитнес. В свободното си време ходя и на готварски курсове и слушам подкасти.\nИзлизам с ... от 2 месеца. Преди това 1 година не бях във връзка след ...-годишна връзка с бившия ми партньор.",
     "onboarding.analyze": "Настрой всички мои Sferas",
     "onboarding.geminiConsent": "Съгласявам се Sferas AI да го обработи с AI.",
     "onboarding.continueManualMode": "Продължи към Sferas в ръчен режим",
