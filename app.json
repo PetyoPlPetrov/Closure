@@ -28,7 +28,7 @@
           "com.petyoplpetrov.Sphere.ai-processing"
         ]
       },
-      "buildNumber": "1.0.285",
+      "buildNumber": "1.0.286",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {

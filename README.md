@@ -20,6 +20,10 @@ The legacy **main wheel lesson-check modal flow** in `app/(tabs)/index.tsx` is d
 - New lesson-check work should target the **entity wheel** and **universe lessons/exam** flows.
 - The legacy block is kept temporarily for backward compatibility/reference until full removal.
 
+### Note for AI agents and automated refactors
+
+**Entity wheel of life** code (focused-entity path in `app/(tabs)/index.tsx`, `components/EntityWheelOfLife.tsx`, entity branches in `utils/wheel-exam-preload.ts`, and related hooks) is **not exercised in the shipped UI** and should be treated as **intentionally retained dead / legacy surface area**. It is **too fragile to remove or refactor opportunistically**—do not delete, merge, or “simplify” it unless a human maintainer explicitly requests that work after review.
+
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
 ## Get started
