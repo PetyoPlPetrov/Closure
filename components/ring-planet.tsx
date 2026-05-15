@@ -112,14 +112,20 @@ export const RingPlanetSvg = React.memo(function RingPlanetSvg({
       };
     }), [C, atmoR]);
 
+  // Ring SVGs need extra padding so the outermost ellipses aren't clipped by the viewBox.
+  const ringPad = Math.ceil(atmoR * 0.5);
+  const ringSize = size + ringPad * 2;
+  const ringC = C + ringPad;
+  const ringOffset = -ringPad;
+
   const svgPos = { position: "absolute" as const, left: 0, top: 0, overflow: "visible" as const };
-  const ringViewStyle = { position: "absolute" as const, left: 0, top: 0 };
+  const ringViewStyle = { position: "absolute" as const, left: ringOffset, top: ringOffset };
 
   return (
     <>
       {/* Outermost faint ring (behind everything) */}
       <Animated.View style={[ringViewStyle, ring0Style]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Svg width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`}>
           <Defs>
             <SvgLinearGradient id={`rg1a_${id}`} x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0%"   stopColor={ring1} stopOpacity="0.75" />
@@ -127,13 +133,13 @@ export const RingPlanetSvg = React.memo(function RingPlanetSvg({
               <Stop offset="100%" stopColor={ring1} stopOpacity="0.12" />
             </SvgLinearGradient>
           </Defs>
-          <Ellipse cx={C} cy={C} rx={R0_RX} ry={R0_RY} fill="none" stroke={`url(#rg1a_${id})`} strokeWidth={isLight ? 2.4 : 2.2} strokeDasharray="6 10" opacity={isLight ? 0.5 : 0.38} />
+          <Ellipse cx={ringC} cy={ringC} rx={R0_RX} ry={R0_RY} fill="none" stroke={`url(#rg1a_${id})`} strokeWidth={isLight ? 2.4 : 2.2} strokeDasharray="6 10" opacity={isLight ? 0.5 : 0.38} />
         </Svg>
       </Animated.View>
 
       {/* Back rings (drawn before planet so they go behind) */}
       <Animated.View style={[ringViewStyle, ring1Style]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Svg width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`}>
           <Defs>
             <SvgLinearGradient id={`rg1b_${id}`} x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0%"   stopColor={ring1} stopOpacity="0.75" />
@@ -141,11 +147,11 @@ export const RingPlanetSvg = React.memo(function RingPlanetSvg({
               <Stop offset="100%" stopColor={ring1} stopOpacity="0.12" />
             </SvgLinearGradient>
           </Defs>
-          <Ellipse cx={C} cy={C} rx={R1_RX} ry={R1_RY} fill="none" stroke={`url(#rg1b_${id})`} strokeWidth={5.5} opacity={isLight ? 0.88 : 0.78} />
+          <Ellipse cx={ringC} cy={ringC} rx={R1_RX} ry={R1_RY} fill="none" stroke={`url(#rg1b_${id})`} strokeWidth={5.5} opacity={isLight ? 0.88 : 0.78} />
         </Svg>
       </Animated.View>
       <Animated.View style={[ringViewStyle, ring2Style]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Svg width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`}>
           <Defs>
             <SvgLinearGradient id={`rg2_${id}`} x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0%"   stopColor={ring2} stopOpacity="0.55" />
@@ -153,7 +159,7 @@ export const RingPlanetSvg = React.memo(function RingPlanetSvg({
               <Stop offset="100%" stopColor={ring2} stopOpacity="0.08" />
             </SvgLinearGradient>
           </Defs>
-          <Ellipse cx={C} cy={C} rx={R2_RX} ry={R2_RY} fill="none" stroke={`url(#rg2_${id})`} strokeWidth={4.0} opacity={isLight ? 0.78 : 0.68} />
+          <Ellipse cx={ringC} cy={ringC} rx={R2_RX} ry={R2_RY} fill="none" stroke={`url(#rg2_${id})`} strokeWidth={4.0} opacity={isLight ? 0.78 : 0.68} />
         </Svg>
       </Animated.View>
 
@@ -214,14 +220,14 @@ export const RingPlanetSvg = React.memo(function RingPlanetSvg({
 
       {/* Front innermost ring (on top of planet) */}
       <Animated.View style={[ringViewStyle, ring3Style]} pointerEvents="none">
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Svg width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`}>
           <Defs>
             <SvgLinearGradient id={`rg3_${id}`} x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0%"   stopColor={ring2} stopOpacity="0.35" />
               <Stop offset="100%" stopColor={ring2} stopOpacity="0.05" />
             </SvgLinearGradient>
           </Defs>
-          <Ellipse cx={C} cy={C} rx={R3_RX} ry={R3_RY} fill="none" stroke={`url(#rg3_${id})`} strokeWidth={3.2} opacity={isLight ? 0.9 : 0.82} />
+          <Ellipse cx={ringC} cy={ringC} rx={R3_RX} ry={R3_RY} fill="none" stroke={`url(#rg3_${id})`} strokeWidth={3.2} opacity={isLight ? 0.9 : 0.82} />
         </Svg>
       </Animated.View>
     </>

@@ -74,13 +74,11 @@ const INSIGHT_CARD_SWIPE_COMMIT_PX = 20;
 const INSIGHT_CARD_SWIPE_FAIL_Y_PX = 28;
 const INSIGHT_CARD_TAP_MAX_DISTANCE_PX = 14;
 
-/** Title row crossfade when switching insight modes (ms). */
-const INSIGHT_TITLE_OUT_MS = 260;
-const INSIGHT_TITLE_IN_LABEL_MS = 360;
-const INSIGHT_TITLE_IN_PERSON_MS = 320;
-const INSIGHT_TITLE_STAGGER_MS = 80;
-/** Horizontal slide distance (next = exit left / enter from right, like swiping the card left). */
-const INSIGHT_TITLE_SLIDE_X = Math.round(36 * IPAD_ENTITIES_CARD_SCALE);
+/** Whole-card slide transition when switching insight modes (ms). */
+const INSIGHT_CARD_OUT_MS = 260;
+const INSIGHT_CARD_IN_MS = 360;
+/** Horizontal slide distance for the whole card (planet + content). */
+const INSIGHT_CARD_SLIDE_X = Math.round(SW * 0.35);
 
 // Central avatar configuration
 const AVATAR_SIZE = 100;
@@ -904,13 +902,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const [isAutoLoopPaused, setIsAutoLoopPaused] = useState(false);
   const prevSphereRef = useRef(sphere);
   const mode = allowedModes[modeIdx] ?? allowedModes[0] ?? 0;
-  const insightLabelOpacity = useSharedValue(1);
-  const insightPersonOpacity = useSharedValue(1);
-  const insightLabelTranslateX = useSharedValue(0);
-  const insightPersonTranslateX = useSharedValue(0);
-  /** Kept at 0; separate SVs so worklets always bind (avoids stale HMR / cache refs to *TranslateY). */
-  const insightLabelTranslateY = useSharedValue(0);
-  const insightPersonTranslateY = useSharedValue(0);
+  const insightCardOpacity = useSharedValue(1);
+  const insightCardTranslateX = useSharedValue(0);
   const insightTitleTransitionLockRef = useRef(false);
   const shadowColor = getSphereShadowColor(sphere, colorScheme);
   const { ink: insightInk, inkMuted: insightInkMuted } = insightCardInk(colorScheme);
@@ -935,19 +928,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     if (prevSphereRef.current !== sphere) {
       prevSphereRef.current = sphere;
       setIsAutoLoopPaused(false);
-      cancelAnimation(insightLabelOpacity);
-      cancelAnimation(insightPersonOpacity);
-      cancelAnimation(insightLabelTranslateX);
-      cancelAnimation(insightPersonTranslateX);
-      cancelAnimation(insightLabelTranslateY);
-      cancelAnimation(insightPersonTranslateY);
+      cancelAnimation(insightCardOpacity);
+      cancelAnimation(insightCardTranslateX);
       insightTitleTransitionLockRef.current = false;
-      insightLabelOpacity.value = 1;
-      insightPersonOpacity.value = 1;
-      insightLabelTranslateX.value = 0;
-      insightPersonTranslateX.value = 0;
-      insightLabelTranslateY.value = 0;
-      insightPersonTranslateY.value = 0;
+      insightCardOpacity.value = 1;
+      insightCardTranslateX.value = 0;
       if (sphere === "family" || sphere === "friends") {
         const i = allowedModes.indexOf(1);
         setModeIdx(i >= 0 ? i : 0);
@@ -964,7 +949,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     });
   }, [allowedModes]);
 
-  /** direction 1 = forward (auto / swipe left / chevron right): titles exit right, new ones enter from the left. -1 = reverse. */
+  /** direction 1 = forward (auto / swipe left / chevron right): card exits left, new one enters from right. -1 = reverse. */
   const runInsightTitleTransition = useCallback(
     (applyModeUpdate: () => void, direction: 1 | -1) => {
       if (!animationsEnabled) {
@@ -973,72 +958,53 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       }
       if (insightTitleTransitionLockRef.current) return;
       insightTitleTransitionLockRef.current = true;
-      const easeOut = Easing.in(Easing.cubic);
-      const easeIn = Easing.out(Easing.cubic);
-      const slide = INSIGHT_TITLE_SLIDE_X;
-      const outX = direction === 1 ? slide : -slide;
-      const inFromX = direction === 1 ? -slide : slide;
+      const easeOut = Easing.out(Easing.ease);
+      const easeIn = Easing.out(Easing.ease);
+      const slide = INSIGHT_CARD_SLIDE_X;
+      // Card exits in the opposite direction of the swipe (swipe left = card moves left)
+      const outX = direction === 1 ? -slide : slide;
+      const inFromX = direction === 1 ? slide : -slide;
 
       const unlock = () => {
         insightTitleTransitionLockRef.current = false;
       };
 
-      insightLabelOpacity.value = withTiming(
+      // Phase 1: slide + fade out the whole card
+      insightCardOpacity.value = withTiming(
         0,
-        { duration: INSIGHT_TITLE_OUT_MS, easing: easeOut },
+        { duration: INSIGHT_CARD_OUT_MS, easing: easeOut },
         (finished) => {
           if (!finished) {
             runOnJS(unlock)();
             return;
           }
+          // Phase 2: update content, reposition off-screen on the other side, slide + fade in
           runOnJS(applyModeUpdate)();
-          insightLabelTranslateX.value = inFromX;
-          insightPersonTranslateX.value = inFromX * 1.08;
-          insightPersonOpacity.value = 0;
-          insightLabelOpacity.value = 0;
+          insightCardTranslateX.value = inFromX;
+          insightCardOpacity.value = 0;
 
-          insightLabelOpacity.value = withTiming(1, {
-            duration: INSIGHT_TITLE_IN_LABEL_MS,
+          insightCardOpacity.value = withTiming(1, {
+            duration: INSIGHT_CARD_IN_MS,
             easing: easeIn,
           });
-          insightLabelTranslateX.value = withTiming(0, {
-            duration: INSIGHT_TITLE_IN_LABEL_MS,
-            easing: easeIn,
-          });
-          insightPersonOpacity.value = withDelay(
-            INSIGHT_TITLE_STAGGER_MS,
-            withTiming(1, {
-              duration: INSIGHT_TITLE_IN_PERSON_MS,
-              easing: easeIn,
-            }),
-          );
-          insightPersonTranslateX.value = withDelay(
-            INSIGHT_TITLE_STAGGER_MS,
-            withTiming(0, { duration: INSIGHT_TITLE_IN_PERSON_MS, easing: easeIn }, (done) => {
+          insightCardTranslateX.value = withTiming(
+            0,
+            { duration: INSIGHT_CARD_IN_MS, easing: easeIn },
+            (done) => {
               if (done) runOnJS(unlock)();
-            }),
+            },
           );
         },
       );
-      insightPersonOpacity.value = withTiming(0, {
-        duration: INSIGHT_TITLE_OUT_MS,
-        easing: easeOut,
-      });
-      insightLabelTranslateX.value = withTiming(outX, {
-        duration: INSIGHT_TITLE_OUT_MS,
-        easing: easeOut,
-      });
-      insightPersonTranslateX.value = withTiming(outX, {
-        duration: INSIGHT_TITLE_OUT_MS,
+      insightCardTranslateX.value = withTiming(outX, {
+        duration: INSIGHT_CARD_OUT_MS,
         easing: easeOut,
       });
     },
     [
       animationsEnabled,
-      insightLabelOpacity,
-      insightLabelTranslateX,
-      insightPersonOpacity,
-      insightPersonTranslateX,
+      insightCardOpacity,
+      insightCardTranslateX,
     ],
   );
 
@@ -1101,19 +1067,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     };
   }, [advanceInsightOnJS, modeIdx, numEntities, numModes, progress, animationsEnabled, isAutoLoopPaused]);
 
-  const insightLabelAnimStyle = useAnimatedStyle(() => ({
-    opacity: insightLabelOpacity.value,
-    transform: [
-      { translateX: insightLabelTranslateX.value },
-      { translateY: insightLabelTranslateY.value },
-    ],
-  }));
-  const insightPersonAnimStyle = useAnimatedStyle(() => ({
-    opacity: insightPersonOpacity.value,
-    transform: [
-      { translateX: insightPersonTranslateX.value },
-      { translateY: insightPersonTranslateY.value },
-    ],
+  const insightCardAnimStyle = useAnimatedStyle(() => ({
+    opacity: insightCardOpacity.value,
+    transform: [{ translateX: insightCardTranslateX.value }],
   }));
 
   // Progress bar fill width (0→100%) driven by the existing progress shared value
@@ -1134,7 +1090,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   // Human-readable time since interaction (must be before early return)
   const timeAgoLabel = useMemo(() => {
     const ts = mode === 1 ? oldestMemTime : newestTime;
-    if (!ts || (mode !== 0 && mode !== 1 && mode !== 2)) return null;
+    if (!ts || (mode !== 1 && mode !== 2)) return null;
     const diff = Date.now() - ts;
     const days = Math.floor(diff / (24 * 60 * 60 * 1000));
     if (days === 0) return t("sferaInsight.timeAgo.today");
@@ -1318,7 +1274,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   // ─── Wrapper positioning ───
   const viewW = Math.max(SW * 0.92, INSIGHT_PLANET_CANVAS);
   // Extra offset to account for the mode label rendered above the planet
-  const titleOffset = numModes > 1 ? 22 : 0;
+  const titleOffset = numModes > 1 ? 14 : 0;
   const wrapperStyle = {
     position: "absolute" as const,
     left: x - viewW / 2,
@@ -1326,6 +1282,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     width: viewW,
     zIndex: 12,
     alignItems: "center" as const,
+    overflow: "visible" as const,
   };
 
   // Moon avatar image (entity image)
@@ -1335,7 +1292,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   // ─── Meta row text ───
   const metaRow = useMemo(() => {
     const parts: string[] = [];
-    if ((mode === 0 || mode === 1 || mode === 2) && timeAgoLabel) {
+    if ((mode === 1 || mode === 2) && timeAgoLabel) {
       parts.push(timeAgoLabel);
     }
     const mems = memoriesPerEntity[entityIdx] ?? [];
@@ -1366,19 +1323,20 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     return Math.max(0, withImages.length - INSIGHT_THUMB_MAX);
   }, [thumbMemories, memoriesPerEntity, entityIdx]);
 
-  // Featured memory image for single-memory modes (1=oldest, 2=recent, 4=cloudy, 5=sunny)
-  const featuredMemoryUri = useMemo(() => {
+  // Featured memory for single-memory modes (1=oldest, 2=recent, 4=cloudy, 5=sunny)
+  const featuredMemory = useMemo(() => {
     if (mode !== 1 && mode !== 2 && mode !== 4 && mode !== 5) return null;
-    const mem = getModeMemory(mode, entityIdx);
-    return mem?.imageUri?.trim() || null;
+    return getModeMemory(mode, entityIdx);
   }, [mode, entityIdx, getModeMemory]);
+  const featuredMemoryUri = featuredMemory?.imageUri?.trim() || null;
+  const featuredMemoryTitle = featuredMemory?.title?.trim() || null;
 
   // ─── Empty: no entities ───
   if (numEntities === 0) {
     return (
       <View style={wrapperStyle} pointerEvents="box-none">
         {/* Planet */}
-        <View style={{ width: INSIGHT_PLANET_CANVAS, height: INSIGHT_PLANET_CANVAS, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ width: INSIGHT_PLANET_CANVAS, height: INSIGHT_PLANET_CANVAS, alignItems: "center", justifyContent: "center", overflow: "visible" }}>
           <Animated.View
             pointerEvents="none"
             style={[glowStyle, {
@@ -1509,26 +1467,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   // ─── Main: ring-planet insight view ───
   return (
     <View style={wrapperStyle} pointerEvents="box-none">
-      {/* ── Mode label — above the planet ── */}
-      {numModes > 1 && (
-        <Animated.View style={[insightLabelAnimStyle, { alignItems: "center", marginBottom: 4, zIndex: 10 }]}>
-          <ThemedText
-            style={{
-              color: shadowColor,
-              fontSize: 13,
-              fontWeight: "800",
-              letterSpacing: 1.5,
-              textTransform: "uppercase",
-            }}
-            numberOfLines={1}
-          >
-            {cardLabel}
-          </ThemedText>
-        </Animated.View>
-      )}
-
       {/* ── Planet with side chevrons ── */}
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", width: "100%" }} pointerEvents="box-none">
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", width: "100%", overflow: "visible" }} pointerEvents="box-none">
         {/* Left chevron */}
         {numModes > 1 ? (
           <Pressable
@@ -1542,15 +1482,32 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         ) : <View style={{ width: 48 }} />}
 
       <GestureDetector gesture={insightCardGesture}>
-        <View
+        <Animated.View
           accessible
           accessibilityRole="button"
           accessibilityLabel={entity ? `${cardLabel}: ${entityName}` : undefined}
           collapsable={false}
-          style={{ alignItems: "center", flex: 1 }}
+          style={[insightCardAnimStyle, { alignItems: "center", flex: 1, overflow: "visible" }]}
         >
+          {/* ── Mode label — above the planet ── */}
+          {numModes > 1 && (
+            <View style={{ alignItems: "center", marginBottom: -4, zIndex: 10 }}>
+              <ThemedText
+                style={{
+                  color: shadowColor,
+                  fontSize: 13,
+                  fontWeight: "800",
+                  letterSpacing: 1.5,
+                  textTransform: "uppercase",
+                }}
+                numberOfLines={1}
+              >
+                {cardLabel}
+              </ThemedText>
+            </View>
+          )}
           {/* ── Ring-planet with content overlay ── */}
-          <View style={{ width: INSIGHT_PLANET_CANVAS, height: INSIGHT_PLANET_CANVAS, alignItems: "center", justifyContent: "center" }}>
+          <View style={{ width: INSIGHT_PLANET_CANVAS, height: INSIGHT_PLANET_CANVAS, alignItems: "center", justifyContent: "center", overflow: "visible" }}>
             {/* Glow shadow */}
             <Animated.View
               pointerEvents="none"
@@ -1594,8 +1551,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             >
               {/* Entity name — tappable to pause/resume auto-swipe */}
               <GestureDetector gesture={titleTapGesture}>
-              <Animated.View
-                style={[insightPersonAnimStyle, { alignItems: "center", gap: 3 }]}
+              <View
+                style={{ alignItems: "center", gap: 3 }}
                 accessibilityRole="button"
                 accessibilityLabel={`${entityName}. ${isAutoLoopPaused ? "Resume auto-swipe" : "Pause auto-swipe"}`}
               >
@@ -1630,7 +1587,23 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                     {metaRow}
                   </ThemedText>
                 ) : null}
-              </Animated.View>
+                {/* Featured memory title for single-memory modes */}
+                {featuredMemoryTitle && (
+                  <ThemedText
+                    style={{
+                      color: insightInkMuted,
+                      fontSize: 12,
+                      textAlign: "center",
+                      textShadowColor: isLight ? "rgba(255,255,255,0.75)" : "rgba(8,14,28,0.85)",
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 4,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {featuredMemoryTitle}
+                  </ThemedText>
+                )}
+              </View>
               </GestureDetector>
 
               {/* Memory image thumbnails row */}
@@ -1732,7 +1705,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 );
               })()}
 
-              {/* Progress bar / paused indicator — inside planet */}
+              {/* Progress bar + pause/play button — inside planet */}
               {numModes > 1 && (
                 <View style={{ alignItems: "center", marginTop: 10 }}>
                   <View
@@ -1754,29 +1727,23 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                       />
                     )}
                   </View>
-                  {isAutoLoopPaused && (
-                    <ThemedText
-                      style={{
-                        color: shadowColor + "66",
-                        fontSize: 9,
-                        fontWeight: "700",
-                        letterSpacing: 1.5,
-                        textTransform: "uppercase",
-                        marginTop: 4,
-                        textShadowColor: isLight ? "rgba(255,255,255,0.75)" : "rgba(8,14,28,0.90)",
-                        textShadowOffset: { width: 0, height: 1 },
-                        textShadowRadius: 4,
-                      }}
-                    >
-                      {t("sferaInsight.paused")}
-                    </ThemedText>
-                  )}
+                  <Pressable
+                    onPress={toggleAutoLoopPause}
+                    hitSlop={{ top: 12, bottom: 12, left: 24, right: 24 }}
+                    style={{ marginTop: 4, padding: 8 }}
+                  >
+                    <MaterialIcons
+                      name={isAutoLoopPaused ? "play-arrow" : "pause"}
+                      size={20}
+                      color={shadowColor + "88"}
+                    />
+                  </Pressable>
                 </View>
               )}
 
             </View>
           </View>
-        </View>
+        </Animated.View>
       </GestureDetector>
 
         {/* Right chevron */}
@@ -1794,33 +1761,35 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
       {/* Notification bell — below the planet */}
       {showReminderBell && (
-        <Pressable
-          onPress={() => {
-            router.push(`/notifications/${sphere}/${entity!.id}`);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={`Set reminder for ${entityName}`}
-          accessibilityHint="Opens notification settings"
-          style={{
-            alignSelf: "center",
-            marginTop: -Math.round(INSIGHT_PLANET_CANVAS * 0.12),
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            borderWidth: 1.5,
-            borderColor: shadowColor + "66",
-            backgroundColor: isLight ? "rgba(255,255,255,0.94)" : "rgba(8,14,28,0.82)",
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: shadowColor,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.5,
-            shadowRadius: 6,
-            elevation: 4,
-          }}
-        >
-          <MaterialIcons name="notifications-none" size={16} color={shadowColor} />
-        </Pressable>
+        <Animated.View style={[insightCardAnimStyle, { alignSelf: "center" }]}>
+          <Pressable
+            onPress={() => {
+              router.push(`/notifications/${sphere}/${entity!.id}`);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Set reminder for ${entityName}`}
+            accessibilityHint="Opens notification settings"
+            style={{
+              alignSelf: "center",
+              marginTop: -Math.round(INSIGHT_PLANET_CANVAS * 0.28),
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              borderWidth: 1.5,
+              borderColor: shadowColor + "66",
+              backgroundColor: isLight ? "rgba(255,255,255,0.94)" : "rgba(8,14,28,0.82)",
+              alignItems: "center",
+              justifyContent: "center",
+              shadowColor: shadowColor,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.5,
+              shadowRadius: 6,
+              elevation: 4,
+            }}
+          >
+            <MaterialIcons name="notifications-none" size={16} color={shadowColor} />
+          </Pressable>
+        </Animated.View>
       )}
 
       {showNeedMemoriesHintBelowCard && totalMemoriesCount > 0 ? (
