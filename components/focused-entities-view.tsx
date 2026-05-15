@@ -25,14 +25,13 @@ import { useVisualSettings } from "@/utils/VisualSettingsProvider";
 import {
   sferaInsightEmptyEntitiesWarmKey,
   sferaInsightNoMemoriesReflectionKey,
-  sferaInsightReflectionPromptKey,
 } from "@/utils/sfera-insight-empty-entities";
+import { RingPlanetSvg, sphereRingsForScheme } from "@/components/ring-planet";
 import {
   getSphereGradientColors,
   getSphereShadowColor,
 } from "@/utils/sphere-styles";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
@@ -41,7 +40,6 @@ import {
   Dimensions,
   Platform,
   Pressable,
-  StyleSheet,
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -66,15 +64,7 @@ const IPAD_ENTITIES_CARD_SCALE = IS_IPAD ? 1.6 : 1;
 const IPAD_ENTITIES_AVATAR_SCALE = IS_IPAD ? 1.5 : 1;
 
 // Avatar constants (from focused-sfera-view.tsx)
-const COSMIC_INNER_DARK = ["rgba(10,14,26,0.55)", "rgba(15,20,34,0.6)", "rgba(21,28,46,0.65)", "rgba(26,36,64,0.6)", "rgba(30,42,74,0.55)"] as const;
-/** True light cosmic surface (prior version reused dark hues for “light” and failed WCAG AAA for meta text). */
-const COSMIC_INNER_LIGHT = [
-  "rgba(255,252,251,0.97)",
-  "rgba(247,251,255,0.97)",
-  "rgba(240,246,252,0.97)",
-  "rgba(233,241,249,0.97)",
-  "rgba(227,237,246,0.97)",
-] as const;
+// Cosmic surface gradients removed — ring-planet visual replaces the card background.
 
 /** Auto-advance interval for cycling sfera insight modes (ms). */
 const SFERA_INSIGHT_AUTO_MS = 5000;
@@ -377,13 +367,28 @@ const SparkledDot = React.memo(function SparkledDot({
   );
 });
 
-// ───────────────────── Sfera Insight Card dimensions (used by both card and perimeter layout) ─────────────────────
+// ───────────────────── Sfera Insight ring-planet dimensions ─────────────────────
 
-const INSIGHT_CARD_COLLAPSED_W = 240 * IPAD_ENTITIES_CARD_SCALE;
-const INSIGHT_CARD_COLLAPSED_H = 295 * IPAD_ENTITIES_CARD_SCALE;
-const INSIGHT_CARD_EXPANDED_SCALE = 1.2;
-const INSIGHT_CARD_EXPANDED_W = INSIGHT_CARD_COLLAPSED_W * INSIGHT_CARD_EXPANDED_SCALE;
-const INSIGHT_CARD_EXPANDED_H = INSIGHT_CARD_COLLAPSED_H * INSIGHT_CARD_EXPANDED_SCALE;
+/** Ring-planet sizing for the insight view — large enough to hold all text inside. */
+const INSIGHT_ATMO_R = Math.round(120 * IPAD_ENTITIES_CARD_SCALE);
+const INSIGHT_PLANET_CANVAS = Math.round(INSIGHT_ATMO_R * 3.4);
+const INSIGHT_PLANET_C = INSIGHT_PLANET_CANVAS / 2;
+/** Entity avatar "moon" at the top rim of the planet. */
+const INSIGHT_MOON_SIZE = Math.round(54 * IPAD_ENTITIES_CARD_SCALE);
+
+/** Memory image thumbnails inside the insight card. */
+const INSIGHT_THUMB_SIZE = Math.round(28 * IPAD_ENTITIES_CARD_SCALE);
+const INSIGHT_THUMB_MAX = 5;
+/** Featured memory image for single-memory modes (larger, emphasized). */
+const INSIGHT_FEATURED_IMG_SIZE = Math.round(50 * IPAD_ENTITIES_CARD_SCALE);
+/** Larger featured image for mood cards (most cloudy / most sunny) to draw attention. */
+const INSIGHT_FEATURED_IMG_SIZE_MOOD = Math.round(80 * IPAD_ENTITIES_CARD_SCALE);
+
+/** Bounding box used by EntityRing to orbit entities around the insight view. */
+const INSIGHT_CARD_COLLAPSED_W = Math.round(INSIGHT_ATMO_R * 2.0) * IPAD_ENTITIES_CARD_SCALE;
+const INSIGHT_CARD_COLLAPSED_H = Math.round(INSIGHT_PLANET_CANVAS + 20) * IPAD_ENTITIES_CARD_SCALE;
+const INSIGHT_CARD_EXPANDED_W = INSIGHT_CARD_COLLAPSED_W;
+const INSIGHT_CARD_EXPANDED_H = INSIGHT_CARD_COLLAPSED_H;
 
 const NEED_MEMORIES_HINT_WIDTH = 220 * IPAD_ENTITIES_CARD_SCALE;
 
@@ -739,9 +744,7 @@ const EntityRing = React.memo(function EntityRing({
 
 // ───────────────────── Sfera Insight Card ─────────────────────
 
-const INSIGHT_ARROW_SIZE = 28;
-const INSIGHT_ARROW_HIT = 36;
-const INSIGHT_SIZE_TOGGLE_ICON_SIZE = 20;
+// Arrow sizes kept for reference but arrows are now inline with pagination dots
 
 /**
  * Insight card copy — AAA-oriented vs the actual cosmic card face (tiny meta stays ≥7:1 typical).
@@ -773,18 +776,7 @@ function insightSunnyCloudyMetaColors(
 /** Sunny meta tint + urgency copy — AAA vs creams / cosmic white. */
 const INSIGHT_LIGHT_URGENCY_AFFORDANCE = "#5C3700";
 
-/** Caption strip over a light mood tint band — dark theme keeps white-on-tint readability. */
-function insightMemoryCaptionTextColor(
-  colorScheme: "light" | "dark",
-  sunnyText: string,
-  cloudyFill: string,
-  isMostlyCloudy: boolean,
-): string {
-  if (colorScheme === "light") {
-    return isMostlyCloudy ? cloudyFill : sunnyText;
-  }
-  return "#FFFFFF";
-}
+// insightMemoryCaptionTextColor removed — memory previews are no longer inside the card body.
 
 /** Most recent / most old last-interaction for an entity set */
 function getInteractionIndices(memoriesPerEntity: IdealizedMemory[][]) {
@@ -852,11 +844,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   x,
   y,
   animationsEnabled,
-  sphere3DEffect = false,
+  sphere3DEffect: _sphere3DEffect = false,
   cardWidth,
   cardHeight,
-  isExpanded,
-  onToggleSize,
+  isExpanded: _isExpanded,
+  onToggleSize: _onToggleSize,
 }: {
   sphere: LifeSphere;
   entities: FocusedEntitiesViewProps["entities"];
@@ -1076,9 +1068,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   }, [runInsightTitleTransition, numModes]);
 
   const progress = useSharedValue(0);
-  const progressBarStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%` as `${number}%`,
-  }));
 
   // Keep latest nav callbacks in refs for auto-advance and swipe worklets
   const goNextRef = useRef(goNext);
@@ -1126,22 +1115,12 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       { translateY: insightPersonTranslateY.value },
     ],
   }));
-  const insightCardBg =
-    colorScheme === "dark" ? COSMIC_INNER_DARK[2] : COSMIC_INNER_LIGHT[2];
-  const gradientColors =
-    colorScheme === "dark" ? COSMIC_INNER_DARK : COSMIC_INNER_LIGHT;
 
-  const totalW = cardWidth + INSIGHT_ARROW_HIT * 2;
-  const wrapperStyle = {
-    position: "absolute" as const,
-    left: x - totalW / 2,
-    top: y - cardHeight / 2,
-    width: totalW,
-    height: cardHeight,
-    zIndex: 25,
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-  };
+  // Progress bar fill width (0→100%) driven by the existing progress shared value
+  const PROGRESS_BAR_W = Math.round(INSIGHT_ATMO_R * 1.2);
+  const progressBarFillStyle = useAnimatedStyle(() => ({
+    width: progress.value * PROGRESS_BAR_W,
+  }));
 
   // 6 modes: 0=least memories, 1=oldest memory, 2=most recent, 3=most memories, 4=most cloudy, 5=most sunny
   const entityIdx = [leastMemsIdx, oldestMemIdx, newestIdx, mostMemsIdx, mostCloudyIdx, mostSunnyIdx][mode] ?? 0;
@@ -1149,54 +1128,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const entityName = entity?.name ?? "";
   const showReminderBell = hasReminderSupport && (mode === 0 || mode === 1) && entity != null;
 
-  // Urgency border: amber tint when oldest interaction > 30 days
+  // Urgency
   const isMoodCard = mode === 4 || mode === 5;
-  const moodBorderColor = mode === 4 ? (momentColors.cloudy.background + "AA") : (momentColors.sunny.background + "AA");
-  const borderColor =
-    isUrgent && mode === 1
-      ? "rgba(92, 55, 0, 0.45)"
-      : isMoodCard
-        ? moodBorderColor
-        : shadowColor + "99";
-  const shadowGlowColor = isMoodCard
-    ? mode === 4
-      ? momentColors.cloudy.background
-      : momentColors.sunny.background
-    : isUrgent && mode === 1
-      ? INSIGHT_LIGHT_URGENCY_AFFORDANCE
-      : shadowColor;
-
-  const insightCardEmptyShadow = sphere3DEffect
-    ? {
-        shadowColor,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.85,
-        shadowRadius: 22,
-        elevation: 12,
-      }
-    : {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: colorScheme === "dark" ? 0.32 : 0.16,
-        shadowRadius: 10,
-        elevation: 6,
-      };
-
-  const insightCardMainOuterShadow = sphere3DEffect
-    ? {
-        shadowColor: shadowGlowColor,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.9,
-        shadowRadius: 24,
-        elevation: 14,
-      }
-    : {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: colorScheme === "dark" ? 0.35 : 0.2,
-        shadowRadius: 10,
-        elevation: 8,
-      };
 
   // Human-readable time since interaction (must be before early return)
   const timeAgoLabel = useMemo(() => {
@@ -1210,7 +1143,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     return `${months}${t("sferaInsight.timeAgo.months")}`;
   }, [oldestMemTime, newestTime, mode, t]);
 
-  // Label for top of card — some labels are sphere-specific
+  // Label for top of view — some labels are sphere-specific
   const cardLabels = [
     sphere === "hobbies" ? t("sferaInsight.leastPracticed") : t("sferaInsight.leastMemories"),
     sphere === "hobbies" ? t("sferaInsight.lastPracticed") : t("sferaInsight.oldestMemory"),
@@ -1226,8 +1159,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       const mems = memoriesPerEntity[idx] ?? [];
       if (mems.length === 0) return null;
       if (targetMode === 1) {
-        // Show the most recent memory for this entity — it's the "oldest" card because
-        // this entity's newest memory is older than every other entity's newest memory.
         return mems.reduce((a, b) =>
           new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b,
         );
@@ -1283,7 +1214,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   );
 
   const openInsightTarget = useCallback(() => {
-    // Plural / aggregate insights should open entity view.
     if (mode === 0 || mode === 3) {
       openEntity();
       return;
@@ -1300,37 +1230,12 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     setIsAutoLoopPaused((prev) => !prev);
   }, []);
 
-  const memoryPreviewTapIdRef = useRef<string | null>(null);
-  const onMemoryPreviewTap = useCallback(() => {
-    const id = memoryPreviewTapIdRef.current;
-    if (!id) return;
-    const mems = memoriesPerEntity[entityIdx] ?? [];
-    const memory = mems.find((m) => m.id === id);
-    if (memory) openMemory(memory);
-  }, [memoriesPerEntity, entityIdx, openMemory]);
-
-  const memoryPreviewTapGesture = useMemo(
-    () =>
-      Gesture.Tap().onEnd(() => {
-        runOnJS(onMemoryPreviewTap)();
-      }),
-    [onMemoryPreviewTap],
-  );
-
   const titleTapGesture = useMemo(
     () =>
       Gesture.Tap().onEnd(() => {
         runOnJS(toggleAutoLoopPause)();
       }),
     [toggleAutoLoopPause],
-  );
-
-  const expandToggleGesture = useMemo(
-    () =>
-      Gesture.Tap().onEnd(() => {
-        runOnJS(onToggleSize)();
-      }),
-    [onToggleSize],
   );
 
   const insightCardGesture = useMemo(() => {
@@ -1351,9 +1256,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           Math.abs(tx) > Math.abs(ty) * 1.5
         ) {
           if (tx < 0) {
-            runOnJS(goPrevRef.current)();
-          } else {
             runOnJS(goNextRef.current)();
+          } else {
+            runOnJS(goPrevRef.current)();
           }
         }
       });
@@ -1367,162 +1272,232 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     return Gesture.Exclusive(pan, tap);
   }, [openInsightTarget]);
 
-  const emptyEntityCardStyle = {
-    flex: 1,
-    minHeight: cardHeight,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    borderColor: shadowColor + "99",
-    justifyContent: "center" as const,
+  // Ring rotation for the insight planet
+  const ringRotation = useSharedValue(0);
+  useEffect(() => {
+    if (!animationsEnabled) {
+      cancelAnimation(ringRotation);
+      ringRotation.value = 0;
+      return;
+    }
+    ringRotation.value = 0;
+    ringRotation.value = withRepeat(
+      withTiming(360, { duration: 30000, easing: Easing.linear }),
+      -1,
+      false,
+    );
+    return () => cancelAnimation(ringRotation);
+  }, [animationsEnabled, ringRotation]);
+
+  // Glow pulse for ring-planet
+  const glowPulse = useSharedValue(0.5);
+  useEffect(() => {
+    if (!animationsEnabled) {
+      cancelAnimation(glowPulse);
+      glowPulse.value = 0.5;
+      return;
+    }
+    glowPulse.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.45, { duration: 2600, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+    return () => cancelAnimation(glowPulse);
+  }, [animationsEnabled, glowPulse]);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowPulse.value,
+  }));
+
+  const isLight = colorScheme === "light";
+  const ringColors = sphereRingsForScheme(sphere, colorScheme);
+
+  // ─── Wrapper positioning ───
+  const viewW = Math.max(SW * 0.92, INSIGHT_PLANET_CANVAS);
+  // Extra offset to account for the mode label rendered above the planet
+  const titleOffset = numModes > 1 ? 22 : 0;
+  const wrapperStyle = {
+    position: "absolute" as const,
+    left: x - viewW / 2,
+    top: y - cardHeight / 2 - titleOffset,
+    width: viewW,
+    zIndex: 12,
     alignItems: "center" as const,
-    padding: 14,
-    ...insightCardEmptyShadow,
   };
 
-  if (numEntities === 0) {
-    const emptyEntitiesContent = (
-      <>
-        <ThemedText
-          style={{
-            color: insightInk,
-            fontSize: 14,
-            fontWeight: "600",
-            textAlign: "center",
-            paddingHorizontal: 12,
-            fontStyle: "italic",
-          }}
-        >
-          {t(sferaInsightEmptyEntitiesWarmKey(sphere))}
-        </ThemedText>
-        <SferaInsightEmptyGuideLink sphere={sphere} />
-      </>
-    );
-    return (
-      <View
-        style={[wrapperStyle, { height: undefined, minHeight: cardHeight }]}
-        pointerEvents="box-none"
-      >
-        <View style={{ width: INSIGHT_ARROW_HIT }} />
-        {sphere3DEffect ? (
-          <LinearGradient colors={[...gradientColors]} style={emptyEntityCardStyle}>
-            {emptyEntitiesContent}
-          </LinearGradient>
-        ) : (
-          <View style={{ ...emptyEntityCardStyle, backgroundColor: insightCardBg }}>
-            {emptyEntitiesContent}
-          </View>
-        )}
-        <View style={{ width: INSIGHT_ARROW_HIT }} />
-      </View>
-    );
-  }
+  // Moon avatar image (entity image)
+  const moonImageUri = entity?.imageUri?.trim() || null;
+  const moonTop = INSIGHT_PLANET_C - INSIGHT_ATMO_R - INSIGHT_MOON_SIZE / 2 + 2;
 
-  if (totalMemoriesCount === 0) {
-    const zeroMemOuter = {
-      ...wrapperStyle,
-      overflow: "visible" as const,
-      minHeight: cardHeight + (showNeedMemoriesHintBelowCard ? 52 : 0),
-      height: undefined as number | undefined,
-    };
-    const zeroMemCardStyle = {
-      flex: 1,
-      minHeight: cardHeight,
-      borderRadius: 22,
-      borderWidth: 1.5,
-      borderColor: shadowColor + "99",
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      padding: 14,
-      ...insightCardEmptyShadow,
-    };
-    const zeroMemContent = (
-      <>
-        <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
+  // ─── Meta row text ───
+  const metaRow = useMemo(() => {
+    const parts: string[] = [];
+    if ((mode === 0 || mode === 1 || mode === 2) && timeAgoLabel) {
+      parts.push(timeAgoLabel);
+    }
+    const mems = memoriesPerEntity[entityIdx] ?? [];
+    // Only show memory count for least/most memories modes (0/3), not single-memory modes
+    if (mode === 0) {
+      parts.push(`${mems.length} ${t("sferaInsight.memories")}`);
+    }
+    if (mode === 3) {
+      parts.push(`${mems.length} ${t("sferaInsight.memories")}`);
+    }
+    // Modes 4/5 (most cloudy/sunny): no count text — the featured memory image is the focus
+    return parts.join(" · ");
+  }, [mode, timeAgoLabel, memoriesPerEntity, entityIdx, t]);
+
+  // ─── Memory image thumbnails (modes 0/3) or featured image (modes 1/2/4/5) ───
+  const thumbMemories = useMemo(() => {
+    if (mode !== 0 && mode !== 3) return [];
+    const mems = memoriesPerEntity[entityIdx] ?? [];
+    if (mems.length === 0) return [];
+    const withImages = mems.filter((m) => m.imageUri?.trim());
+    return withImages.slice(0, INSIGHT_THUMB_MAX);
+  }, [mode, memoriesPerEntity, entityIdx]);
+
+  const thumbOverflow = useMemo(() => {
+    if (thumbMemories.length === 0) return 0;
+    const mems = memoriesPerEntity[entityIdx] ?? [];
+    const withImages = mems.filter((m) => m.imageUri?.trim());
+    return Math.max(0, withImages.length - INSIGHT_THUMB_MAX);
+  }, [thumbMemories, memoriesPerEntity, entityIdx]);
+
+  // Featured memory image for single-memory modes (1=oldest, 2=recent, 4=cloudy, 5=sunny)
+  const featuredMemoryUri = useMemo(() => {
+    if (mode !== 1 && mode !== 2 && mode !== 4 && mode !== 5) return null;
+    const mem = getModeMemory(mode, entityIdx);
+    return mem?.imageUri?.trim() || null;
+  }, [mode, entityIdx, getModeMemory]);
+
+  // ─── Empty: no entities ───
+  if (numEntities === 0) {
+    return (
+      <View style={wrapperStyle} pointerEvents="box-none">
+        {/* Planet */}
+        <View style={{ width: INSIGHT_PLANET_CANVAS, height: INSIGHT_PLANET_CANVAS, alignItems: "center", justifyContent: "center" }}>
+          <Animated.View
+            pointerEvents="none"
+            style={[glowStyle, {
+              position: "absolute",
+              width: INSIGHT_ATMO_R * 2 + 40,
+              height: INSIGHT_ATMO_R * 2 + 40,
+              borderRadius: INSIGHT_ATMO_R + 20,
+              shadowColor: isLight ? "#000000" : ringColors.glow,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: isLight ? 0.15 : 0.55,
+              shadowRadius: isLight ? 20 : 36,
+              elevation: 0,
+            }]}
+          />
+          <RingPlanetSvg
+            id={`insight-empty-${sphere}`}
+            colors={ringColors}
+            ringRotation={ringRotation}
+            isLight={isLight}
+            atmoR={INSIGHT_ATMO_R}
+            planetCanvas={INSIGHT_PLANET_CANVAS}
+            planetC={INSIGHT_PLANET_C}
+          />
+        </View>
+        <View style={{ alignItems: "center", gap: 8, marginTop: 8, paddingHorizontal: 20 }}>
           <ThemedText
             style={{
               color: insightInk,
               fontSize: 14,
-              textAlign: "center",
               fontWeight: "600",
-              fontStyle: "italic",
-              paddingHorizontal: 12,
-            }}
-          >
-            {t(sferaInsightNoMemoriesReflectionKey(sphere))}
-          </ThemedText>
-        </Pressable>
-        <Pressable
-          onPress={openEntity}
-          style={{
-            marginTop: 10,
-            borderRadius: 14,
-            borderWidth: 1.25,
-            borderColor: colorScheme === "dark"
-              ? Colors.dark.primary + "88"
-              : Colors.light.primary + "55",
-            backgroundColor: colorScheme === "dark"
-              ? Colors.dark.primary + "22"
-              : Colors.light.primary + "14",
-            paddingHorizontal: 14,
-            paddingVertical: 6,
-            shadowColor: colorScheme === "dark"
-              ? Colors.dark.primary
-              : Colors.light.primary,
-            shadowOffset: { width: 0, height: colorScheme === "dark" ? 0 : 3 },
-            shadowOpacity: colorScheme === "dark" ? 0.5 : 0.18,
-            shadowRadius: colorScheme === "dark" ? 8 : 10,
-            elevation: 6,
-          }}
-        >
-          <ThemedText
-            style={{
-              color: colorScheme === "dark"
-                ? Colors.dark.primary
-                : Colors.light.primary,
-              fontSize: 11,
-              fontWeight: "700",
               textAlign: "center",
+              fontStyle: "italic",
             }}
           >
-            {t("sferaInsight.addFirstMemory")}
+            {t(sferaInsightEmptyEntitiesWarmKey(sphere))}
           </ThemedText>
-        </Pressable>
-      </>
-    );
-    return (
-      <View style={zeroMemOuter} pointerEvents="box-none">
-        <View style={{ flexDirection: "row", alignItems: "flex-start", width: "100%" }}>
-          <View style={{ width: INSIGHT_ARROW_HIT }} />
-          <View style={{ flex: 1 }}>
-            {sphere3DEffect ? (
-              <LinearGradient colors={[...gradientColors]} style={zeroMemCardStyle}>
-                {zeroMemContent}
-              </LinearGradient>
-            ) : (
-              <View style={{ ...zeroMemCardStyle, backgroundColor: insightCardBg }}>
-                {zeroMemContent}
-              </View>
-            )}
-          </View>
-          <View style={{ width: INSIGHT_ARROW_HIT }} />
+          <SferaInsightEmptyGuideLink sphere={sphere} />
         </View>
-        {showNeedMemoriesHintBelowCard && (
-          <View
-            style={{
-              alignSelf: "center",
-              marginTop: 8,
-              ...needMemoriesHintBubbleStyle,
-            }}
+      </View>
+    );
+  }
+
+  // ─── Empty: entities but zero memories ───
+  if (totalMemoriesCount === 0) {
+    return (
+      <View style={wrapperStyle} pointerEvents="box-none">
+        {/* Planet */}
+        <View style={{ width: INSIGHT_PLANET_CANVAS, height: INSIGHT_PLANET_CANVAS, alignItems: "center", justifyContent: "center" }}>
+          <Animated.View
             pointerEvents="none"
+            style={[glowStyle, {
+              position: "absolute",
+              width: INSIGHT_ATMO_R * 2 + 40,
+              height: INSIGHT_ATMO_R * 2 + 40,
+              borderRadius: INSIGHT_ATMO_R + 20,
+              shadowColor: isLight ? "#000000" : ringColors.glow,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: isLight ? 0.15 : 0.55,
+              shadowRadius: isLight ? 20 : 36,
+              elevation: 0,
+            }]}
+          />
+          <RingPlanetSvg
+            id={`insight-zero-${sphere}`}
+            colors={ringColors}
+            ringRotation={ringRotation}
+            isLight={isLight}
+            atmoR={INSIGHT_ATMO_R}
+            planetCanvas={INSIGHT_PLANET_CANVAS}
+            planetC={INSIGHT_PLANET_C}
+          />
+        </View>
+        <View style={{ alignItems: "center", gap: 8, marginTop: 8, paddingHorizontal: 20 }}>
+          <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
+            <ThemedText
+              style={{
+                color: insightInk,
+                fontSize: 14,
+                textAlign: "center",
+                fontWeight: "600",
+                fontStyle: "italic",
+              }}
+            >
+              {t(sferaInsightNoMemoriesReflectionKey(sphere))}
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={openEntity}
+            style={{
+              borderRadius: 14,
+              borderWidth: 1.25,
+              borderColor: colorScheme === "dark"
+                ? Colors.dark.primary + "88"
+                : Colors.light.primary + "55",
+              backgroundColor: colorScheme === "dark"
+                ? Colors.dark.primary + "22"
+                : Colors.light.primary + "14",
+              paddingHorizontal: 14,
+              paddingVertical: 6,
+            }}
           >
             <ThemedText
               style={{
+                color: colorScheme === "dark" ? Colors.dark.primary : Colors.light.primary,
                 fontSize: 11,
-                color: "#FFFFFF",
+                fontWeight: "700",
                 textAlign: "center",
-                lineHeight: 15,
               }}
             >
+              {t("sferaInsight.addFirstMemory")}
+            </ThemedText>
+          </Pressable>
+        </View>
+        {showNeedMemoriesHintBelowCard && (
+          <View
+            style={{ alignSelf: "center", marginTop: 8, ...needMemoriesHintBubbleStyle }}
+            pointerEvents="none"
+          >
+            <ThemedText style={{ fontSize: 11, color: "#FFFFFF", textAlign: "center", lineHeight: 15 }}>
               {t("sferaInsight.needMemoriesFirst")}
             </ThemedText>
           </View>
@@ -1531,525 +1506,337 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     );
   }
 
+  // ─── Main: ring-planet insight view ───
   return (
-    <View
-      style={[
-        wrapperStyle,
-        showNeedMemoriesHintBelowCard && totalMemoriesCount > 0
-          ? {
-              overflow: "visible",
-              minHeight: cardHeight + 52,
-              height: undefined as number | undefined,
-            }
-          : null,
-      ]}
-      pointerEvents="box-none"
-    >
-      {/* Left arrow */}
-      {numModes > 1 ? (
-        <Pressable
-          onPress={goPrev}
-          accessibilityRole="button"
-          accessibilityLabel="Previous insight"
-          style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
-        >
-          <MaterialIcons name="chevron-left" size={INSIGHT_ARROW_SIZE} color={shadowColor + "CC"} />
-        </Pressable>
-      ) : (
-        <View style={{ width: INSIGHT_ARROW_HIT }} />
+    <View style={wrapperStyle} pointerEvents="box-none">
+      {/* ── Mode label — above the planet ── */}
+      {numModes > 1 && (
+        <Animated.View style={[insightLabelAnimStyle, { alignItems: "center", marginBottom: 4, zIndex: 10 }]}>
+          <ThemedText
+            style={{
+              color: shadowColor,
+              fontSize: 13,
+              fontWeight: "800",
+              letterSpacing: 1.5,
+              textTransform: "uppercase",
+            }}
+            numberOfLines={1}
+          >
+            {cardLabel}
+          </ThemedText>
+        </Animated.View>
       )}
 
-      {/* Card — RNGH Exclusive(Pan,Tap): horizontal swipe changes mode; tap opens insight target */}
+      {/* ── Planet with side chevrons ── */}
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", width: "100%" }} pointerEvents="box-none">
+        {/* Left chevron */}
+        {numModes > 1 ? (
+          <Pressable
+            onPress={goPrev}
+            accessibilityRole="button"
+            accessibilityLabel="Previous insight"
+            style={{ width: 48, height: 80, alignItems: "center", justifyContent: "center", zIndex: 30 }}
+          >
+            <MaterialIcons name="chevron-left" size={28} color={shadowColor + "CC"} />
+          </Pressable>
+        ) : <View style={{ width: 48 }} />}
+
       <GestureDetector gesture={insightCardGesture}>
         <View
-          style={{ flex: 1, height: cardHeight }}
           accessible
           accessibilityRole="button"
           accessibilityLabel={entity ? `${cardLabel}: ${entityName}` : undefined}
           collapsable={false}
+          style={{ alignItems: "center", flex: 1 }}
         >
-        <View
-          style={{
-            flex: 1,
-            borderRadius: 22,
-            borderWidth: 1.5,
-            borderColor,
-            ...insightCardMainOuterShadow,
-            overflow: "hidden",
-            position: "relative",
-          }}
-        >
-          {sphere3DEffect ? (
-            <LinearGradient
-              colors={[...gradientColors]}
-              style={StyleSheet.absoluteFillObject}
+          {/* ── Ring-planet with content overlay ── */}
+          <View style={{ width: INSIGHT_PLANET_CANVAS, height: INSIGHT_PLANET_CANVAS, alignItems: "center", justifyContent: "center" }}>
+            {/* Glow shadow */}
+            <Animated.View
+              pointerEvents="none"
+              style={[glowStyle, {
+                position: "absolute",
+                width: INSIGHT_ATMO_R * 2 + 40,
+                height: INSIGHT_ATMO_R * 2 + 40,
+                borderRadius: INSIGHT_ATMO_R + 20,
+                shadowColor: isLight ? "#000000" : ringColors.glow,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: isLight ? 0.15 : 0.55,
+                shadowRadius: isLight ? 20 : 36,
+                elevation: 0,
+              }]}
             />
-          ) : (
-            <View
-              style={[StyleSheet.absoluteFillObject, { backgroundColor: insightCardBg }]}
+
+            {/* Planet SVG */}
+            <RingPlanetSvg
+              id={`insight-${sphere}-${entityIdx}`}
+              colors={ringColors}
+              ringRotation={ringRotation}
+              isLight={isLight}
+              atmoR={INSIGHT_ATMO_R}
+              planetCanvas={INSIGHT_PLANET_CANVAS}
+              planetC={INSIGHT_PLANET_C}
             />
-          )}
-          <View
-            style={{
-              flex: 1,
-              zIndex: 1,
-              paddingHorizontal: 12,
-              paddingTop: 12,
-              paddingBottom: 10,
-              gap: 8,
-            }}
-          >
-          {/* Countdown to next insight — fills left→right over SFERA_INSIGHT_AUTO_MS */}
-          {numModes > 1 ? (
+
+            {/* ── Content overlay — all info inside the planet ── */}
             <View
               style={{
                 position: "absolute",
-                top: 0,
                 left: 0,
                 right: 0,
-                height: 3,
-                backgroundColor: shadowColor + "33",
-                zIndex: 20,
+                top: 0,
+                bottom: 0,
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 9,
               }}
-              pointerEvents="none"
+              pointerEvents="box-none"
             >
+              {/* Entity name — tappable to pause/resume auto-swipe */}
+              <GestureDetector gesture={titleTapGesture}>
               <Animated.View
-                style={[{ height: 3, backgroundColor: shadowColor, alignSelf: "flex-start" }, progressBarStyle]}
-              />
-            </View>
-          ) : null}
-
-          {/* Top label — tap toggles auto-cycle pause; uses its own RNGH tap to
-              intercept before the card-level gesture detector fires openInsightTarget */}
-          <Animated.View style={insightLabelAnimStyle} accessibilityLiveRegion="polite">
-            <GestureDetector gesture={titleTapGesture}>
-              <View
+                style={[insightPersonAnimStyle, { alignItems: "center", gap: 3 }]}
                 accessibilityRole="button"
-                accessibilityLabel={`${cardLabel}. ${isAutoLoopPaused ? "Resume auto-swipe" : "Pause auto-swipe"}`}
-                style={{ alignSelf: "center", paddingHorizontal: 4, paddingVertical: 2 }}
-                collapsable={false}
+                accessibilityLabel={`${entityName}. ${isAutoLoopPaused ? "Resume auto-swipe" : "Pause auto-swipe"}`}
               >
-                <ThemedText style={{ color: insightInk, fontSize: 16, textAlign: "center", fontWeight: "700", letterSpacing: 0.2 }} numberOfLines={1}>
-                  {cardLabel}
-                </ThemedText>
-              </View>
-            </GestureDetector>
-          </Animated.View>
-
-          {/* Person block */}
-          <Animated.View style={[insightPersonAnimStyle, { gap: 3 }]}>
-            <ThemedText style={{ color: insightInk, fontSize: 12, fontWeight: "600" }} numberOfLines={1}>
-              {entityName}
-            </ThemedText>
-            {/* Meta row varies by mode */}
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              {/* Mode 0/1/2: time-ago */}
-              {(mode === 0 || mode === 1 || mode === 2) && timeAgoLabel ? (
                 <ThemedText
                   style={{
-                    color:
-                      isUrgent && mode === 1 ? INSIGHT_LIGHT_URGENCY_AFFORDANCE : insightInkMuted,
-                    fontSize: 10,
+                    color: insightInk,
+                    fontSize: 22,
+                    fontWeight: "700",
+                    textAlign: "center",
+                    textShadowColor: isLight ? "rgba(255,255,255,0.75)" : "rgba(8,14,28,0.90)",
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: 8,
                   }}
+                  numberOfLines={1}
                 >
-                  {timeAgoLabel}
+                  {entityName}
                 </ThemedText>
-              ) : null}
-              {/* Mode 3: most memory count */}
-              {mode === 3 ? (
-                <ThemedText style={{ color: insightInkMuted, fontSize: 10 }}>
-                  {(memoriesPerEntity[entityIdx]?.length ?? 0)} {t("sferaInsight.memories")}
-                </ThemedText>
-              ) : null}
-              {/* Mode 4/5: mood counts */}
-              {mode === 4 ? (() => {
-                const mems = memoriesPerEntity[entityIdx] ?? [];
-                const count = mems.reduce((s, m) => s + (m.hardTruths?.length ?? 0), 0);
-                const label =
-                  count === 1
-                    ? t("sferaInsight.cloudyMomentsOne")
-                    : t("sferaInsight.cloudyMomentsMany", { count });
-                return <ThemedText style={{ color: insightCloudyMeta, fontSize: 10 }}>{label}</ThemedText>;
-              })() : null}
-              {mode === 5 ? (() => {
-                const mems = memoriesPerEntity[entityIdx] ?? [];
-                const count = mems.reduce((s, m) => s + (m.goodFacts?.length ?? 0), 0);
-                const label =
-                  count === 1
-                    ? t("sferaInsight.sunnyMomentsOne")
-                    : t("sferaInsight.sunnyMomentsMany", { count });
-                return <ThemedText style={{ color: insightSunnyMeta, fontSize: 10 }}>{label}</ThemedText>;
-              })() : null}
-              {/* Bell for modes 0/1 */}
-              {showReminderBell && timeAgoLabel ? (
-                <ThemedText style={{ color: insightInkMuted, fontSize: 10 }}>·</ThemedText>
-              ) : null}
-              {showReminderBell && (
-                <Pressable
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    router.push(`/notifications/${sphere}/${entity.id}`);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Set reminder for ${entityName}`}
-                  accessibilityHint="Opens notification settings"
+                {/* Meta row */}
+                {metaRow ? (
+                  <ThemedText
+                    style={{
+                      color: isMoodCard
+                        ? mode === 4 ? insightCloudyMeta : insightSunnyMeta
+                        : isUrgent && mode === 1 ? INSIGHT_LIGHT_URGENCY_AFFORDANCE : insightInkMuted,
+                      fontSize: 14,
+                      textAlign: "center",
+                      textShadowColor: isLight ? "rgba(255,255,255,0.75)" : "rgba(8,14,28,0.85)",
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 4,
+                    }}
+                  >
+                    {metaRow}
+                  </ThemedText>
+                ) : null}
+              </Animated.View>
+              </GestureDetector>
+
+              {/* Memory image thumbnails row */}
+              {thumbMemories.length > 0 && (
+                <View
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    gap: 3,
-                    backgroundColor: shadowColor + "22",
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: shadowColor + "44",
-                    paddingHorizontal: 8,
-                    paddingVertical: 6,
-                    minWidth: 32,
-                    minHeight: 32,
+                    justifyContent: "center",
+                    marginTop: 6,
                   }}
+                  pointerEvents="none"
                 >
-                  <MaterialIcons name="notifications-none" size={14} color={shadowColor} />
-                </Pressable>
-              )}
-            </View>
-          </Animated.View>
-
-          {/* Modes 0/1: show memory preview, or add-memories CTA */}
-          {(mode === 0 || mode === 1) && (() => {
-            const mem = mode === 1
-              ? getModeMemory(1, entityIdx)
-              : getModeMemory(2, entityIdx);
-            if (mem) {
-              const moodSunny = mem.goodFacts?.length ?? 0;
-              const moodCloudy = mem.hardTruths?.length ?? 0;
-              const moodColor = moodSunny >= moodCloudy ? momentColors.sunny.background : momentColors.cloudy.background;
-              const stripCaptionColor = insightMemoryCaptionTextColor(
-                colorScheme,
-                momentColors.sunny.text,
-                momentColors.cloudy.background,
-                moodCloudy > moodSunny,
-              );
-              const titleText = mem.title?.trim() || t("sferaInsight.noMemories");
-              const body = (
-                <View style={{ flex: 1, alignSelf: "stretch", borderRadius: 10, overflow: "hidden", backgroundColor: mem.imageUri ? undefined : shadowColor + "18" }}>
-                  {mem.imageUri ? (
-                    <>
-                      <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
-                      <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
-                        <ThemedText style={{ color: stripCaptionColor, fontSize: 10 }} numberOfLines={1}>
-                          {titleText}
-                        </ThemedText>
-                      </View>
-                    </>
-                  ) : (
-                    <View style={{ flex: 1, padding: 10, justifyContent: "center" }}>
-                      <ThemedText style={{ color: insightInk, fontSize: 12, fontWeight: "600" }} numberOfLines={2}>
-                        {titleText}
+                  {thumbMemories.map((mem, i) => (
+                    <View
+                      key={mem.id}
+                      style={{
+                        width: INSIGHT_THUMB_SIZE,
+                        height: INSIGHT_THUMB_SIZE,
+                        borderRadius: INSIGHT_THUMB_SIZE / 2,
+                        borderWidth: 1.5,
+                        borderColor: shadowColor + "88",
+                        overflow: "hidden",
+                        backgroundColor: isLight
+                          ? "rgba(255,255,255,0.9)"
+                          : "rgba(8,14,28,0.7)",
+                        marginLeft: i > 0 ? -4 : 0,
+                        zIndex: INSIGHT_THUMB_MAX - i,
+                      }}
+                    >
+                      <Image
+                        source={{ uri: mem.imageUri! }}
+                        style={{ width: "100%", height: "100%" }}
+                        contentFit="cover"
+                      />
+                    </View>
+                  ))}
+                  {thumbOverflow > 0 && (
+                    <View
+                      style={{
+                        width: INSIGHT_THUMB_SIZE,
+                        height: INSIGHT_THUMB_SIZE,
+                        borderRadius: INSIGHT_THUMB_SIZE / 2,
+                        borderWidth: 1.5,
+                        borderColor: shadowColor + "88",
+                        backgroundColor: isLight
+                          ? "rgba(255,255,255,0.9)"
+                          : "rgba(8,14,28,0.7)",
+                        marginLeft: -4,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 0,
+                      }}
+                    >
+                      <ThemedText
+                        style={{
+                          color: insightInkMuted,
+                          fontSize: 8,
+                          fontWeight: "700",
+                        }}
+                      >
+                        +{thumbOverflow}
                       </ThemedText>
-                      {mem.description ? (
-                        <ThemedText style={{ color: insightInkMuted, fontSize: 10, marginTop: 6 }} numberOfLines={6}>
-                          {mem.description}
-                        </ThemedText>
-                      ) : null}
                     </View>
                   )}
                 </View>
-              );
-              memoryPreviewTapIdRef.current = mem.id;
-              return (
-                <GestureDetector gesture={memoryPreviewTapGesture}>
-                  <View
-                    accessibilityRole="button"
-                    accessibilityLabel={titleText}
-                    style={{ flex: 1, alignSelf: "stretch", minHeight: 0 }}
-                    collapsable={false}
-                  >
-                    {body}
-                  </View>
-                </GestureDetector>
-              );
-            }
-            // Entity truly has no memories — show reflection prompt
-            const promptKey = sferaInsightReflectionPromptKey(sphere, modeIdx);
-            const promptText = t(promptKey as any).replace("{name}", entityName);
-            return (
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  openEntity();
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`${entityName}: ${promptText}`}
-                style={{
-                  flex: 1,
-                  alignSelf: "stretch",
-                  borderRadius: 10,
-                  borderWidth: 1.5,
-                  borderColor: shadowColor + "44",
-                  borderStyle: "dashed",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  paddingHorizontal: 12,
-                  paddingVertical: 10,
-                  gap: 10,
-                }}
-              >
-                <ThemedText
-                  style={{
-                    color: insightInkMuted,
-                    fontSize: 13,
-                    textAlign: "center",
-                    fontStyle: "italic",
-                    lineHeight: 19,
-                  }}
-                >
-                  {promptText}
-                </ThemedText>
-                <View
-                  style={{
-                    borderRadius: 14,
-                    borderWidth: 1.25,
-                    borderColor: colorScheme === "dark"
-                      ? Colors.dark.primary + "88"
-                      : Colors.light.primary + "55",
-                    backgroundColor: colorScheme === "dark"
-                      ? Colors.dark.primary + "22"
-                      : Colors.light.primary + "14",
-                    paddingHorizontal: 14,
-                    paddingVertical: 6,
-                    shadowColor: colorScheme === "dark"
-                      ? Colors.dark.primary
-                      : Colors.light.primary,
-                    shadowOffset: { width: 0, height: colorScheme === "dark" ? 0 : 3 },
-                    shadowOpacity: colorScheme === "dark" ? 0.5 : 0.18,
-                    shadowRadius: colorScheme === "dark" ? 8 : 10,
-                    elevation: 6,
-                  }}
-                >
-                  <ThemedText
-                    style={{
-                      color: colorScheme === "dark"
-                        ? Colors.dark.primary
-                        : Colors.light.primary,
-                      fontSize: 11,
-                      fontWeight: "700",
-                      textAlign: "center",
-                    }}
-                  >
-                    {t("sferaInsight.addFirstMemory")}
-                  </ThemedText>
-                </View>
-              </Pressable>
-            );
-          })()}
+              )}
 
-          {/* Mode 2/4/5: show memory image if available */}
-          {/* Mode 3: scattered memory bubbles */}
-          {mode === 3 && (() => {
-            const mems = memoriesPerEntity[entityIdx] ?? [];
-            if (mems.length === 0) return null;
-            // Deterministic scatter positions using index-based offsets
-            const positions = [
-              { top: "8%",  left: "10%" },
-              { top: "12%", left: "55%" },
-              { top: "38%", left: "30%" },
-              { top: "55%", left: "8%"  },
-              { top: "50%", left: "62%" },
-              { top: "75%", left: "25%" },
-              { top: "72%", left: "68%" },
-              { top: "20%", left: "78%" },
-            ];
-            return (
-              <View style={{ flex: 1, alignSelf: "stretch", position: "relative" }}>
-                {mems.slice(0, 8).map((mem, i) => {
-                  const pos = positions[i % positions.length];
-                  const sunny = mem.goodFacts?.length ?? 0;
-                  const cloudy = mem.hardTruths?.length ?? 0;
-                  const moodColor = sunny >= cloudy ? momentColors.sunny.background : momentColors.cloudy.background;
-                  const size = 36 + (i % 3) * 8;
-                  return (
-                    <Pressable
-                      key={mem.id}
-                      onPress={() => openMemory(mem)}
-                      accessibilityRole="button"
-                      accessibilityLabel={mem.title?.trim() || undefined}
-                      style={{
-                        position: "absolute",
-                        top: pos.top as any,
-                        left: pos.left as any,
-                        width: size,
-                        height: size,
-                        borderRadius: size / 2,
-                        borderWidth: 1.5,
-                        borderColor: moodColor + "99",
-                        overflow: "hidden",
-                        backgroundColor: shadowColor + "22",
-                        shadowColor: moodColor,
-                        shadowOffset: { width: 0, height: 0 },
-                        shadowOpacity: 0.5,
-                        shadowRadius: 6,
-                        elevation: 4,
-                      }}
-                    >
-                      {mem.imageUri ? (
-                        <Image source={{ uri: mem.imageUri }} style={{ width: size, height: size }} contentFit="cover" />
-                      ) : (
-                        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                          <MaterialIcons name="photo" size={size * 0.4} color={moodColor} />
-                        </View>
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            );
-          })()}
-
-          {/* Modes 2/4/5: memory preview — image when available, otherwise title + description */}
-          {(mode === 2 || mode === 4 || mode === 5) && (() => {
-            const mem = getModeMemory(mode, entityIdx);
-            if (!mem) return null;
-            const moodSunny = mem.goodFacts?.length ?? 0;
-            const moodCloudy = mem.hardTruths?.length ?? 0;
-            const moodColor = moodSunny >= moodCloudy ? momentColors.sunny.background : momentColors.cloudy.background;
-            const memoryStripCaption = insightMemoryCaptionTextColor(
-              colorScheme,
-              momentColors.sunny.text,
-              momentColors.cloudy.background,
-              moodCloudy > moodSunny,
-            );
-            const titleText =
-              mem.title?.trim() ||
-              (mode === 4 ? mem.hardTruths?.[0]?.text : undefined) ||
-              (mode === 5 ? mem.goodFacts?.[0]?.text : undefined) ||
-              t("sferaInsight.noMemories");
-            memoryPreviewTapIdRef.current = mem.id;
-            return (
-              <GestureDetector gesture={memoryPreviewTapGesture}>
-                <View
-                  accessibilityRole="button"
-                  accessibilityLabel={titleText}
-                  style={{ flex: 1, alignSelf: "stretch", minHeight: 72 }}
-                  collapsable={false}
-                >
+              {/* Featured memory image for single-memory modes */}
+              {featuredMemoryUri && (() => {
+                const imgSize = isMoodCard ? INSIGHT_FEATURED_IMG_SIZE_MOOD : INSIGHT_FEATURED_IMG_SIZE;
+                return (
                   <View
                     style={{
-                      flex: 1,
-                      borderRadius: 10,
+                      marginTop: 8,
+                      width: imgSize,
+                      height: imgSize,
+                      borderRadius: imgSize / 2,
+                      borderWidth: 2,
+                      borderColor: shadowColor + "AA",
                       overflow: "hidden",
-                      backgroundColor: shadowColor + "18",
+                      backgroundColor: isLight
+                        ? "rgba(255,255,255,0.92)"
+                        : "rgba(8,14,28,0.72)",
+                      shadowColor: shadowColor,
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.7,
+                      shadowRadius: 10,
+                      elevation: 5,
+                    }}
+                    pointerEvents="none"
+                  >
+                    <Image
+                      source={{ uri: featuredMemoryUri }}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                    />
+                  </View>
+                );
+              })()}
+
+              {/* Progress bar / paused indicator — inside planet */}
+              {numModes > 1 && (
+                <View style={{ alignItems: "center", marginTop: 10 }}>
+                  <View
+                    style={{
+                      width: PROGRESS_BAR_W,
+                      height: 3,
+                      borderRadius: 1.5,
+                      backgroundColor: shadowColor + "22",
+                      overflow: "hidden",
                     }}
                   >
-                    {mem.imageUri ? (
-                      <>
-                        <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1, minHeight: 72 }} contentFit="cover" />
-                        <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
-                          <ThemedText style={{ color: memoryStripCaption, fontSize: 10 }} numberOfLines={1}>
-                            {mem.title?.trim() || titleText}
-                          </ThemedText>
-                        </View>
-                      </>
-                    ) : (
-                      <View style={{ flex: 1, padding: 10, justifyContent: "center" }}>
-                        <ThemedText style={{ color: insightInk, fontSize: 12, fontWeight: "600" }} numberOfLines={2}>
-                          {titleText}
-                        </ThemedText>
-                        {mem.description ? (
-                          <ThemedText style={{ color: insightInkMuted, fontSize: 10, marginTop: 6 }} numberOfLines={6}>
-                            {mem.description}
-                          </ThemedText>
-                        ) : null}
-                      </View>
+                    {!isAutoLoopPaused && (
+                      <Animated.View
+                        style={[progressBarFillStyle, {
+                          height: 3,
+                          borderRadius: 1.5,
+                          backgroundColor: shadowColor + "AA",
+                        }]}
+                      />
                     )}
                   </View>
+                  {isAutoLoopPaused && (
+                    <ThemedText
+                      style={{
+                        color: shadowColor + "66",
+                        fontSize: 9,
+                        fontWeight: "700",
+                        letterSpacing: 1.5,
+                        textTransform: "uppercase",
+                        marginTop: 4,
+                        textShadowColor: isLight ? "rgba(255,255,255,0.75)" : "rgba(8,14,28,0.90)",
+                        textShadowOffset: { width: 0, height: 1 },
+                        textShadowRadius: 4,
+                      }}
+                    >
+                      {t("sferaInsight.paused")}
+                    </ThemedText>
+                  )}
                 </View>
-              </GestureDetector>
-            );
-          })()}
+              )}
 
-          {/* Footer — nested RNGH taps so card-level openInsightTarget does not fire */}
-          <View style={{ zIndex: 10, alignItems: "center", gap: 2 }}>
-          <View style={{ flexDirection: "row", gap: 5 }} accessibilityRole="tablist">
-            {Array.from({ length: numModes }).map((_, i) => (
-              <Pressable
-                key={i}
-                onPress={() => animateAndSet(i)}
-                hitSlop={8}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: i === modeIdx }}
-                accessibilityLabel={cardLabels[allowedModes[i] ?? i]}
-                style={{
-                  width: i === modeIdx ? 14 : 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor:
-                    i === modeIdx
-                      ? shadowColor
-                      : colorScheme === "dark"
-                        ? "rgba(232, 244, 246, 0.45)"
-                        : "rgba(18, 18, 18, 0.38)",
-                }}
-              />
-            ))}
-          </View>
-          <GestureDetector gesture={expandToggleGesture}>
-            <View
-              accessibilityRole="button"
-              accessibilityLabel={isExpanded ? "Shrink card" : "Expand card"}
-              style={{ padding: 4 }}
-              collapsable={false}
-            >
-              <MaterialIcons
-                name={isExpanded ? "unfold-less" : "unfold-more"}
-                size={INSIGHT_SIZE_TOGGLE_ICON_SIZE}
-                color={shadowColor + "CC"}
-              />
             </View>
-          </GestureDetector>
           </View>
-          </View>
-        </View>
         </View>
       </GestureDetector>
 
-      {/* Right arrow */}
-      {numModes > 1 ? (
+        {/* Right chevron */}
+        {numModes > 1 ? (
+          <Pressable
+            onPress={goNext}
+            accessibilityRole="button"
+            accessibilityLabel="Next insight"
+            style={{ width: 48, height: 80, alignItems: "center", justifyContent: "center", zIndex: 30 }}
+          >
+            <MaterialIcons name="chevron-right" size={28} color={shadowColor + "CC"} />
+          </Pressable>
+        ) : <View style={{ width: 48 }} />}
+      </View>
+
+      {/* Notification bell — below the planet */}
+      {showReminderBell && (
         <Pressable
-          onPress={goNext}
+          onPress={() => {
+            router.push(`/notifications/${sphere}/${entity!.id}`);
+          }}
           accessibilityRole="button"
-          accessibilityLabel="Next insight"
-          style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
+          accessibilityLabel={`Set reminder for ${entityName}`}
+          accessibilityHint="Opens notification settings"
+          style={{
+            alignSelf: "center",
+            marginTop: -Math.round(INSIGHT_PLANET_CANVAS * 0.12),
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            borderWidth: 1.5,
+            borderColor: shadowColor + "66",
+            backgroundColor: isLight ? "rgba(255,255,255,0.94)" : "rgba(8,14,28,0.82)",
+            alignItems: "center",
+            justifyContent: "center",
+            shadowColor: shadowColor,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.5,
+            shadowRadius: 6,
+            elevation: 4,
+          }}
         >
-          <MaterialIcons name="chevron-right" size={INSIGHT_ARROW_SIZE} color={shadowColor + "CC"} />
+          <MaterialIcons name="notifications-none" size={16} color={shadowColor} />
         </Pressable>
-      ) : (
-        <View style={{ width: INSIGHT_ARROW_HIT }} />
       )}
 
       {showNeedMemoriesHintBelowCard && totalMemoriesCount > 0 ? (
         <View
           style={{
-            position: "absolute",
-            left: (totalW - NEED_MEMORIES_HINT_WIDTH) / 2,
-            top: cardHeight + 6,
-            width: NEED_MEMORIES_HINT_WIDTH,
-            zIndex: 40,
+            alignSelf: "center",
+            marginTop: 6,
             ...needMemoriesHintBubbleStyle,
           }}
           pointerEvents="none"
         >
-          <ThemedText
-            style={{
-              fontSize: 11,
-              color: "#FFFFFF",
-              textAlign: "center",
-              lineHeight: 15,
-            }}
-          >
+          <ThemedText style={{ fontSize: 11, color: "#FFFFFF", textAlign: "center", lineHeight: 15 }}>
             {t("sferaInsight.needMemoriesFirst")}
           </ThemedText>
         </View>
       ) : null}
-
     </View>
   );
 });

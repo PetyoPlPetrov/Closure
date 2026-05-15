@@ -117,6 +117,9 @@ export interface Translations {
   "sferaInsight.cloudyMomentsMany": string;
   "sferaInsight.sunnyMomentsOne": string;
   "sferaInsight.sunnyMomentsMany": string;
+  "sferaInsight.nextLensIn": string;
+  "sferaInsight.paused": string;
+  "sferaInsight.tapOrbToOpen": string;
   "sferaInsight.lessonsCardTitle": string;
   "sferaInsight.lessonsCardSubtitle": string;
   /** Empty insight card — no entities on this sphere (no "+" treat as add-action) */
@@ -3981,6 +3984,9 @@ const translations = {
     "sferaInsight.cloudyMomentsMany": "{count} cloudy moments",
     "sferaInsight.sunnyMomentsOne": "1 sunny moment",
     "sferaInsight.sunnyMomentsMany": "{count} sunny moments",
+    "sferaInsight.nextLensIn": "Next lens in",
+    "sferaInsight.paused": "Paused",
+    "sferaInsight.tapOrbToOpen": "Tap orb to open the memory",
     "sferaInsight.lessonsCardTitle": "Your lessons",
     "sferaInsight.lessonsCardSubtitle":
       "Open the Lessons tab to browse everything you've saved",
@@ -9000,6 +9006,9 @@ const translations = {
     "sferaInsight.cloudyMomentsMany": "{count} облачни момента",
     "sferaInsight.sunnyMomentsOne": "1 слънчев момент",
     "sferaInsight.sunnyMomentsMany": "{count} слънчеви момента",
+    "sferaInsight.nextLensIn": "Следваща леща след",
+    "sferaInsight.paused": "На пауза",
+    "sferaInsight.tapOrbToOpen": "Докосни орба, за да отвориш спомена",
     "sferaInsight.lessonsCardTitle": "Вашите уроци",
     "sferaInsight.lessonsCardSubtitle":
       "Отвори раздел Уроци, за да прегледаш всичко записано",
