@@ -425,7 +425,7 @@ export default function InsightsScreen() {
   const { ensureSubscriptionResolved } = useSubscription();
   const t = useTranslate();
   const { momentColors } = useMomentColors();
-  const [insightsMode, setInsightsMode] = useState<"sferas" | "moments">("sferas");
+  const [insightsMode, setInsightsMode] = useState<"sferas" | "moments">("moments");
   const [momentChartAnimationTrigger, setMomentChartAnimationTrigger] = useState(0);
   const chartModeTransition = useSharedValue(0);
   const chartSize = Math.min(380 * fontScale, SCREEN_WIDTH - 40);

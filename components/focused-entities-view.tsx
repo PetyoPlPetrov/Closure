@@ -1475,9 +1475,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               <ThemedText
                 style={{
                   color: shadowColor,
-                  fontSize: 13,
-                  fontWeight: "800",
-                  letterSpacing: 1.5,
+                  fontSize: 15,
+                  fontWeight: "900",
+                  letterSpacing: 1.8,
                   textTransform: "uppercase",
                 }}
                 numberOfLines={1}
