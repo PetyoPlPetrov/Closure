@@ -6,7 +6,7 @@ Each insight card auto-cycles and is swipeable. This document describes what the
 
 | Card | Family | Friends | Relationships | Career | Hobbies |
 |------|--------|---------|---------------|--------|---------|
-| Least memories (0) | yes | yes | **hidden** | **hidden** | yes |
+| Least memories (0) | yes | yes | yes | **hidden** | yes |
 | Oldest memory (1) | yes | yes | **hidden** | **hidden** | yes |
 | Most recent (2) | yes | yes | **hidden** | **hidden** | yes |
 | Most memories (3) | yes | yes | yes | yes | yes |
@@ -40,15 +40,16 @@ Highlights the entity with the fewest recorded memories.
   - Rotating reflection prompt (one of 3, cycles with auto-tick):
     - Family: "When did you last see {name}?" / "What's your favorite memory with {name}?" / "What would you tell {name} right now?"
     - Friends: "When did you last see {name}?" / "What makes {name} special to you?" / "What's something {name} doesn't know about you?"
+    - Relationships: prompts defined but card is visible — reflection prompts show if entity has 0 memories
     - Hobbies: "What got you into {name}?" / "How does {name} make you feel?" / "When do you feel most alive doing {name}?"
-    - *(Career & Relationships: card is hidden, prompts never shown)*
+    - *(Career: card is hidden, prompts never shown)*
   - **"Add your first memory"** pill button → opens entity detail
 
 ---
 
 ## Card 1 — Oldest Memory
 
-Highlights the entity whose most recent memory is the oldest (longest time without interaction). Family & Friends prefer starting on this card.
+Highlights the most neglected entity — the one whose *newest* memory is the oldest (longest time without interaction). Family & Friends prefer starting on this card.
 
 **Label:**
 - Default: "Oldest memory"
@@ -57,8 +58,8 @@ Highlights the entity whose most recent memory is the oldest (longest time witho
 ### Normal state
 
 - **Title row:** entity name
-- **Meta row:** time-ago label + optional reminder bell (Family & Friends) + urgency amber tint if > 30 days
-- **Body:** memory preview (photo + caption, or title + description)
+- **Meta row:** time-ago label (based on that entity's most recent memory) + optional reminder bell (Family & Friends) + urgency amber tint if > 30 days
+- **Body:** memory preview showing the entity's most recent memory (photo + caption, or title + description)
 - Tapping body opens the memory
 
 ### Empty state (entity has 0 memories)
@@ -102,7 +103,7 @@ Highlights the entity with the highest memory count. Visible on all sferas.
   - Each bubble shows a memory photo thumbnail, or a photo icon if no image
   - Bubble sizes vary (36 / 44 / 52 px)
   - Bordered with mood color (sunny or cloudy tint per memory)
-  - Each bubble is tappable → opens that memory
+  - Each bubble is tappable → opens that specific memory
 
 ### Empty state
 
@@ -112,7 +113,7 @@ If the entity with the most memories still has 0 memories, the body is empty (no
 
 ## Card 4 — Most Cloudy
 
-Highlights the memory with the most hard truths (cloudy moments). **Hidden for Hobbies.** Also removed if no entity has any hard truths (`maxCloudyScore <= 0`).
+Highlights the entity with the most hard truths (cloudy moments). **Hidden for Hobbies.** Also removed if no entity has any hard truths (`maxCloudyScore <= 0`).
 
 **Label:** "Most cloudy"
 
@@ -133,7 +134,7 @@ This card is dynamically removed when there are no cloudy moments, so an empty s
 
 ## Card 5 — Most Sunny
 
-Highlights the memory with the most good facts (sunny moments). **Hidden for Hobbies.** Also removed if no entity has any good facts (`maxSunnyScore <= 0`).
+Highlights the entity with the most good facts (sunny moments). **Hidden for Hobbies.** Also removed if no entity has any good facts (`maxSunnyScore <= 0`).
 
 **Label:**
 - Default: "Most sunny"

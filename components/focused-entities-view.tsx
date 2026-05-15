@@ -789,10 +789,10 @@ function insightMemoryCaptionTextColor(
 /** Most recent / most old last-interaction for an entity set */
 function getInteractionIndices(memoriesPerEntity: IdealizedMemory[][]) {
   let newestTime = -1, newestIdx = 0;
-  let oldestTime = Infinity, oldestIdx = 0;
   let mostMems = -1, mostMemsIdx = 0;
   let leastMems = Infinity, leastMemsIdx = 0;
-  let oldestMemTime = Infinity, oldestMemIdx = 0;
+  // "Oldest memory" card: entity whose *newest* memory is the oldest — i.e. most neglected entity.
+  let oldestNewestTime = Infinity, oldestMemIdx = 0;
   let mostCloudy = -1, mostCloudyIdx = 0;
   let mostSunny = -1, mostSunnyIdx = 0;
   let noMemsIdx = -1; // first entity with zero memories
@@ -803,27 +803,30 @@ function getInteractionIndices(memoriesPerEntity: IdealizedMemory[][]) {
     if (mems.length < leastMems) { leastMems = mems.length; leastMemsIdx = i; }
 
     let cloudyCount = 0, sunnyCount = 0;
+    let entityNewest = -1;
     mems.forEach((mem) => {
       const ts = new Date(mem.updatedAt).getTime();
       if (ts > newestTime) { newestTime = ts; newestIdx = i; }
-      if (ts < oldestTime) { oldestTime = ts; oldestIdx = i; }
-
-      const memCreated = new Date(mem.createdAt).getTime();
-      if (memCreated < oldestMemTime) { oldestMemTime = memCreated; oldestMemIdx = i; }
+      if (ts > entityNewest) entityNewest = ts;
 
       cloudyCount += mem.hardTruths?.length ?? 0;
       sunnyCount += mem.goodFacts?.length ?? 0;
     });
+    // Track entity whose newest memory is the oldest (most neglected).
+    // Only consider entities that actually have memories.
+    if (mems.length > 0 && entityNewest < oldestNewestTime) {
+      oldestNewestTime = entityNewest;
+      oldestMemIdx = i;
+    }
     if (cloudyCount > mostCloudy) { mostCloudy = cloudyCount; mostCloudyIdx = i; }
     if (sunnyCount > mostSunny) { mostSunny = sunnyCount; mostSunnyIdx = i; }
   });
 
   return {
     newestIdx,
-    oldestIdx,
-    oldestTime: oldestTime === Infinity ? null : oldestTime,
     newestTime: newestTime === -1 ? null : newestTime,
-    oldestMemTime: oldestMemTime === Infinity ? null : oldestMemTime,
+    /** Timestamp of the newest memory of the most-neglected entity (used for time-ago & urgency). */
+    oldestMemTime: oldestNewestTime === Infinity ? null : oldestNewestTime,
     mostMemsIdx,
     leastMemsIdx,
     oldestMemIdx,
@@ -874,15 +877,18 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 }) {
   const t = useTranslate();
   const { momentColors } = useMomentColors();
-  // career/relationships: hide interaction modes (0-2) — these are processing spheres, not active social ones
+  // relationships: only general comparisons (least/most memories, most cloudy/sunny) — no time-based modes
+  // career: hide interaction modes (0-2) — processing sphere, not an active social one
   // hobbies: hide mood modes (4-5) — cloudy/sunny framing doesn't fit activities
   const hiddenModes = useMemo(
     () =>
-      sphere === "career" || sphere === "relationships"
-        ? new Set([0, 1, 2])
-        : sphere === "hobbies"
-          ? new Set([4, 5])
-          : new Set<number>(),
+      sphere === "relationships"
+        ? new Set([1, 2])
+        : sphere === "career"
+          ? new Set([0, 1, 2])
+          : sphere === "hobbies"
+            ? new Set([4, 5])
+            : new Set<number>(),
     [sphere],
   );
 
@@ -1220,8 +1226,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       const mems = memoriesPerEntity[idx] ?? [];
       if (mems.length === 0) return null;
       if (targetMode === 1) {
+        // Show the most recent memory for this entity — it's the "oldest" card because
+        // this entity's newest memory is older than every other entity's newest memory.
         return mems.reduce((a, b) =>
-          new Date(a.createdAt) < new Date(b.createdAt) ? a : b,
+          new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b,
         );
       }
       if (targetMode === 2) {
@@ -1859,8 +1867,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                   const moodColor = sunny >= cloudy ? momentColors.sunny.background : momentColors.cloudy.background;
                   const size = 36 + (i % 3) * 8;
                   return (
-                    <View
+                    <Pressable
                       key={mem.id}
+                      onPress={() => openMemory(mem)}
+                      accessibilityRole="button"
+                      accessibilityLabel={mem.title?.trim() || undefined}
                       style={{
                         position: "absolute",
                         top: pos.top as any,
@@ -1886,7 +1897,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                           <MaterialIcons name="photo" size={size * 0.4} color={moodColor} />
                         </View>
                       )}
-                    </View>
+                    </Pressable>
                   );
                 })}
               </View>
