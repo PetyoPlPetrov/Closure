@@ -72,7 +72,6 @@ const SFERA_INSIGHT_AUTO_MS = 5000;
 const INSIGHT_CARD_SWIPE_ACTIVATION_PX = 12;
 const INSIGHT_CARD_SWIPE_COMMIT_PX = 20;
 const INSIGHT_CARD_SWIPE_FAIL_Y_PX = 28;
-const INSIGHT_CARD_TAP_MAX_DISTANCE_PX = 14;
 
 /** Whole-card slide transition when switching insight modes (ms). */
 const INSIGHT_CARD_OUT_MS = 260;
@@ -1169,19 +1168,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     [entity, onMemorySelect, sphere],
   );
 
-  const openInsightTarget = useCallback(() => {
-    if (mode === 0 || mode === 3) {
-      openEntity();
-      return;
-    }
-    const memory = getModeMemory(mode, entityIdx);
-    if (memory) {
-      openMemory(memory);
-      return;
-    }
-    openEntity();
-  }, [mode, openEntity, getModeMemory, entityIdx, openMemory]);
-
   const toggleAutoLoopPause = useCallback(() => {
     setIsAutoLoopPaused((prev) => !prev);
   }, []);
@@ -1219,14 +1205,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         }
       });
 
-    const tap = Gesture.Tap()
-      .maxDistance(INSIGHT_CARD_TAP_MAX_DISTANCE_PX)
-      .onEnd(() => {
-        runOnJS(openInsightTarget)();
-      });
-
-    return Gesture.Exclusive(pan, tap);
-  }, [openInsightTarget]);
+    return pan;
+  }, []);
 
   // Ring rotation for the insight planet
   const ringRotation = useSharedValue(0);
@@ -1608,14 +1588,14 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
               {/* Memory image thumbnails row */}
               {thumbMemories.length > 0 && (
-                <View
+                <Pressable
+                  onPress={openEntity}
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "center",
                     marginTop: 6,
                   }}
-                  pointerEvents="none"
                 >
                   {thumbMemories.map((mem, i) => (
                     <View
@@ -1669,14 +1649,18 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                       </ThemedText>
                     </View>
                   )}
-                </View>
+                </Pressable>
               )}
 
               {/* Featured memory image for single-memory modes */}
               {featuredMemoryUri && (() => {
                 const imgSize = isMoodCard ? INSIGHT_FEATURED_IMG_SIZE_MOOD : INSIGHT_FEATURED_IMG_SIZE;
                 return (
-                  <View
+                  <Pressable
+                    onPress={() => {
+                      if (featuredMemory) openMemory(featuredMemory);
+                      else openEntity();
+                    }}
                     style={{
                       marginTop: 8,
                       width: imgSize,
@@ -1694,14 +1678,13 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                       shadowRadius: 10,
                       elevation: 5,
                     }}
-                    pointerEvents="none"
                   >
                     <Image
                       source={{ uri: featuredMemoryUri }}
                       style={{ width: "100%", height: "100%" }}
                       contentFit="cover"
                     />
-                  </View>
+                  </Pressable>
                 );
               })()}
 
