@@ -2595,7 +2595,42 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
                   {t("sferaInsight.addMemories")}
                 </ThemedText>
               </Pressable>
-              <SferaInsightEmptyGuideLink sphere={sphere} compact />
+              <Pressable
+                onPress={() => onNeedMemoriesHintCenter?.()}
+                style={{
+                  marginTop: 6,
+                  borderRadius: 12,
+                  borderWidth: 1.25,
+                  borderColor: colorScheme === "dark"
+                    ? Colors.dark.primary + "88"
+                    : Colors.light.primary + "55",
+                  backgroundColor: colorScheme === "dark"
+                    ? Colors.dark.primary + "22"
+                    : Colors.light.primary + "14",
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  shadowColor: colorScheme === "dark"
+                    ? Colors.dark.primary
+                    : Colors.light.primary,
+                  shadowOffset: { width: 0, height: colorScheme === "dark" ? 0 : 3 },
+                  shadowOpacity: colorScheme === "dark" ? 0.5 : 0.18,
+                  shadowRadius: colorScheme === "dark" ? 8 : 10,
+                  elevation: 6,
+                }}
+              >
+                <ThemedText
+                  style={{
+                    color: colorScheme === "dark"
+                      ? Colors.dark.primary
+                      : Colors.light.primary,
+                    fontSize: 10,
+                    fontWeight: "700",
+                    textAlign: "center",
+                  }}
+                >
+                  {t("sferaInsight.addFirstMemory")}
+                </ThemedText>
+              </Pressable>
             </LinearGradient>
           ) : (
             <View
@@ -2617,7 +2652,42 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
                   {t("sferaInsight.addMemories")}
                 </ThemedText>
               </Pressable>
-              <SferaInsightEmptyGuideLink sphere={sphere} compact />
+              <Pressable
+                onPress={() => onNeedMemoriesHintCenter?.()}
+                style={{
+                  marginTop: 6,
+                  borderRadius: 12,
+                  borderWidth: 1.25,
+                  borderColor: colorScheme === "dark"
+                    ? Colors.dark.primary + "88"
+                    : Colors.light.primary + "55",
+                  backgroundColor: colorScheme === "dark"
+                    ? Colors.dark.primary + "22"
+                    : Colors.light.primary + "14",
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  shadowColor: colorScheme === "dark"
+                    ? Colors.dark.primary
+                    : Colors.light.primary,
+                  shadowOffset: { width: 0, height: colorScheme === "dark" ? 0 : 3 },
+                  shadowOpacity: colorScheme === "dark" ? 0.5 : 0.18,
+                  shadowRadius: colorScheme === "dark" ? 8 : 10,
+                  elevation: 6,
+                }}
+              >
+                <ThemedText
+                  style={{
+                    color: colorScheme === "dark"
+                      ? Colors.dark.primary
+                      : Colors.light.primary,
+                    fontSize: 10,
+                    fontWeight: "700",
+                    textAlign: "center",
+                  }}
+                >
+                  {t("sferaInsight.addFirstMemory")}
+                </ThemedText>
+              </Pressable>
             </View>
           )}
         </View>
@@ -2710,6 +2780,44 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
         >
           {currentMode.subtext}
         </ThemedText>
+        {(entityMemories[entityIdx] ?? []).length === 0 && (
+          <View
+            style={{
+              marginTop: 4,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: colorScheme === "dark"
+                ? Colors.dark.primary + "77"
+                : Colors.light.primary + "44",
+              backgroundColor: colorScheme === "dark"
+                ? Colors.dark.primary + "1A"
+                : Colors.light.primary + "12",
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              shadowColor: colorScheme === "dark"
+                ? Colors.dark.primary
+                : Colors.light.primary,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: colorScheme === "dark" ? 0.4 : 0.15,
+              shadowRadius: 6,
+              elevation: 4,
+            }}
+          >
+            <ThemedText
+              style={{
+                color: colorScheme === "dark"
+                  ? Colors.dark.primary
+                  : Colors.light.primary,
+                fontSize: 8,
+                fontWeight: "700",
+                textAlign: "center",
+              }}
+              numberOfLines={1}
+            >
+              {t("sferaInsight.tapToAddMemory")}
+            </ThemedText>
+          </View>
+        )}
       </Animated.View>
     </>
   );

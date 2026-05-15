@@ -107,6 +107,8 @@ export interface Translations {
   "sferaInsight.mostEnjoyable": string;
   "sferaInsight.noMemories": string;
   "sferaInsight.zeroMemoriesAvailable": string;
+  "sferaInsight.addFirstMemory": string;
+  "sferaInsight.tapToAddMemory": string;
   "sferaInsight.memories": string;
   "sferaInsight.leastInteracted": string;
   "sferaInsight.addMemories": string;
@@ -131,6 +133,31 @@ export interface Translations {
   "sferaInsight.emptyStateGuide.beforeLink.hobbies": string;
   "sferaInsight.emptyStateGuide.linkHere": string;
   "sferaInsight.emptyStateGuide.a11yHint": string;
+  "sferaInsight.reflectionPrompt.family": string;
+  "sferaInsight.reflectionPrompt.friends": string;
+  "sferaInsight.reflectionPrompt.relationships": string;
+  "sferaInsight.reflectionPrompt.career": string;
+  "sferaInsight.reflectionPrompt.hobbies": string;
+  "sferaInsight.reflectionPrompt2.family": string;
+  "sferaInsight.reflectionPrompt2.friends": string;
+  "sferaInsight.reflectionPrompt2.relationships": string;
+  "sferaInsight.reflectionPrompt2.career": string;
+  "sferaInsight.reflectionPrompt2.hobbies": string;
+  "sferaInsight.reflectionPrompt3.family": string;
+  "sferaInsight.reflectionPrompt3.friends": string;
+  "sferaInsight.reflectionPrompt3.relationships": string;
+  "sferaInsight.reflectionPrompt3.career": string;
+  "sferaInsight.reflectionPrompt3.hobbies": string;
+  "sferaInsight.emptyEntitiesWarm.relationships": string;
+  "sferaInsight.emptyEntitiesWarm.career": string;
+  "sferaInsight.emptyEntitiesWarm.family": string;
+  "sferaInsight.emptyEntitiesWarm.friends": string;
+  "sferaInsight.emptyEntitiesWarm.hobbies": string;
+  "sferaInsight.noMemoriesReflection.relationships": string;
+  "sferaInsight.noMemoriesReflection.career": string;
+  "sferaInsight.noMemoriesReflection.family": string;
+  "sferaInsight.noMemoriesReflection.friends": string;
+  "sferaInsight.noMemoriesReflection.hobbies": string;
 
   // Settings
   "settings.title": string;
@@ -3944,10 +3971,12 @@ const translations = {
     "sferaInsight.mostEnjoyable": "Most enjoyable",
     "sferaInsight.noMemories": "No memories yet",
     "sferaInsight.zeroMemoriesAvailable": "0 memories available",
+    "sferaInsight.addFirstMemory": "Add your first memory",
+    "sferaInsight.tapToAddMemory": "Tap to add a memory",
     "sferaInsight.memories": "memories",
     "sferaInsight.leastInteracted": "Least interacted",
-    "sferaInsight.addMemories": "No memories",
-    "sferaInsight.needMemoriesFirst": "You need to add memories",
+    "sferaInsight.addMemories": "Add memories to begin",
+    "sferaInsight.needMemoriesFirst": "Tap a person to add your first memory",
     "sferaInsight.cloudyMomentsOne": "1 cloudy moment",
     "sferaInsight.cloudyMomentsMany": "{count} cloudy moments",
     "sferaInsight.sunnyMomentsOne": "1 sunny moment",
@@ -3973,6 +4002,44 @@ const translations = {
     "sferaInsight.emptyStateGuide.linkHere": "here",
     "sferaInsight.emptyStateGuide.a11yHint":
       "Opens the Recording Memories guide section.",
+    "sferaInsight.reflectionPrompt.family": "When did you last see {name}?",
+    "sferaInsight.reflectionPrompt.friends": "When did you last see {name}?",
+    "sferaInsight.reflectionPrompt.relationships":
+      "What's the first thing you remember about {name}?",
+    "sferaInsight.reflectionPrompt.career": "What was your first day at {name} like?",
+    "sferaInsight.reflectionPrompt.hobbies": "What got you into {name}?",
+    "sferaInsight.reflectionPrompt2.family": "What's your favorite memory with {name}?",
+    "sferaInsight.reflectionPrompt2.friends": "What makes {name} special to you?",
+    "sferaInsight.reflectionPrompt2.relationships":
+      "What did {name} teach you about yourself?",
+    "sferaInsight.reflectionPrompt2.career": "What did you learn most at {name}?",
+    "sferaInsight.reflectionPrompt2.hobbies": "How does {name} make you feel?",
+    "sferaInsight.reflectionPrompt3.family": "What would you tell {name} right now?",
+    "sferaInsight.reflectionPrompt3.friends": "What's something {name} doesn't know about you?",
+    "sferaInsight.reflectionPrompt3.relationships":
+      "What's something you're grateful for about {name}?",
+    "sferaInsight.reflectionPrompt3.career": "What's one thing you're proud of at {name}?",
+    "sferaInsight.reflectionPrompt3.hobbies": "When do you feel most alive doing {name}?",
+    "sferaInsight.emptyEntitiesWarm.relationships":
+      "Start by adding someone who shaped your story.",
+    "sferaInsight.emptyEntitiesWarm.career":
+      "Add a career chapter to start reflecting.",
+    "sferaInsight.emptyEntitiesWarm.family":
+      "Add a family member to start reflecting.",
+    "sferaInsight.emptyEntitiesWarm.friends":
+      "Add a friend to start reflecting.",
+    "sferaInsight.emptyEntitiesWarm.hobbies":
+      "Add something you love doing.",
+    "sferaInsight.noMemoriesReflection.relationships":
+      "What comes to mind when you think about this sphere?",
+    "sferaInsight.noMemoriesReflection.career":
+      "What moment at work changed how you see things?",
+    "sferaInsight.noMemoriesReflection.family":
+      "Think of a family moment worth holding on to.",
+    "sferaInsight.noMemoriesReflection.friends":
+      "What's a moment with a friend you'd love to relive?",
+    "sferaInsight.noMemoriesReflection.hobbies":
+      "When did a hobby bring you unexpected joy?",
     "sferaInsight.addHobbies": "Add hobbies",
     "sferaInsight.mostRecentHobby": "Most recently done",
     "sferaInsight.lastPracticed": "Longest not done",
@@ -8908,8 +8975,8 @@ const translations = {
     "sferaInsight.leastMemories": "Най-малко спомени",
     "sferaInsight.mostMemories": "Най-много спомени",
     "sferaInsight.lastUpdated": "Скоро активен",
-    "sferaInsight.mostRecent": "Последна среща",
-    "sferaInsight.mostOld": "Най-стара среща",
+    "sferaInsight.mostRecent": "Най-скорошен спомен",
+    "sferaInsight.mostOld": "Най-стар спомен",
     "sferaInsight.lastInteractedWith": "Последно отбелязан спомен",
     "sferaInsight.leastInteraction": "Най-малко взаимодействие",
     "sferaInsight.timeAgo.days": "д назад",
@@ -8923,10 +8990,12 @@ const translations = {
     "sferaInsight.mostEnjoyable": "Най-приятно",
     "sferaInsight.noMemories": "Няма спомени",
     "sferaInsight.zeroMemoriesAvailable": "0 налични спомена",
+    "sferaInsight.addFirstMemory": "Добави първия си спомен",
+    "sferaInsight.tapToAddMemory": "Натисни, за да добавиш спомен",
     "sferaInsight.memories": "спомена",
     "sferaInsight.leastInteracted": "Най-малко взаимодействие",
-    "sferaInsight.addMemories": "Няма спомени",
-    "sferaInsight.needMemoriesFirst": "Трябва да добавиш спомени",
+    "sferaInsight.addMemories": "Добави спомени",
+    "sferaInsight.needMemoriesFirst": "Натисни човек, за да добавиш първия си спомен",
     "sferaInsight.cloudyMomentsOne": "1 облачен момент",
     "sferaInsight.cloudyMomentsMany": "{count} облачни момента",
     "sferaInsight.sunnyMomentsOne": "1 слънчев момент",
@@ -8952,7 +9021,48 @@ const translations = {
       "Научи как да добавяш хобита ",
     "sferaInsight.emptyStateGuide.linkHere": "тук",
     "sferaInsight.emptyStateGuide.a11yHint":
-      "Отваря раздела „Запис на спомени“ в упътването на приложението.",
+      "Отваря раздела „Запис на спомени\u201C в упътването на приложението.",
+    "sferaInsight.reflectionPrompt.family": "Кога последно видя {name}?",
+    "sferaInsight.reflectionPrompt.friends": "Кога последно видя {name}?",
+    "sferaInsight.reflectionPrompt.relationships":
+      "Какво е първото нещо, което помниш за {name}?",
+    "sferaInsight.reflectionPrompt.career": "Какъв беше първият ти ден в {name}?",
+    "sferaInsight.reflectionPrompt.hobbies": "Как започна с {name}?",
+    "sferaInsight.reflectionPrompt2.family": "Кой е любимият ти спомен с {name}?",
+    "sferaInsight.reflectionPrompt2.friends": "Какво прави {name} специален за теб?",
+    "sferaInsight.reflectionPrompt2.relationships":
+      "Какво те научи {name} за себе си?",
+    "sferaInsight.reflectionPrompt2.career": "Какво научи най-много в {name}?",
+    "sferaInsight.reflectionPrompt2.hobbies": "Как те кара да се чувстваш {name}?",
+    "sferaInsight.reflectionPrompt3.family": "Какво би казал/а на {name} точно сега?",
+    "sferaInsight.reflectionPrompt3.friends":
+      "Кое е нещо, което {name} не знае за теб?",
+    "sferaInsight.reflectionPrompt3.relationships":
+      "За какво си благодарен/на на {name}?",
+    "sferaInsight.reflectionPrompt3.career":
+      "С какво се гордееш най-много в {name}?",
+    "sferaInsight.reflectionPrompt3.hobbies":
+      "Кога се чувстваш най-жив/а, докато правиш {name}?",
+    "sferaInsight.emptyEntitiesWarm.relationships":
+      "Започни като добавиш някой, който е оформил историята ти.",
+    "sferaInsight.emptyEntitiesWarm.career":
+      "Добави глава от кариерата си, за да започнеш да рефлектираш.",
+    "sferaInsight.emptyEntitiesWarm.family":
+      "Добави член на семейството, за да започнеш да рефлектираш.",
+    "sferaInsight.emptyEntitiesWarm.friends":
+      "Добави приятел, за да започнеш да рефлектираш.",
+    "sferaInsight.emptyEntitiesWarm.hobbies":
+      "Добави нещо, което обичаш да правиш.",
+    "sferaInsight.noMemoriesReflection.relationships":
+      "Какво ти идва наум, когато помислиш за тази сфера?",
+    "sferaInsight.noMemoriesReflection.career":
+      "Кой момент на работа промени начина, по който виждаш нещата?",
+    "sferaInsight.noMemoriesReflection.family":
+      "Помисли за семеен момент, който заслужава да бъде запазен.",
+    "sferaInsight.noMemoriesReflection.friends":
+      "Кой е момент с приятел, който би искал/а да преживееш отново?",
+    "sferaInsight.noMemoriesReflection.hobbies":
+      "Кога едно хоби ти донесе неочаквана радост?",
     "sferaInsight.addHobbies": "Добави хобита",
     "sferaInsight.mostRecentHobby": "Последно практикувано",
     "sferaInsight.lastPracticed": "Най-дълго непрактикувано",

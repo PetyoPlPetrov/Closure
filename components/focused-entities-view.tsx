@@ -11,6 +11,7 @@ import {
 } from "@/components/constellation-background";
 import { SferaInsightEmptyGuideLink } from "@/components/sfera-insight-empty-guide-link";
 import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { BaseEntity, IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
 import {
@@ -21,7 +22,11 @@ import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useVisualSettings } from "@/utils/VisualSettingsProvider";
-import { sferaInsightEmptyEntitiesTranslationKey } from "@/utils/sfera-insight-empty-entities";
+import {
+  sferaInsightEmptyEntitiesWarmKey,
+  sferaInsightNoMemoriesReflectionKey,
+  sferaInsightReflectionPromptKey,
+} from "@/utils/sfera-insight-empty-entities";
 import {
   getSphereGradientColors,
   getSphereShadowColor,
@@ -1283,6 +1288,43 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     openEntity();
   }, [mode, openEntity, getModeMemory, entityIdx, openMemory]);
 
+  const toggleAutoLoopPause = useCallback(() => {
+    setIsAutoLoopPaused((prev) => !prev);
+  }, []);
+
+  const memoryPreviewTapIdRef = useRef<string | null>(null);
+  const onMemoryPreviewTap = useCallback(() => {
+    const id = memoryPreviewTapIdRef.current;
+    if (!id) return;
+    const mems = memoriesPerEntity[entityIdx] ?? [];
+    const memory = mems.find((m) => m.id === id);
+    if (memory) openMemory(memory);
+  }, [memoriesPerEntity, entityIdx, openMemory]);
+
+  const memoryPreviewTapGesture = useMemo(
+    () =>
+      Gesture.Tap().onEnd(() => {
+        runOnJS(onMemoryPreviewTap)();
+      }),
+    [onMemoryPreviewTap],
+  );
+
+  const titleTapGesture = useMemo(
+    () =>
+      Gesture.Tap().onEnd(() => {
+        runOnJS(toggleAutoLoopPause)();
+      }),
+    [toggleAutoLoopPause],
+  );
+
+  const expandToggleGesture = useMemo(
+    () =>
+      Gesture.Tap().onEnd(() => {
+        runOnJS(onToggleSize)();
+      }),
+    [onToggleSize],
+  );
+
   const insightCardGesture = useMemo(() => {
     const pan = Gesture.Pan()
       .activeOffsetX([
@@ -1330,6 +1372,23 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   };
 
   if (numEntities === 0) {
+    const emptyEntitiesContent = (
+      <>
+        <ThemedText
+          style={{
+            color: insightInk,
+            fontSize: 14,
+            fontWeight: "600",
+            textAlign: "center",
+            paddingHorizontal: 12,
+            fontStyle: "italic",
+          }}
+        >
+          {t(sferaInsightEmptyEntitiesWarmKey(sphere))}
+        </ThemedText>
+        <SferaInsightEmptyGuideLink sphere={sphere} />
+      </>
+    );
     return (
       <View
         style={[wrapperStyle, { height: undefined, minHeight: cardHeight }]}
@@ -1338,33 +1397,11 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         <View style={{ width: INSIGHT_ARROW_HIT }} />
         {sphere3DEffect ? (
           <LinearGradient colors={[...gradientColors]} style={emptyEntityCardStyle}>
-            <ThemedText
-              style={{
-                color: insightInk,
-                fontSize: 13,
-                fontWeight: "600",
-                textAlign: "center",
-                paddingHorizontal: 12,
-              }}
-            >
-              {t(sferaInsightEmptyEntitiesTranslationKey(sphere))}
-            </ThemedText>
-            <SferaInsightEmptyGuideLink sphere={sphere} />
+            {emptyEntitiesContent}
           </LinearGradient>
         ) : (
           <View style={{ ...emptyEntityCardStyle, backgroundColor: insightCardBg }}>
-            <ThemedText
-              style={{
-                color: insightInk,
-                fontSize: 13,
-                fontWeight: "600",
-                textAlign: "center",
-                paddingHorizontal: 12,
-              }}
-            >
-              {t(sferaInsightEmptyEntitiesTranslationKey(sphere))}
-            </ThemedText>
-            <SferaInsightEmptyGuideLink sphere={sphere} />
+            {emptyEntitiesContent}
           </View>
         )}
         <View style={{ width: INSIGHT_ARROW_HIT }} />
@@ -1379,70 +1416,83 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       minHeight: cardHeight + (showNeedMemoriesHintBelowCard ? 52 : 0),
       height: undefined as number | undefined,
     };
+    const zeroMemCardStyle = {
+      flex: 1,
+      minHeight: cardHeight,
+      borderRadius: 22,
+      borderWidth: 1.5,
+      borderColor: shadowColor + "99",
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
+      padding: 14,
+      ...insightCardEmptyShadow,
+    };
+    const zeroMemContent = (
+      <>
+        <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
+          <ThemedText
+            style={{
+              color: insightInk,
+              fontSize: 14,
+              textAlign: "center",
+              fontWeight: "600",
+              fontStyle: "italic",
+              paddingHorizontal: 12,
+            }}
+          >
+            {t(sferaInsightNoMemoriesReflectionKey(sphere))}
+          </ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={openEntity}
+          style={{
+            marginTop: 10,
+            borderRadius: 14,
+            borderWidth: 1.25,
+            borderColor: colorScheme === "dark"
+              ? Colors.dark.primary + "88"
+              : Colors.light.primary + "55",
+            backgroundColor: colorScheme === "dark"
+              ? Colors.dark.primary + "22"
+              : Colors.light.primary + "14",
+            paddingHorizontal: 14,
+            paddingVertical: 6,
+            shadowColor: colorScheme === "dark"
+              ? Colors.dark.primary
+              : Colors.light.primary,
+            shadowOffset: { width: 0, height: colorScheme === "dark" ? 0 : 3 },
+            shadowOpacity: colorScheme === "dark" ? 0.5 : 0.18,
+            shadowRadius: colorScheme === "dark" ? 8 : 10,
+            elevation: 6,
+          }}
+        >
+          <ThemedText
+            style={{
+              color: colorScheme === "dark"
+                ? Colors.dark.primary
+                : Colors.light.primary,
+              fontSize: 11,
+              fontWeight: "700",
+              textAlign: "center",
+            }}
+          >
+            {t("sferaInsight.addFirstMemory")}
+          </ThemedText>
+        </Pressable>
+      </>
+    );
     return (
       <View style={zeroMemOuter} pointerEvents="box-none">
         <View style={{ flexDirection: "row", alignItems: "flex-start", width: "100%" }}>
           <View style={{ width: INSIGHT_ARROW_HIT }} />
           <View style={{ flex: 1 }}>
             {sphere3DEffect ? (
-              <LinearGradient
-                colors={[...gradientColors]}
-                style={{
-                  flex: 1,
-                  minHeight: cardHeight,
-                  borderRadius: 22,
-                  borderWidth: 1.5,
-                  borderColor: shadowColor + "99",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  padding: 14,
-                  ...insightCardEmptyShadow,
-                }}
-              >
-                <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
-                  <ThemedText
-                    style={{
-                      color: insightInk,
-                      fontSize: 13,
-                      textAlign: "center",
-                      fontWeight: "600",
-                      paddingHorizontal: 12,
-                    }}
-                  >
-                    {t("sferaInsight.addMemories")}
-                  </ThemedText>
-                </Pressable>
-                <SferaInsightEmptyGuideLink sphere={sphere} />
+              <LinearGradient colors={[...gradientColors]} style={zeroMemCardStyle}>
+                {zeroMemContent}
               </LinearGradient>
             ) : (
-              <View
-                style={{
-                  flex: 1,
-                  minHeight: cardHeight,
-                  borderRadius: 22,
-                  borderWidth: 1.5,
-                  borderColor: shadowColor + "99",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  padding: 14,
-                  backgroundColor: insightCardBg,
-                  ...insightCardEmptyShadow,
-                }}
-              >
-                <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
-                  <ThemedText
-                    style={{
-                      color: insightInk,
-                      fontSize: 13,
-                      textAlign: "center",
-                      fontWeight: "600",
-                      paddingHorizontal: 12,
-                    }}
-                  >
-                    {t("sferaInsight.addMemories")}
-                  </ThemedText>
-                </Pressable>
-                <SferaInsightEmptyGuideLink sphere={sphere} />
+              <View style={{ ...zeroMemCardStyle, backgroundColor: insightCardBg }}>
+                {zeroMemContent}
               </View>
             )}
           </View>
@@ -1561,21 +1611,21 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             </View>
           ) : null}
 
-          {/* Top label — the insight, not the person */}
+          {/* Top label — tap toggles auto-cycle pause; uses its own RNGH tap to
+              intercept before the card-level gesture detector fires openInsightTarget */}
           <Animated.View style={insightLabelAnimStyle} accessibilityLiveRegion="polite">
-            <Pressable
-              onPress={() => {
-                setIsAutoLoopPaused((prev) => !prev);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`${cardLabel}. ${isAutoLoopPaused ? "Resume auto-swipe" : "Pause auto-swipe"}`}
-              hitSlop={8}
-              style={{ alignSelf: "center", paddingHorizontal: 4, paddingVertical: 2 }}
-            >
-              <ThemedText style={{ color: insightInk, fontSize: 16, textAlign: "center", fontWeight: "700", letterSpacing: 0.2 }} numberOfLines={1}>
-                {cardLabel}
-              </ThemedText>
-            </Pressable>
+            <GestureDetector gesture={titleTapGesture}>
+              <View
+                accessibilityRole="button"
+                accessibilityLabel={`${cardLabel}. ${isAutoLoopPaused ? "Resume auto-swipe" : "Pause auto-swipe"}`}
+                style={{ alignSelf: "center", paddingHorizontal: 4, paddingVertical: 2 }}
+                collapsable={false}
+              >
+                <ThemedText style={{ color: insightInk, fontSize: 16, textAlign: "center", fontWeight: "700", letterSpacing: 0.2 }} numberOfLines={1}>
+                  {cardLabel}
+                </ThemedText>
+              </View>
+            </GestureDetector>
           </Animated.View>
 
           {/* Person block */}
@@ -1660,7 +1710,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             const mem = mode === 1
               ? getModeMemory(1, entityIdx)
               : getModeMemory(2, entityIdx);
-            if (mem?.imageUri) {
+            if (mem) {
               const moodSunny = mem.goodFacts?.length ?? 0;
               const moodCloudy = mem.hardTruths?.length ?? 0;
               const moodColor = moodSunny >= moodCloudy ? momentColors.sunny.background : momentColors.cloudy.background;
@@ -1670,33 +1720,49 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 momentColors.cloudy.background,
                 moodCloudy > moodSunny,
               );
+              const titleText = mem.title?.trim() || t("sferaInsight.noMemories");
               const body = (
-                <View style={{ flex: 1, alignSelf: "stretch", borderRadius: 10, overflow: "hidden" }}>
-                  <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
-                  <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
-                    <ThemedText style={{ color: stripCaptionColor, fontSize: 10 }} numberOfLines={1}>
-                      {mem.title}
-                    </ThemedText>
-                  </View>
+                <View style={{ flex: 1, alignSelf: "stretch", borderRadius: 10, overflow: "hidden", backgroundColor: mem.imageUri ? undefined : shadowColor + "18" }}>
+                  {mem.imageUri ? (
+                    <>
+                      <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1 }} contentFit="cover" />
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
+                        <ThemedText style={{ color: stripCaptionColor, fontSize: 10 }} numberOfLines={1}>
+                          {titleText}
+                        </ThemedText>
+                      </View>
+                    </>
+                  ) : (
+                    <View style={{ flex: 1, padding: 10, justifyContent: "center" }}>
+                      <ThemedText style={{ color: insightInk, fontSize: 12, fontWeight: "600" }} numberOfLines={2}>
+                        {titleText}
+                      </ThemedText>
+                      {mem.description ? (
+                        <ThemedText style={{ color: insightInkMuted, fontSize: 10, marginTop: 6 }} numberOfLines={6}>
+                          {mem.description}
+                        </ThemedText>
+                      ) : null}
+                    </View>
+                  )}
                 </View>
               );
-              if (mode === 1) {
-                return (
-                  <Pressable
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      openMemory(mem);
-                    }}
+              memoryPreviewTapIdRef.current = mem.id;
+              return (
+                <GestureDetector gesture={memoryPreviewTapGesture}>
+                  <View
                     accessibilityRole="button"
-                    accessibilityLabel={mem.title?.trim() || t("sferaInsight.oldestMemory")}
-                    style={{ flex: 1, alignSelf: "stretch" }}
+                    accessibilityLabel={titleText}
+                    style={{ flex: 1, alignSelf: "stretch", minHeight: 0 }}
+                    collapsable={false}
                   >
                     {body}
-                  </Pressable>
-                );
-              }
-              return body;
+                  </View>
+                </GestureDetector>
+              );
             }
+            // Entity truly has no memories — show reflection prompt
+            const promptKey = sferaInsightReflectionPromptKey(sphere, modeIdx);
+            const promptText = t(promptKey as any).replace("{name}", entityName);
             return (
               <Pressable
                 onPress={(e) => {
@@ -1704,7 +1770,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                   openEntity();
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`${entityName}: ${t("sferaInsight.zeroMemoriesAvailable")}`}
+                accessibilityLabel={`${entityName}: ${promptText}`}
                 style={{
                   flex: 1,
                   alignSelf: "stretch",
@@ -1714,12 +1780,56 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                   borderStyle: "dashed",
                   justifyContent: "center",
                   alignItems: "center",
-                  paddingHorizontal: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  gap: 10,
                 }}
               >
-                <ThemedText style={{ color: insightInkMuted, fontSize: 11, textAlign: "center" }}>
-                  {t("sferaInsight.zeroMemoriesAvailable")}
+                <ThemedText
+                  style={{
+                    color: insightInkMuted,
+                    fontSize: 13,
+                    textAlign: "center",
+                    fontStyle: "italic",
+                    lineHeight: 19,
+                  }}
+                >
+                  {promptText}
                 </ThemedText>
+                <View
+                  style={{
+                    borderRadius: 14,
+                    borderWidth: 1.25,
+                    borderColor: colorScheme === "dark"
+                      ? Colors.dark.primary + "88"
+                      : Colors.light.primary + "55",
+                    backgroundColor: colorScheme === "dark"
+                      ? Colors.dark.primary + "22"
+                      : Colors.light.primary + "14",
+                    paddingHorizontal: 14,
+                    paddingVertical: 6,
+                    shadowColor: colorScheme === "dark"
+                      ? Colors.dark.primary
+                      : Colors.light.primary,
+                    shadowOffset: { width: 0, height: colorScheme === "dark" ? 0 : 3 },
+                    shadowOpacity: colorScheme === "dark" ? 0.5 : 0.18,
+                    shadowRadius: colorScheme === "dark" ? 8 : 10,
+                    elevation: 6,
+                  }}
+                >
+                  <ThemedText
+                    style={{
+                      color: colorScheme === "dark"
+                        ? Colors.dark.primary
+                        : Colors.light.primary,
+                      fontSize: 11,
+                      fontWeight: "700",
+                      textAlign: "center",
+                    }}
+                  >
+                    {t("sferaInsight.addFirstMemory")}
+                  </ThemedText>
+                </View>
               </Pressable>
             );
           })()}
@@ -1801,52 +1911,53 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               (mode === 4 ? mem.hardTruths?.[0]?.text : undefined) ||
               (mode === 5 ? mem.goodFacts?.[0]?.text : undefined) ||
               t("sferaInsight.noMemories");
+            memoryPreviewTapIdRef.current = mem.id;
             return (
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  openMemory(mem);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={titleText}
-                style={{ flex: 1, alignSelf: "stretch", minHeight: 72 }}
-              >
+              <GestureDetector gesture={memoryPreviewTapGesture}>
                 <View
-                  style={{
-                    flex: 1,
-                    borderRadius: 10,
-                    overflow: "hidden",
-                    backgroundColor: shadowColor + "18",
-                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={titleText}
+                  style={{ flex: 1, alignSelf: "stretch", minHeight: 72 }}
+                  collapsable={false}
                 >
-                  {mem.imageUri ? (
-                    <>
-                      <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1, minHeight: 72 }} contentFit="cover" />
-                      <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
-                        <ThemedText style={{ color: memoryStripCaption, fontSize: 10 }} numberOfLines={1}>
-                          {mem.title?.trim() || titleText}
+                  <View
+                    style={{
+                      flex: 1,
+                      borderRadius: 10,
+                      overflow: "hidden",
+                      backgroundColor: shadowColor + "18",
+                    }}
+                  >
+                    {mem.imageUri ? (
+                      <>
+                        <Image source={{ uri: mem.imageUri }} style={{ width: "100%", flex: 1, minHeight: 72 }} contentFit="cover" />
+                        <View style={{ paddingHorizontal: 8, paddingVertical: 5, backgroundColor: moodColor + "22" }}>
+                          <ThemedText style={{ color: memoryStripCaption, fontSize: 10 }} numberOfLines={1}>
+                            {mem.title?.trim() || titleText}
+                          </ThemedText>
+                        </View>
+                      </>
+                    ) : (
+                      <View style={{ flex: 1, padding: 10, justifyContent: "center" }}>
+                        <ThemedText style={{ color: insightInk, fontSize: 12, fontWeight: "600" }} numberOfLines={2}>
+                          {titleText}
                         </ThemedText>
+                        {mem.description ? (
+                          <ThemedText style={{ color: insightInkMuted, fontSize: 10, marginTop: 6 }} numberOfLines={6}>
+                            {mem.description}
+                          </ThemedText>
+                        ) : null}
                       </View>
-                    </>
-                  ) : (
-                    <View style={{ flex: 1, padding: 10, justifyContent: "center" }}>
-                      <ThemedText style={{ color: insightInk, fontSize: 12, fontWeight: "600" }} numberOfLines={2}>
-                        {titleText}
-                      </ThemedText>
-                      {mem.description ? (
-                        <ThemedText style={{ color: insightInkMuted, fontSize: 10, marginTop: 6 }} numberOfLines={6}>
-                          {mem.description}
-                        </ThemedText>
-                      ) : null}
-                    </View>
-                  )}
+                    )}
+                  </View>
                 </View>
-              </Pressable>
+              </GestureDetector>
             );
           })()}
 
-          {/* Pagination dots */}
-          <View style={{ flexDirection: "row", gap: 5, alignSelf: "center" }} accessibilityRole="tablist">
+          {/* Footer — nested RNGH taps so card-level openInsightTarget does not fire */}
+          <View style={{ zIndex: 10, alignItems: "center", gap: 2 }}>
+          <View style={{ flexDirection: "row", gap: 5 }} accessibilityRole="tablist">
             {Array.from({ length: numModes }).map((_, i) => (
               <Pressable
                 key={i}
@@ -1869,22 +1980,21 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               />
             ))}
           </View>
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              onToggleSize();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={isExpanded ? "Shrink card" : "Expand card"}
-            hitSlop={8}
-            style={{ alignSelf: "center", padding: 4, marginTop: 2 }}
-          >
-            <MaterialIcons
-              name={isExpanded ? "unfold-less" : "unfold-more"}
-              size={INSIGHT_SIZE_TOGGLE_ICON_SIZE}
-              color={shadowColor + "CC"}
-            />
-          </Pressable>
+          <GestureDetector gesture={expandToggleGesture}>
+            <View
+              accessibilityRole="button"
+              accessibilityLabel={isExpanded ? "Shrink card" : "Expand card"}
+              style={{ padding: 4 }}
+              collapsable={false}
+            >
+              <MaterialIcons
+                name={isExpanded ? "unfold-less" : "unfold-more"}
+                size={INSIGHT_SIZE_TOGGLE_ICON_SIZE}
+                color={shadowColor + "CC"}
+              />
+            </View>
+          </GestureDetector>
+          </View>
           </View>
         </View>
         </View>
