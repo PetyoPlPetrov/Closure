@@ -2257,6 +2257,7 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   const [mode, setMode] = useState(0);
   const [isAutoCyclePaused, setIsAutoCyclePaused] = useState(false);
   const modeOpacity = useSharedValue(1);
+  const dragX = useSharedValue(0);
   const lastTapRef = useRef(0);
   const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasAutoCyclePausedRef = useRef(false);
@@ -2370,9 +2371,13 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     width: `${progress.value * 100}%` as any,
   }));
 
-  const modeAnimStyle = useAnimatedStyle(() => ({
-    opacity: modeOpacity.value,
-  }));
+  const modeAnimStyle = useAnimatedStyle(() => {
+    // Fade content based on drag distance, matching the sphere title drag fade
+    const dragFade = Math.max(0, Math.min(1, 1 - (Math.abs(dragX.value) / INSIGHT_CARD_SIZE) * 2.2));
+    return {
+      opacity: modeOpacity.value * dragFade,
+    };
+  });
 
   const MODES = useMemo(
     () => [
@@ -2449,12 +2454,19 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
         -INSIGHT_CARD_SWIPE_FAIL_Y_PX,
         INSIGHT_CARD_SWIPE_FAIL_Y_PX,
       ])
+      .onUpdate((e) => {
+        dragX.value = e.translationX;
+      })
       .onEnd((e) => {
         if (Math.abs(e.translationX) > INSIGHT_CARD_SWIPE_COMMIT_PX) {
           runOnJS(cycleModeRef.current)(
             e.translationX < 0 ? -1 : 1,
           );
         }
+        dragX.value = withTiming(0, { duration: 180 });
+      })
+      .onFinalize(() => {
+        dragX.value = withTiming(0, { duration: 180 });
       });
 
     const tap = Gesture.Tap()

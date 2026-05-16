@@ -9206,51 +9206,6 @@ const FloatingMemory = React.memo(
                       contentFit="cover"
                     />
 
-                    {/* Gradient overlay based on sunny/cloudy ratio - show always except when memory itself is focused */}
-                    {!isMemoryFocused && (
-                      <LinearGradient
-                        colors={
-                          sunnyPercentage >= 50
-                            ? (() => {
-                                const { r, g, b } = hexToRgb(
-                                  momentColors.sunny.background,
-                                );
-                                return [
-                                  `rgba(${r}, ${g}, ${b}, 0.4)`,
-                                  `rgba(${r}, ${g}, ${b}, 0.5)`,
-                                  `rgba(${r}, ${g}, ${b}, 0.4)`,
-                                ];
-                              })()
-                            : // Dark gradient for negative memories - intensity based on cloudy percentage
-                              (() => {
-                                const cloudyPercentage = 100 - sunnyPercentage;
-                                // Calculate overlay opacity based on cloudy percentage
-                                // When 0% sunny (100% cloudy): dark overlay (opacity 0.65) - dark but still see some image
-                                // When 25% sunny: medium dark (opacity 0.55)
-                                // When 49% sunny: lighter dark (opacity 0.5)
-
-                                // Linear interpolation: darker when more cloudy, lighter when more sunny
-                                // Range: 0.5 (minimum) to 0.65 (maximum) - dark enough to indicate cloudy but not fully black
-                                const baseOpacity =
-                                  0.5 + (cloudyPercentage / 100) * 0.15; // Range: 0.5 to 0.65
-
-                                return [
-                                  `rgba(0, 0, 0, ${baseOpacity})`,
-                                  `rgba(0, 0, 0, ${Math.min(0.7, baseOpacity + 0.05)})`,
-                                  `rgba(0, 0, 0, ${baseOpacity})`,
-                                ];
-                              })()
-                        }
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={{
-                          position: "absolute",
-                          width: "100%",
-                          height: "100%",
-                          borderRadius: memorySize / 2,
-                        }}
-                      />
-                    )}
                   </>
                 ) : (
                   <MaterialIcons name="auto-stories" size={24} color="#fff" />

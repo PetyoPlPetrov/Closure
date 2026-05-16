@@ -903,6 +903,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const mode = allowedModes[modeIdx] ?? allowedModes[0] ?? 0;
   const insightCardOpacity = useSharedValue(1);
   const insightCardTranslateX = useSharedValue(0);
+  const insightTitleOpacity = useSharedValue(1);
+  const insightDragX = useSharedValue(0);
   const insightTitleTransitionLockRef = useRef(false);
   const shadowColor = getSphereShadowColor(sphere, colorScheme);
   const { ink: insightInk, inkMuted: insightInkMuted } = insightCardInk(colorScheme);
@@ -929,9 +931,13 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       setIsAutoLoopPaused(false);
       cancelAnimation(insightCardOpacity);
       cancelAnimation(insightCardTranslateX);
+      cancelAnimation(insightTitleOpacity);
+      cancelAnimation(insightDragX);
       insightTitleTransitionLockRef.current = false;
       insightCardOpacity.value = 1;
       insightCardTranslateX.value = 0;
+      insightTitleOpacity.value = 1;
+      insightDragX.value = 0;
       if (sphere === "family" || sphere === "friends") {
         const i = allowedModes.indexOf(1);
         setModeIdx(i >= 0 ? i : 0);
@@ -960,7 +966,6 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       const easeOut = Easing.out(Easing.ease);
       const easeIn = Easing.out(Easing.ease);
       const slide = INSIGHT_CARD_SLIDE_X;
-      // Card exits in the opposite direction of the swipe (swipe left = card moves left)
       const outX = direction === 1 ? -slide : slide;
       const inFromX = direction === 1 ? slide : -slide;
 
@@ -968,7 +973,13 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         insightTitleTransitionLockRef.current = false;
       };
 
-      // Phase 1: slide + fade out the whole card
+      // Title: fade-only (no slide), matching the sphere-name drag fade
+      insightTitleOpacity.value = withTiming(0, {
+        duration: INSIGHT_CARD_OUT_MS,
+        easing: easeOut,
+      });
+
+      // Card body: slide + fade out
       insightCardOpacity.value = withTiming(
         0,
         { duration: INSIGHT_CARD_OUT_MS, easing: easeOut },
@@ -977,12 +988,16 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             runOnJS(unlock)();
             return;
           }
-          // Phase 2: update content, reposition off-screen on the other side, slide + fade in
           runOnJS(applyModeUpdate)();
           insightCardTranslateX.value = inFromX;
           insightCardOpacity.value = 0;
+          insightTitleOpacity.value = 0;
 
           insightCardOpacity.value = withTiming(1, {
+            duration: INSIGHT_CARD_IN_MS,
+            easing: easeIn,
+          });
+          insightTitleOpacity.value = withTiming(1, {
             duration: INSIGHT_CARD_IN_MS,
             easing: easeIn,
           });
@@ -1004,6 +1019,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       animationsEnabled,
       insightCardOpacity,
       insightCardTranslateX,
+      insightTitleOpacity,
     ],
   );
 
@@ -1068,8 +1084,19 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
   const insightCardAnimStyle = useAnimatedStyle(() => ({
     opacity: insightCardOpacity.value,
-    transform: [{ translateX: insightCardTranslateX.value }],
+    transform: [{ translateX: insightCardTranslateX.value + insightDragX.value }],
   }));
+
+  const insightTitleAnimStyle = useAnimatedStyle(() => {
+    // Fade based on total card displacement — the closer to the screen edge, the more faded
+    const totalDisplacement = Math.abs(insightCardTranslateX.value + insightDragX.value);
+    const dragFade = Math.max(0, Math.min(1, 1 - (totalDisplacement / (SW * 0.35)) * 1.1));
+    return {
+      opacity: insightTitleOpacity.value * dragFade,
+      // Counteract the parent's translateX + drag so the title stays in place
+      transform: [{ translateX: -(insightCardTranslateX.value + insightDragX.value) }],
+    };
+  });
 
   // Progress bar fill width (0→100%) driven by the existing progress shared value
   const PROGRESS_BAR_W = Math.round(INSIGHT_ATMO_R * 1.2);
@@ -1180,6 +1207,15 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     [toggleAutoLoopPause],
   );
 
+  const wasPausedBeforeDragRef = useRef(false);
+  const pauseAutoLoop = useCallback(() => {
+    wasPausedBeforeDragRef.current = isAutoLoopPaused;
+    if (!isAutoLoopPaused) setIsAutoLoopPaused(true);
+  }, [isAutoLoopPaused]);
+  const resumeAutoLoop = useCallback(() => {
+    if (!wasPausedBeforeDragRef.current) setIsAutoLoopPaused(false);
+  }, []);
+
   const insightCardGesture = useMemo(() => {
     const pan = Gesture.Pan()
       .activeOffsetX([
@@ -1190,6 +1226,12 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         -INSIGHT_CARD_SWIPE_FAIL_Y_PX,
         INSIGHT_CARD_SWIPE_FAIL_Y_PX,
       ])
+      .onStart(() => {
+        runOnJS(pauseAutoLoop)();
+      })
+      .onUpdate((e) => {
+        insightDragX.value = e.translationX;
+      })
       .onEnd((e) => {
         const tx = e.translationX;
         const ty = e.translationY;
@@ -1203,10 +1245,16 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             runOnJS(goPrevRef.current)();
           }
         }
+        insightDragX.value = withTiming(0, { duration: 200 });
+        runOnJS(resumeAutoLoop)();
+      })
+      .onFinalize(() => {
+        insightDragX.value = withTiming(0, { duration: 200 });
+        runOnJS(resumeAutoLoop)();
       });
 
     return pan;
-  }, []);
+  }, [insightDragX, pauseAutoLoop, resumeAutoLoop]);
 
   // Ring rotation for the insight planet
   const ringRotation = useSharedValue(0);
@@ -1469,9 +1517,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           collapsable={false}
           style={[insightCardAnimStyle, { alignItems: "center", flex: 1, overflow: "visible" }]}
         >
-          {/* ── Mode label — above the planet ── */}
+          {/* ── Mode label — above the planet, fade-only (counteracts parent slide) ── */}
           {numModes > 1 && (
-            <View style={{ alignItems: "center", marginBottom: -4, zIndex: 10 }}>
+            <Animated.View style={[insightTitleAnimStyle, { alignItems: "center", marginBottom: -4, zIndex: 10 }]}>
               <ThemedText
                 style={{
                   color: shadowColor,
@@ -1484,7 +1532,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               >
                 {cardLabel}
               </ThemedText>
-            </View>
+            </Animated.View>
           )}
           {/* ── Ring-planet with content overlay ── */}
           <View style={{ width: INSIGHT_PLANET_CANVAS, height: INSIGHT_PLANET_CANVAS, alignItems: "center", justifyContent: "center", overflow: "visible" }}>
