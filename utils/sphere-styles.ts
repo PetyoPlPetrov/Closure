@@ -223,7 +223,7 @@ export function getSphereShadowColor(
   colorScheme: "light" | "dark",
 ): string {
   if (colorScheme === "light") {
-    return "#000";
+    return "#000000";
   }
   switch (sphere) {
     case "relationships":
