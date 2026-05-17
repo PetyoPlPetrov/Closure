@@ -50,9 +50,9 @@ import { showPaywallForAIAccess } from "@/utils/premium-access";
 import { subscribeBadgeRewardsChanged } from "@/utils/badge-rewards-events";
 import {
   getSferaSizeHintDismissedForever,
-  getSunnyVsCloudyHintDismissedForever,
+  getSunnyHintCollapsed,
   setSferaSizeHintDismissedForever,
-  setSunnyVsCloudyHintDismissedForever,
+  setSunnyHintCollapsed,
 } from "@/utils/sfera-size-hint-storage";
 import {
   getSphereGradientColors,
@@ -15134,10 +15134,8 @@ export default function HomeScreen() {
   const sferaSizeHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  const [sunnyVsCloudyHintNeverShow, setSunnyVsCloudyHintNeverShow] = useState<
-    boolean | null
-  >(null);
   const [sunnyVsCloudyHintVisible, setSunnyVsCloudyHintVisible] = useState(false);
+  const [sunnyHintCollapsed, setSunnyHintCollapsedState] = useState(false);
   const [sunnyCelebrationVisible, setSunnyCelebrationVisible] =
     useState(false);
   const [sunnyMomentsCelebrationToken, setSunnyMomentsCelebrationToken] =
@@ -15152,9 +15150,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       void getSferaSizeHintDismissedForever().then(setSferaSizeHintNeverShow);
-      void getSunnyVsCloudyHintDismissedForever().then(
-        setSunnyVsCloudyHintNeverShow,
-      );
+      void getSunnyHintCollapsed().then(setSunnyHintCollapsedState);
     }, []),
   );
 
@@ -15352,14 +15348,6 @@ export default function HomeScreen() {
       return;
     }
 
-    if (sunnyVsCloudyHintNeverShow !== false) {
-      if (leavingFocusedOverviewSurface) {
-        prevCanShowSunnyVsCloudyRef.current = false;
-      }
-      setSunnyVsCloudyHintVisible(false);
-      return;
-    }
-
     if (leavingFocusedOverviewSurface) {
       prevCanShowSunnyVsCloudyRef.current = false;
       setSunnyVsCloudyHintVisible(false);
@@ -15382,7 +15370,6 @@ export default function HomeScreen() {
       setSunnyVsCloudyHintVisible(true);
     }
   }, [
-    sunnyVsCloudyHintNeverShow,
     focusedHomeMemoryBalance, // orbit ↔ MB toggles size-hint timer (ref is non-reactive); re-run sunny vs sfera priority
     isHomeTabFocused,
     homeViewMode,
@@ -15416,7 +15403,7 @@ export default function HomeScreen() {
   }, []);
 
   const scheduleSunnyVsCloudyHintAfterDelay = useCallback(() => {
-    if (sunnyVsCloudyHintNeverShow !== false || !isSunnyVsCloudyHintEligible) {
+    if (!isSunnyVsCloudyHintEligible) {
       return;
     }
 
@@ -15430,7 +15417,7 @@ export default function HomeScreen() {
       if (focusedHomeMemoryBalanceRef.current !== true) return;
       setSunnyVsCloudyHintVisible(true);
     }, 1200);
-  }, [sunnyVsCloudyHintNeverShow, isSunnyVsCloudyHintEligible]);
+  }, [isSunnyVsCloudyHintEligible]);
 
   const handleSferaSizeHintClose = useCallback(() => {
     setSferaSizeHintVisible(false);
@@ -15448,11 +15435,11 @@ export default function HomeScreen() {
     setSunnyVsCloudyHintVisible(false);
   }, []);
 
-  const handleSunnyVsCloudyHintDontShowAgain = useCallback(() => {
-    void setSunnyVsCloudyHintDismissedForever(true);
-    setSunnyVsCloudyHintNeverShow(true);
-    setSunnyVsCloudyHintVisible(false);
+  const handleSunnyHintCollapsedChange = useCallback((value: boolean) => {
+    setSunnyHintCollapsedState(value);
+    void setSunnyHintCollapsed(value);
   }, []);
+
 
   const openSunnyCelebration = useCallback(() => {
     if (allSunnyMomentEntries.length === 0) return;
@@ -19477,13 +19464,13 @@ export default function HomeScreen() {
               <SferaSizeHintBanner
                 key={`home-sunny-vs-cloudy-${sunnyVsCloudyHintVariant}`}
                 message={sunnyVsCloudyHintMessage}
-                dismissLabel={t("guidePrompt.dismiss")}
                 onClose={handleSunnyVsCloudyHintClose}
-                onDontShowAgain={handleSunnyVsCloudyHintDontShowAgain}
                 actionLabel={t("guidePrompt.sunnyMomentsCta")}
                 actionAccessibilityLabel={t("guidePrompt.sunnyMomentsFromSferas")}
                 onActionPress={() => openSunnyCelebration()}
                 actionIconName="wb-sunny"
+                initialCollapsed={sunnyHintCollapsed}
+                onCollapsedChange={handleSunnyHintCollapsedChange}
               />
             ) : null
           }

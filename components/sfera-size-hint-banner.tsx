@@ -9,9 +9,11 @@ import React from "react";
 import {
   Animated,
   Easing as RNEasing,
+  LayoutAnimation,
   Platform,
   Pressable,
   StyleSheet,
+  UIManager,
   View,
 } from "react-native";
 import Reanimated, {
@@ -23,6 +25,13 @@ import Reanimated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 /** Reminder taps + periodic pulse */
 const PULSE_PEAK = 1.24;
@@ -38,9 +47,9 @@ const SUN_CHIP_ICON_DOUBLE_PULSE_GAP_MS = 340;
 
 type Props = {
   message: string;
-  dismissLabel: string;
+  dismissLabel?: string;
   onClose: () => void;
-  onDontShowAgain: () => void;
+  onDontShowAgain?: () => void;
   /** If omitted with `onActionPress`, action is icon-only (`actionAccessibilityLabel` should be set). */
   actionLabel?: string;
   /** Screen reader label when action is icon-only */
@@ -52,6 +61,10 @@ type Props = {
   secondaryActionIconName?: keyof typeof MaterialIcons.glyphMap;
   messageIconName?: keyof typeof MaterialIcons.glyphMap;
   messageIconColor?: string;
+  /** Start collapsed (persisted state). Only used when `onActionPress` is set. */
+  initialCollapsed?: boolean;
+  /** Called when collapsed state changes so the parent can persist it. */
+  onCollapsedChange?: (collapsed: boolean) => void;
 };
 
 export function SferaSizeHintBanner({
@@ -66,6 +79,8 @@ export function SferaSizeHintBanner({
   secondaryActionAccessibilityLabel,
   onSecondaryActionPress,
   secondaryActionIconName = "device-hub",
+  initialCollapsed = false,
+  onCollapsedChange,
   messageIconName,
   messageIconColor,
 }: Props) {
@@ -233,6 +248,50 @@ export function SferaSizeHintBanner({
     [entranceProgress],
   );
 
+  const isCollapsible = Boolean(onActionPress);
+  const [collapsed, setCollapsed] = React.useState(isCollapsible && initialCollapsed);
+
+  const toggleCollapsed = React.useCallback(() => {
+    LayoutAnimation.configureNext(
+      LayoutAnimation.create(280, "easeInEaseOut", "opacity"),
+    );
+    setCollapsed((prev) => {
+      const next = !prev;
+      onCollapsedChange?.(next);
+      return next;
+    });
+  }, [onCollapsedChange]);
+
+  if (isCollapsible && collapsed) {
+    return (
+      <View pointerEvents="box-none" style={styles.wrap}>
+        <View style={styles.collapsedRow}>
+          <Pressable
+            onPress={toggleCollapsed}
+            style={[
+              styles.collapsedTab,
+              { backgroundColor: bg, borderColor: border },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={actionAccessibilityLabel || actionLabel}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialIcons
+              name={actionIconName}
+              size={18}
+              color={sunnyActionIconColor}
+            />
+            <MaterialIcons
+              name="expand-less"
+              size={16}
+              color={colors.textMediumEmphasis}
+            />
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View pointerEvents="box-none" style={styles.wrap}>
       <Animated.View
@@ -243,14 +302,14 @@ export function SferaSizeHintBanner({
         ]}
       >
         <Pressable
-          onPress={onClose}
+          onPress={isCollapsible ? toggleCollapsed : onClose}
           hitSlop={12}
           style={styles.closeBtn}
           accessibilityRole="button"
           accessibilityLabel={t("common.close")}
         >
           <MaterialIcons
-            name="close"
+            name={isCollapsible ? "expand-more" : "close"}
             size={18}
             color={colors.textMediumEmphasis}
           />
@@ -274,11 +333,15 @@ export function SferaSizeHintBanner({
             !hasTrailingActions && styles.actionsRowDismissOnly,
           ]}
         >
-          <Pressable onPress={onDontShowAgain} style={styles.dismissRow}>
-            <ThemedText emphasis="medium" style={styles.dismissPersistText}>
-              {dismissLabel}
-            </ThemedText>
-          </Pressable>
+          {onDontShowAgain ? (
+            <Pressable onPress={onDontShowAgain} style={styles.dismissRow}>
+              <ThemedText emphasis="medium" style={styles.dismissPersistText}>
+                {dismissLabel}
+              </ThemedText>
+            </Pressable>
+          ) : (
+            <View />
+          )}
           {hasTrailingActions ? (
             <View style={styles.actionIconsWrap}>
               {onSecondaryActionPress ? (
@@ -371,6 +434,29 @@ export function SferaSizeHintBanner({
 const styles = StyleSheet.create({
   wrap: {
     width: "100%",
+  },
+  collapsedRow: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  collapsedTab: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    ...Platform.select({
+      android: { elevation: 2 },
+      default: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
+      },
+    }),
   },
   card: {
     borderRadius: 12,

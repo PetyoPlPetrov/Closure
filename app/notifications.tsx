@@ -10,9 +10,7 @@ import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import {
   getSferaSizeHintDismissedForever,
-  getSunnyVsCloudyHintDismissedForever,
   setSferaSizeHintDismissedForever,
-  setSunnyVsCloudyHintDismissedForever,
 } from '@/utils/sfera-size-hint-storage';
 import { useTranslate } from '@/utils/languages/use-translate';
 
@@ -35,15 +33,11 @@ export default function NotificationsScreen() {
   );
   const styles = useMemo(() => createStyles(palette, fontScale), [palette, fontScale]);
 
-  const [guidePromptEnabled, setGuidePromptEnabled] = useState(true);
   const [sferaSizesHintEnabled, setSferaSizesHintEnabled] = useState(true);
 
   // Refresh reminders when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      getSunnyVsCloudyHintDismissedForever().then((dismissed) => {
-        setGuidePromptEnabled(!dismissed);
-      });
       getSferaSizeHintDismissedForever().then((dismissed) => {
         setSferaSizesHintEnabled(!dismissed);
       });
@@ -63,32 +57,6 @@ export default function NotificationsScreen() {
       {/* Section 1: Banners & alerts */}
       {renderSectionHeader(t('notifications.section.banners'))}
       <View style={styles.sectionGroup}>
-        <View style={styles.card}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <ThemedText size="md" style={styles.rowTitleText}>
-                {t('notifications.guidePrompt.title')}
-              </ThemedText>
-              <ThemedText size="sm" style={{ color: palette.muted, marginTop: 4 }}>
-                {t('notifications.guidePrompt.description')}
-              </ThemedText>
-            </View>
-            <View style={styles.switchCompact}>
-              <Switch
-                value={guidePromptEnabled}
-                onValueChange={async (value) => {
-                  await setSunnyVsCloudyHintDismissedForever(!value);
-                  setGuidePromptEnabled(value);
-                }}
-                trackColor={{
-                  false: 'rgba(150,150,150,0.35)',
-                  true: colors.primary,
-                }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-          </View>
-        </View>
         <View style={styles.card}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>

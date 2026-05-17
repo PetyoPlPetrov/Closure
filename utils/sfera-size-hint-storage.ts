@@ -1,8 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const KEY = "@sferas:sfera_size_hint_dismissed_forever";
-const SUNNY_VS_CLOUDY_KEY = "@sferas:sunny_vs_cloudy_hint_dismissed_forever";
-
 export async function getSferaSizeHintDismissedForever(): Promise<boolean> {
   try {
     return (await AsyncStorage.getItem(KEY)) === "true";
@@ -19,19 +17,19 @@ export async function setSferaSizeHintDismissedForever(value: boolean): Promise<
   }
 }
 
-export async function getSunnyVsCloudyHintDismissedForever(): Promise<boolean> {
+const SUNNY_HINT_COLLAPSED_KEY = "@sferas:sunny_hint_collapsed";
+
+export async function getSunnyHintCollapsed(): Promise<boolean> {
   try {
-    return (await AsyncStorage.getItem(SUNNY_VS_CLOUDY_KEY)) === "true";
+    return (await AsyncStorage.getItem(SUNNY_HINT_COLLAPSED_KEY)) === "true";
   } catch {
     return false;
   }
 }
 
-export async function setSunnyVsCloudyHintDismissedForever(
-  value: boolean,
-): Promise<void> {
+export async function setSunnyHintCollapsed(value: boolean): Promise<void> {
   try {
-    await AsyncStorage.setItem(SUNNY_VS_CLOUDY_KEY, value ? "true" : "false");
+    await AsyncStorage.setItem(SUNNY_HINT_COLLAPSED_KEY, value ? "true" : "false");
   } catch {
     // ignore
   }
