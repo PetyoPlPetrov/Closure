@@ -26,7 +26,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Asset } from "expo-asset";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -64,6 +64,11 @@ export default function SettingsScreen() {
     idealizedMemories,
     getIdealizedMemoriesByProfileId,
     getIdealizedMemoriesByEntityId,
+    deleteProfile,
+    deleteJob,
+    deleteFamilyMember,
+    deleteFriend,
+    deleteHobby,
     reloadIdealizedMemories,
     reloadProfiles,
     reloadJobs,
@@ -97,6 +102,9 @@ export default function SettingsScreen() {
   const totalMemories = idealizedMemories.length;
   const hasAppData = totalEntities > 0 || totalMemories > 0;
   const [isGeneratingFakeData, setIsGeneratingFakeData] = useState(false);
+  const [devToolsVisible, setDevToolsVisible] = useState(false);
+  const devTapCountRef = useRef(0);
+  const devTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [isCleaningMemories, setIsCleaningMemories] = useState(false);
   const [hasClearedDataForInitialOnboarding, setHasClearedDataForInitialOnboarding] =
@@ -312,6 +320,105 @@ export default function SettingsScreen() {
       );
     }
   }, [isSubscribed, presentPaywall, t]);
+
+  const handleDevTitleTap = useCallback(() => {
+    devTapCountRef.current += 1;
+    if (devTapTimerRef.current) clearTimeout(devTapTimerRef.current);
+    if (devTapCountRef.current >= 7) {
+      devTapCountRef.current = 0;
+      setDevToolsVisible((prev) => !prev);
+    } else {
+      devTapTimerRef.current = setTimeout(() => {
+        devTapCountRef.current = 0;
+      }, 1500);
+    }
+  }, []);
+
+  const FAKE_ENTITY_NAMES = useMemo(() => new Set([
+    // Profiles
+    "Mark Johnson", "Emma Williams", "Olivia Brown", "Sophia Martinez", "James Wilson",
+    // Jobs
+    "Software Developer at TechCorp", "Senior Developer at StartupXYZ",
+    "Lead Engineer at CurrentCompany", "Junior Developer at WebSolutions",
+    "Full Stack Developer at DigitalAgency",
+    // Family
+    "Sarah Johnson", "Michael Johnson", "Maria Johnson", "Robert Johnson", "Emily Johnson",
+    // Friends
+    "Alex Thompson", "Jessica Martinez", "David Chen", "Sophie Anderson", "Ryan Taylor", "Maya Patel",
+    // Hobbies
+    "Photography", "Reading", "Cooking", "Hiking", "Yoga", "Painting",
+  ]), []);
+
+  const [isDeletingFakeData, setIsDeletingFakeData] = useState(false);
+
+  const deleteFakeData = useCallback(async () => {
+    if (isDeletingFakeData) return;
+
+    Alert.alert(
+      "Warning",
+      "Delete all fake/demo data? This will only remove entities with known fake names and their memories.",
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setIsDeletingFakeData(true);
+            try {
+              let deletedEntities = 0;
+
+              // Delete fake entities - each delete cascades to remove
+              // associated memories, moments, lessons, and AI summaries
+              for (const p of profiles) {
+                if (FAKE_ENTITY_NAMES.has(p.name)) {
+                  await deleteProfile(p.id);
+                  deletedEntities++;
+                }
+              }
+              for (const j of jobs) {
+                if (FAKE_ENTITY_NAMES.has(j.name)) {
+                  await deleteJob(j.id);
+                  deletedEntities++;
+                }
+              }
+              for (const f of familyMembers) {
+                if (FAKE_ENTITY_NAMES.has(f.name)) {
+                  await deleteFamilyMember(f.id);
+                  deletedEntities++;
+                }
+              }
+              for (const f of friends) {
+                if (FAKE_ENTITY_NAMES.has(f.name)) {
+                  await deleteFriend(f.id);
+                  deletedEntities++;
+                }
+              }
+              for (const h of hobbies) {
+                if (FAKE_ENTITY_NAMES.has(h.name)) {
+                  await deleteHobby(h.id);
+                  deletedEntities++;
+                }
+              }
+
+              Alert.alert(
+                t("common.success"),
+                `Deleted ${deletedEntities} fake entities with all their memories, moments, and lessons.`,
+                [{ text: t("common.ok") }],
+              );
+            } catch (_error) {
+              Alert.alert(t("common.error"), "Failed to delete fake data.");
+            } finally {
+              setIsDeletingFakeData(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [
+    isDeletingFakeData, profiles, jobs, familyMembers, friends, hobbies,
+    FAKE_ENTITY_NAMES, deleteProfile, deleteJob,
+    deleteFamilyMember, deleteFriend, deleteHobby, t,
+  ]);
 
   const generateFakeData = async () => {
     if (isGeneratingFakeData) return;
@@ -2074,36 +2181,15 @@ export default function SettingsScreen() {
 
         {/* YOUR DATA */}
         <View style={styles.section}>
-          <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
-            {t("settings.yourData.title")}
-          </ThemedText>
+          <Pressable onPress={handleDevTitleTap}>
+            <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
+              {t("settings.yourData.title")}
+            </ThemedText>
+          </Pressable>
 
-          {/* Generate Fake Data Button - Only visible in development */}
-          {__DEV__ && (
+          {/* Generate Fake Data - hidden in prod, tap "Your Data" title 7 times to reveal */}
+          {(__DEV__ || devToolsVisible) && (
             <>
-              <TouchableOpacity
-                style={styles.dropdown}
-                onPress={() => {
-                  replaySplashAnimation();
-                  router.replace("/");
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={styles.dropdownContent}>
-                  <MaterialIcons
-                    name="play-circle-outline"
-                    size={24 * fontScale}
-                    color={colors.icon}
-                  />
-                  <ThemedText
-                    size="l"
-                    style={styles.dropdownText}
-                  >
-                    Replay loading animation
-                  </ThemedText>
-                </View>
-              </TouchableOpacity>
-
               <TouchableOpacity
                 style={[
                   styles.dropdown,
@@ -2135,6 +2221,64 @@ export default function SettingsScreen() {
                     color={colors.text}
                   />
                 )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.dropdown,
+                  isDeletingFakeData && { opacity: 0.5 },
+                ]}
+                onPress={deleteFakeData}
+                activeOpacity={0.7}
+                disabled={isDeletingFakeData}
+              >
+                <View style={styles.dropdownContent}>
+                  <MaterialIcons
+                    name="delete-sweep"
+                    size={24 * fontScale}
+                    color={colors.icon}
+                  />
+                  <ThemedText
+                    size="l"
+                    style={styles.dropdownText}
+                  >
+                    {isDeletingFakeData ? "Deleting fake data..." : "Delete fake data"}
+                  </ThemedText>
+                </View>
+                {isDeletingFakeData && (
+                  <MaterialIcons
+                    name="hourglass-empty"
+                    size={24 * fontScale}
+                    color={colors.text}
+                  />
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+
+          {__DEV__ && (
+            <>
+              <TouchableOpacity
+                style={styles.dropdown}
+                onPress={() => {
+                  replaySplashAnimation();
+                  router.replace("/");
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownContent}>
+                  <MaterialIcons
+                    name="play-circle-outline"
+                    size={24 * fontScale}
+                    color={colors.icon}
+                  />
+                  <ThemedText
+                    size="l"
+                    style={styles.dropdownText}
+                  >
+                    Replay loading animation
+                  </ThemedText>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
