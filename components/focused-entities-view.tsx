@@ -10,6 +10,7 @@ import {
   ConstellationBackground,
   sampleCornerBiasedPosition,
 } from "@/components/constellation-background";
+import { SferaInsightEmptyDemoLink } from "@/components/sfera-insight-empty-demo-link";
 import { SferaInsightEmptyGuideLink } from "@/components/sfera-insight-empty-guide-link";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
@@ -1391,20 +1392,24 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             planetCanvas={INSIGHT_PLANET_CANVAS}
             planetC={INSIGHT_PLANET_C}
           />
-        </View>
-        <View style={{ alignItems: "center", gap: 8, marginTop: 8, paddingHorizontal: 20 }}>
-          <ThemedText
-            style={{
-              color: insightInk,
-              fontSize: 14,
-              fontWeight: "600",
-              textAlign: "center",
-              fontStyle: "italic",
-            }}
-          >
-            {t(sferaInsightEmptyEntitiesWarmKey(sphere))}
-          </ThemedText>
-          <SferaInsightEmptyGuideLink sphere={sphere} />
+          {/* Empty-state text overlaid inside the sphere */}
+          <View style={{ position: "absolute", alignItems: "center", justifyContent: "center", paddingHorizontal: 30 }}>
+            <ThemedText
+              style={{
+                color: insightInk,
+                fontSize: 14,
+                fontWeight: "600",
+                textAlign: "center",
+                fontStyle: "italic",
+              }}
+            >
+              {t(sferaInsightEmptyEntitiesWarmKey(sphere))}
+            </ThemedText>
+            <SferaInsightEmptyGuideLink sphere={sphere} />
+            {!isDemoModeInsightCard && (
+              <SferaInsightEmptyDemoLink />
+            )}
+          </View>
         </View>
       </View>
     );

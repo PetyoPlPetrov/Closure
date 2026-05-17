@@ -17,7 +17,7 @@ export type AppVersionInfo = {
 /** Returns version and update info for display and support. Safe to call in dev (returns placeholder when updates not available). */
 export async function getAppVersionInfo(): Promise<AppVersionInfo> {
   const nativeVersion =
-    Constants.expoConfig?.version ?? Constants.manifest?.version ?? "—";
+    Constants.expoConfig?.version ?? ((Constants.manifest as Record<string, unknown> | null)?.version as string | undefined) ?? "—";
   if (__DEV__ || Platform.OS === "web") {
     return { nativeVersion, updateId: undefined, isEmbeddedLaunch: undefined };
   }

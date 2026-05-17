@@ -214,9 +214,7 @@ export function TabScreenContainer({
         <View style={StyleSheet.absoluteFill}>
           <Image
             source={cosmicBackground}
-            style={[StyleSheet.absoluteFill, { opacity: cosmicImageOpacity }]}
-            resizeMode="cover"
-            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { opacity: cosmicImageOpacity, resizeMode: "cover" }]}
           />
           <LinearGradient
             colors={DARK_GRADIENT_COLORS}

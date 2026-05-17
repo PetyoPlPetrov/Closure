@@ -189,7 +189,7 @@ export function UploadPicture({
                   borderRadius: 4 * fontScale,
                   marginHorizontal: 8 * fontScale,
                 }}>
-                  <ThemedText size="xs" style={styles.supportedFormats}>
+                  <ThemedText size="xs">
                     {t('profile.changePicture')}
                   </ThemedText>
                 </View>

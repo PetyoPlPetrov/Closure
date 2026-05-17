@@ -289,7 +289,7 @@ export default function IdealizedMemoriesScreen() {
               params: { profileId: returnToId }
             });
           } else {
-            router.navigate('/(tabs)/');
+            router.navigate('/(tabs)' as const);
           }
         }} style={styles.headerButton} hitSlop={12}>
           <MaterialIcons name="arrow-back" size={26} color={colors.text} />

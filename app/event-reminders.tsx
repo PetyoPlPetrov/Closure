@@ -13,8 +13,8 @@ import {
   clearEventReminderInAppForEvent,
   getAllScheduledEventReminders,
   type EventReminderInfo,
-  cancelEventMemoryReminders,
 } from '@/utils/sfera-events';
+import { cancelEventMemoryReminders } from '@/utils/event-memory-reminders';
 
 export default function EventRemindersScreen() {
   const t = useTranslate();

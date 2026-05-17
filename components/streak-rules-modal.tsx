@@ -118,14 +118,14 @@ export const StreakRulesModal = React.memo(function StreakRulesModal({ visible, 
                   <View style={styles.badgeInfo}>
                     <View style={styles.badgeHeader}>
                       <ThemedText size="md" weight="bold">
-                        {t(getBadgeNameKey(badge.id))}
+                        {t(getBadgeNameKey(badge.id) as keyof import("@/utils/languages/translations").Translations)}
                       </ThemedText>
                     </View>
                     <ThemedText size="sm" style={{ color: colors.textMediumEmphasis, marginTop: 2 }}>
-                      {t(getBadgeDescriptionKey(badge.id))}
+                      {t(getBadgeDescriptionKey(badge.id) as keyof import("@/utils/languages/translations").Translations)}
                     </ThemedText>
                     <ThemedText size="xs" style={{ color: colors.textHighEmphasis, marginTop: 4 }}>
-                      {t(getBadgeRewardKey(badge.id))}
+                      {t(getBadgeRewardKey(badge.id) as keyof import("@/utils/languages/translations").Translations)}
                     </ThemedText>
                     <ThemedText size="xs" weight="semibold" style={{ marginTop: 4, color: colors.primary }}>
                       {t('streakRules.badge.requires')} {badge.daysRequired} {badge.daysRequired === 1 ? t('streakRules.badge.requires.day') : t('streakRules.badge.requires.days')}

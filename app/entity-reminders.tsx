@@ -32,7 +32,7 @@ function hexToRgba(hex: string, alpha: number): string {
 export default function EntityRemindersScreen() {
   const t = useTranslate();
   const colorScheme = useColorScheme();
-  const resolvedColorScheme: "dark" = colorScheme;
+  const resolvedColorScheme = colorScheme ?? "dark";
   const colors = Colors[colorScheme ?? 'dark'];
   const fontScale = useFontScale();
   const palette = useMemo(

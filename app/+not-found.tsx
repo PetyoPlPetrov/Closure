@@ -7,7 +7,7 @@ export default function NotFoundRecovery() {
       router.back();
       return;
     }
-    router.replace("/(tabs)/index");
+    router.replace("/");
   }, []);
 
   return null;

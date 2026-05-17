@@ -123,12 +123,6 @@ export interface Translations {
   "sferaInsight.tapOrbToOpen": string;
   "sferaInsight.lessonsCardTitle": string;
   "sferaInsight.lessonsCardSubtitle": string;
-  /** Empty insight card — no entities on this sphere (no "+" treat as add-action) */
-  "sferaInsight.emptyEntities.relationships": string;
-  "sferaInsight.emptyEntities.career": string;
-  "sferaInsight.emptyEntities.family": string;
-  "sferaInsight.emptyEntities.friends": string;
-  "sferaInsight.emptyEntities.hobbies": string;
   /** Ends with spacing so inline “here” reads naturally (Recording Memories guide). */
   "sferaInsight.emptyStateGuide.beforeLink.relationships": string;
   "sferaInsight.emptyStateGuide.beforeLink.career": string;
@@ -137,6 +131,9 @@ export interface Translations {
   "sferaInsight.emptyStateGuide.beforeLink.hobbies": string;
   "sferaInsight.emptyStateGuide.linkHere": string;
   "sferaInsight.emptyStateGuide.a11yHint": string;
+  "sferaInsight.emptyStateDemo.beforeLink": string;
+  "sferaInsight.emptyStateDemo.linkText": string;
+  "sferaInsight.emptyStateDemo.a11yHint": string;
   "sferaInsight.reflectionPrompt.family": string;
   "sferaInsight.reflectionPrompt.friends": string;
   "sferaInsight.reflectionPrompt.relationships": string;
@@ -4012,11 +4009,6 @@ const translations = {
     "sferaInsight.lessonsCardTitle": "Your lessons",
     "sferaInsight.lessonsCardSubtitle":
       "Open the Lessons tab to browse everything you've saved",
-    "sferaInsight.emptyEntities.relationships": "No relationships added.",
-    "sferaInsight.emptyEntities.career": "No careers added.",
-    "sferaInsight.emptyEntities.family": "No family members added.",
-    "sferaInsight.emptyEntities.friends": "No Sfera friends added.",
-    "sferaInsight.emptyEntities.hobbies": "No hobbies added.",
     "sferaInsight.emptyStateGuide.beforeLink.relationships":
       "Learn how to create relationships ",
     "sferaInsight.emptyStateGuide.beforeLink.career":
@@ -4030,6 +4022,10 @@ const translations = {
     "sferaInsight.emptyStateGuide.linkHere": "here",
     "sferaInsight.emptyStateGuide.a11yHint":
       "Opens the Recording Memories guide section.",
+    "sferaInsight.emptyStateDemo.beforeLink": "Or explore the app with ",
+    "sferaInsight.emptyStateDemo.linkText": "sample data",
+    "sferaInsight.emptyStateDemo.a11yHint":
+      "Opens Settings where you can try Demo Mode.",
     "sferaInsight.reflectionPrompt.family": "When did you last see {name}?",
     "sferaInsight.reflectionPrompt.friends": "When did you last see {name}?",
     "sferaInsight.reflectionPrompt.relationships":
@@ -9055,12 +9051,6 @@ const translations = {
     "sferaInsight.lessonsCardTitle": "Вашите уроци",
     "sferaInsight.lessonsCardSubtitle":
       "Отвори раздел Уроци, за да прегледаш всичко записано",
-    "sferaInsight.emptyEntities.relationships": "Няма добавени връзки.",
-    "sferaInsight.emptyEntities.career": "Няма добавени записи по кариера.",
-    "sferaInsight.emptyEntities.family":
-      "Няма добавени членове на семейството.",
-    "sferaInsight.emptyEntities.friends": "Няма добавени приятели в Sfera.",
-    "sferaInsight.emptyEntities.hobbies": "Няма добавени хобита.",
     "sferaInsight.emptyStateGuide.beforeLink.relationships":
       "Научи как да добавяш отношения ",
     "sferaInsight.emptyStateGuide.beforeLink.career":
@@ -9074,6 +9064,10 @@ const translations = {
     "sferaInsight.emptyStateGuide.linkHere": "тук",
     "sferaInsight.emptyStateGuide.a11yHint":
       "Отваря раздела „Запис на спомени\u201C в упътването на приложението.",
+    "sferaInsight.emptyStateDemo.beforeLink": "Или разгледай с ",
+    "sferaInsight.emptyStateDemo.linkText": "примерни данни",
+    "sferaInsight.emptyStateDemo.a11yHint":
+      "Отваря Настройки, където можеш да пробваш Демо режим.",
     "sferaInsight.reflectionPrompt.family": "Кога последно видя {name}?",
     "sferaInsight.reflectionPrompt.friends": "Кога последно видя {name}?",
     "sferaInsight.reflectionPrompt.relationships":

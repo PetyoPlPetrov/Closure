@@ -133,7 +133,7 @@ export default function BackupScreen() {
 
   return (
     <TabScreenContainer>
-      <View style={styles.header}>
+      <View style={styles.header as import('react-native').ViewStyle}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => router.back()}

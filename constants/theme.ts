@@ -38,6 +38,10 @@ export const Colors = {
     surfaceElevated2: '#F1F5F9',
     surfaceElevated4: '#E2E8F0',
     surfaceElevated8: '#CBD5E1',
+    card: '#F8FAFC',
+    border: '#E2E8F0',
+    muted: '#64748B',
+    textTertiary: '#94A3B8',
   },
   dark: {
     text: '#F8FAFC',
@@ -67,6 +71,10 @@ export const Colors = {
     surfaceElevated2: '#1D283E',
     surfaceElevated4: '#2A3750',
     surfaceElevated8: '#3A4C6A',
+    card: '#1D283E',
+    border: '#2A3750',
+    muted: '#64748B',
+    textTertiary: '#384860',
   },
 };
 

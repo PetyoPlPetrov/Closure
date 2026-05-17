@@ -1,34 +1,25 @@
 import { ThemedText } from "@/components/themed-text";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import type { LifeSphere } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { sferaInsightEmptyStateGuideBeforeLinkKey } from "@/utils/sfera-insight-empty-entities";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { memo, useCallback } from "react";
 import { Platform } from "react-native";
 
-type Props = { sphere: LifeSphere };
-
-/** Inline "learn how … **here**" link to Recording Memories (`recordingMemories`). */
-export const SferaInsightEmptyGuideLink = memo(function SferaInsightEmptyGuideLink({
-  sphere,
-}: Props) {
+/** Inline "or try our demo" link that navigates to Settings. */
+export const SferaInsightEmptyDemoLink = memo(function SferaInsightEmptyDemoLink() {
   const t = useTranslate();
   const accent = useThemeColor({}, "primary");
 
-  const openRecordingMemoriesGuide = useCallback(() => {
+  const openSettings = useCallback(() => {
     if (Platform.OS !== "web") void Haptics.selectionAsync();
-    router.push({
-      pathname: "/guide/[sectionId]",
-      params: { sectionId: "recordingMemories" },
-    });
+    router.push("/(tabs)/settings");
   }, []);
 
   return (
     <ThemedText
       style={{
-        marginTop: 8,
+        marginTop: 6,
         textAlign: "center",
         fontSize: 12,
         lineHeight: 18,
@@ -37,13 +28,13 @@ export const SferaInsightEmptyGuideLink = memo(function SferaInsightEmptyGuideLi
       emphasis="medium"
       weight="normal"
     >
-      {t(sferaInsightEmptyStateGuideBeforeLinkKey(sphere))}
+      {t("sferaInsight.emptyStateDemo.beforeLink")}
       <ThemedText
         accessibilityRole="link"
-        accessibilityHint={t("sferaInsight.emptyStateGuide.a11yHint")}
+        accessibilityHint={t("sferaInsight.emptyStateDemo.a11yHint")}
         weight="semibold"
         emphasis="medium"
-        onPress={openRecordingMemoriesGuide}
+        onPress={openSettings}
         style={{
           fontSize: 12,
           lineHeight: 18,
@@ -51,7 +42,7 @@ export const SferaInsightEmptyGuideLink = memo(function SferaInsightEmptyGuideLi
           textDecorationLine: "underline",
         }}
       >
-        {t("sferaInsight.emptyStateGuide.linkHere")}
+        {t("sferaInsight.emptyStateDemo.linkText")}
       </ThemedText>
     </ThemedText>
   );

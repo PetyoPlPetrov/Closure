@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Dimensions } from 'react-native';
+import { Dimensions, type DimensionValue } from 'react-native';
 
 export type DeviceSize = 'small' | 'large' | 'tablet';
 
@@ -26,13 +26,13 @@ export function useLargeDevice() {
   const isTablet = deviceSize === 'tablet';
   const isSmall = deviceSize === 'small';
 
-  const maxContentWidth = useMemo(() => {
+  const maxContentWidth: DimensionValue = useMemo(() => {
     if (isTablet) {
       return screenWidth * 0.75;
     } else if (isLargeDevice) {
       return screenWidth * 0.85;
     } else {
-      return '100%';
+      return '100%' as const;
     }
   }, [screenWidth, isTablet, isLargeDevice]);
 

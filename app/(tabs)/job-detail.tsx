@@ -111,7 +111,7 @@ export default function JobDetailScreen() {
     const messageKey = `insights.detail.job.memories.${countComparison}.${qualityComparison}`;
     return {
       type: countComparison,
-      message: t(messageKey),
+      message: t(messageKey as keyof import('@/utils/languages/translations').Translations),
     };
   }, [job, memories, jobs, getIdealizedMemoriesByEntityId, t]);
 

@@ -101,7 +101,7 @@ export default function PersonalizationScreen() {
         sectionTitle: TextStyle;
         dropdown: ViewStyle;
         dropdownContent: ViewStyle;
-        dropdownText: ViewStyle;
+        dropdownText: TextStyle;
         aiToggleRow: ViewStyle;
         aiToggleTextWrap: ViewStyle;
         aiToggleTitleRow: ViewStyle;

@@ -106,7 +106,7 @@ export default function MomentNotificationsScreen() {
   const t = useTranslate();
   const { language } = useLanguage();
   const colorScheme = useColorScheme();
-  const resolvedColorScheme: "dark" = colorScheme;
+  const resolvedColorScheme = colorScheme ?? "dark";
   const colors = Colors[colorScheme ?? "dark"];
   const fontScale = useFontScale();
 

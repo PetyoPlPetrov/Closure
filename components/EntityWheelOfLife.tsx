@@ -35,7 +35,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Dimensions,
-  Image,
   Pressable,
   StyleSheet,
   TextInput,
@@ -45,6 +44,7 @@ import Animated, {
   Easing,
   cancelAnimation,
   runOnJS,
+  type SharedValue,
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
@@ -107,14 +107,14 @@ const EntitySpirallingStar = React.memo(function EntitySpirallingStar({
   celebrationSpinning,
   momentType = 'lessons',
 }: {
-  avatarCenterX: Animated.SharedValue<number>;
-  avatarCenterY: Animated.SharedValue<number>;
+  avatarCenterX: SharedValue<number>;
+  avatarCenterY: SharedValue<number>;
   startAngle: number;
   spiralOffset: number;
   size: number;
   delay: number;
-  isSpinning: Animated.SharedValue<boolean>;
-  celebrationSpinning?: Animated.SharedValue<boolean>;
+  isSpinning: SharedValue<boolean>;
+  celebrationSpinning?: SharedValue<boolean>;
   momentType?: 'lessons' | 'hardTruths' | 'sunnyMoments';
 }) {
   const { momentColors } = useMomentColors();
@@ -261,10 +261,10 @@ const EntitySpiralingStars = React.memo(function EntitySpiralingStars({
   celebrationSpinning,
   momentType = 'lessons',
 }: {
-  avatarCenterX: Animated.SharedValue<number>;
-  avatarCenterY: Animated.SharedValue<number>;
-  isSpinning: Animated.SharedValue<boolean>;
-  celebrationSpinning?: Animated.SharedValue<boolean>;
+  avatarCenterX: SharedValue<number>;
+  avatarCenterY: SharedValue<number>;
+  isSpinning: SharedValue<boolean>;
+  celebrationSpinning?: SharedValue<boolean>;
   momentType?: 'lessons' | 'hardTruths' | 'sunnyMoments';
 }) {
   const { isTablet } = useLargeDevice();
@@ -643,7 +643,7 @@ export function EntityWheelOfLife({
     if (lessonsCount > 0) {
       void preloadEntityWheelQuestions({
         entityId: entity.id,
-        memories,
+        memories: memories as import('@/utils/JourneyProvider').IdealizedMemory[],
         language: lang,
         hasAIEntitlement,
       });
@@ -692,10 +692,9 @@ export function EntityWheelOfLife({
       onRefetchEntity: (eid) =>
         preloadEntityWheelQuestions({
           entityId: eid,
-          memories,
+          memories: memories as import('@/utils/JourneyProvider').IdealizedMemory[],
           language: lang,
           hasAIEntitlement,
-          onNeedPaywall: showPaywallForAIAccess,
           appendOnly: true,
         }),
     });

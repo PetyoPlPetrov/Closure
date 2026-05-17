@@ -1102,7 +1102,8 @@ export function AIModal({
 
     // Ensure App Check is initialized before making AI requests (skip in dev)
     if (!__DEV__ && !isAppCheckInitialized()) {
-      Alert.alert(t("common.error"), t("ai.appCheck.notReady"));
+      Alert.alert(t("common.error"), "App Check is not ready. Please try again.");
+
       return;
     }
 

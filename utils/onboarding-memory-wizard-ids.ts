@@ -25,7 +25,7 @@ function parseRows(
     const parsed = JSON.parse(raw) as { id?: string; name?: string; imageUri?: string }[];
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
-      (x) =>
+      (x): x is { id: string; name: string; imageUri?: string } =>
         typeof x?.id === "string" &&
         typeof x?.name === "string" &&
         x.id.length > 0,

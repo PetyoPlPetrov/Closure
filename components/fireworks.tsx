@@ -7,6 +7,7 @@ import { Dimensions, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   runOnJS,
+  type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -110,7 +111,7 @@ function FireworkParticle({
   centerX,
   centerY,
 }: {
-  progress: Animated.SharedValue<number>;
+  progress: SharedValue<number>;
   targetX: number;
   targetY: number;
   color: string;

@@ -14,6 +14,7 @@ import {
     StyleSheet,
     TouchableOpacity,
     View,
+    type TextStyle,
     type ViewStyle,
 } from "react-native";
 
@@ -60,13 +61,13 @@ export default function PremiumInfoScreen() {
     // Dev: force plan via URL param (e.g. ?plan=plus) – show plan features but badge must reflect actual subscription
     if (forcePlan === "plus") {
       return {
-        activeBadgeKey: (hasPlus ? "premium.activeBadge.plus" : "premium.plan.sferaPlus") as const,
+        activeBadgeKey: hasPlus ? "premium.activeBadge.plus" as const : "premium.plan.sferaPlus" as const,
         features: SFERA_PLUS_FEATURES,
       };
     }
     if (forcePlan === "ai") {
       return {
-        activeBadgeKey: (hasAI ? "premium.activeBadge.ai" : "premium.plan.sferaAI") as const,
+        activeBadgeKey: hasAI ? "premium.activeBadge.ai" as const : "premium.plan.sferaAI" as const,
         features: SFERA_AI_FEATURES,
       };
     }
@@ -153,7 +154,7 @@ export default function PremiumInfoScreen() {
                 />
               </View>
               <ThemedText size="sm" style={styles.featureText}>
-                {t(key)}
+                {t(key as keyof import("@/utils/languages/translations").Translations)}
               </ThemedText>
             </View>
           ))}
@@ -217,7 +218,7 @@ function createStyles(
     title: {
       flex: 1,
       textAlign: "center",
-    } as ViewStyle,
+    } as TextStyle,
     scroll: {
       flex: 1,
     } as ViewStyle,
@@ -249,14 +250,14 @@ function createStyles(
     activeBadgeText: {
       flex: 1,
       color: colors.text,
-    } as ViewStyle,
+    } as TextStyle,
     sectionTitle: {
       color: colors.text,
       opacity: 0.8,
       textTransform: "uppercase",
       letterSpacing: 1,
       marginBottom: 20 * fontScale,
-    } as ViewStyle,
+    } as TextStyle,
     featuresList: {
       gap: 14 * fontScale,
     } as ViewStyle,
@@ -279,7 +280,7 @@ function createStyles(
       flex: 1,
       color: colors.text,
       lineHeight: 20 * fontScale,
-    } as ViewStyle,
+    } as TextStyle,
     upgradeButton: {
       flexDirection: "row",
       alignItems: "center",
@@ -293,6 +294,6 @@ function createStyles(
     } as ViewStyle,
     upgradeButtonText: {
       color: "#FFFFFF",
-    } as ViewStyle,
+    } as TextStyle,
   });
 }

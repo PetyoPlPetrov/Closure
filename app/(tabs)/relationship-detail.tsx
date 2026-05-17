@@ -110,7 +110,7 @@ export default function RelationshipDetailScreen() {
     const messageKey = `insights.detail.relationship.memories.${countComparison}.${qualityComparison}`;
     return {
       type: countComparison,
-      message: t(messageKey),
+      message: t(messageKey as keyof import('@/utils/languages/translations').Translations),
     };
   }, [profile, memories, profiles, getIdealizedMemoriesByProfileId, t]);
 

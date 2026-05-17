@@ -389,7 +389,6 @@ export function AIEntityResultsView({
             relationship: entity.relationship?.trim(),
             description: entity.description?.trim(),
             imageUri: resolvedImageUri,
-            sphere: 'family',
             setupProgress: 0,
             isCompleted: false,
           });
@@ -398,7 +397,6 @@ export function AIEntityResultsView({
             name: entity.name.trim(),
             description: entity.description?.trim(),
             imageUri: resolvedImageUri,
-            sphere: 'friends',
             setupProgress: 0,
             isCompleted: false,
           });
@@ -407,7 +405,6 @@ export function AIEntityResultsView({
             name: entity.name.trim(),
             description: entity.description?.trim(),
             imageUri: resolvedImageUri,
-            sphere: 'hobbies',
             setupProgress: 0,
             isCompleted: false,
           });
@@ -636,7 +633,7 @@ export function AIEntityResultsView({
                       ]}
                       onPress={() => {
                         const idx = findEntityIndex(entity);
-                        if (idx >= 0) updateEntity(idx, { isCurrent: true, endDate: null });
+                        if (idx >= 0) updateEntity(idx, { isCurrent: true, endDate: undefined });
                       }}
                     >
                       <ThemedText
@@ -754,7 +751,7 @@ export function AIEntityResultsView({
                       ]}
                       onPress={() => {
                         const idx = findEntityIndex(entity);
-                        if (idx >= 0) updateEntity(idx, { isCurrent: true, endDate: null });
+                        if (idx >= 0) updateEntity(idx, { isCurrent: true, endDate: undefined });
                       }}
                     >
                       <ThemedText
@@ -1075,8 +1072,7 @@ export function AIEntityResultsView({
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-            borderRadius={12 * fontScale}
+            style={[StyleSheet.absoluteFill, { borderRadius: 12 * fontScale }]}
           />
           <ThemedText size="l" weight="bold" style={{ color: '#FFFFFF' }}>
             {isSaving ? (t('common.saving') || 'Saving...') : (t('common.save') || 'Save')}

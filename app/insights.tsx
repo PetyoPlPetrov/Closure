@@ -126,7 +126,7 @@ function MomentTypesPieVisualization({
   const lessonsLabel = getLabelPosition(lessonsStart, lessonsSweep);
   const iconSize = 24 * fontScale;
 
-  const iconFor: Record<MomentKind, string> = {
+  const iconFor: Record<MomentKind, keyof typeof MaterialIcons.glyphMap> = {
     sunny: "wb-sunny",
     cloudy: "cloud",
     lessons: "lightbulb",
@@ -412,7 +412,7 @@ function MomentTypesPieVisualization({
 
 export default function InsightsScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "dark"];
+  const colors = Colors[colorScheme ?? "dark"] as typeof Colors.dark;
   const fontScale = useFontScale();
   const {
     profiles,

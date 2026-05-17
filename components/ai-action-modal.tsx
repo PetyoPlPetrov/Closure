@@ -371,8 +371,7 @@ export function AIActionModal({
                           colors={['#4A90E2', '#357ABD', '#2E6DA4']}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
-                          style={StyleSheet.absoluteFill}
-                          borderRadius={16 * fontScale}
+                          style={[StyleSheet.absoluteFill, { borderRadius: 16 * fontScale }]}
                         />
                         <MaterialIcons name="memory" size={24 * fontScale} color="#FFFFFF" />
                         <ThemedText size="l" weight="bold" style={styles.buttonText}>

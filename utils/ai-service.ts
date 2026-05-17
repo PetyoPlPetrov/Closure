@@ -137,6 +137,8 @@ export async function processMemoryPrompt(
             description: prompt.substring(0, 100),
             date: new Date().toISOString(),
           },
+          sphere: "relationships",
+          entityName: "Mock Entity",
           moments: [
             {
               type: "sunnyMoments",
@@ -304,8 +306,8 @@ REQUIRED: For EVERY sunnyMoments and lessonsLearned moment you MUST provide noti
           {
             memory: singleMemory,
             moments: singleMoments,
-            sphere: parsed.sphere,
-            entityName: parsed.entityName,
+            sphere: parsed.sphere ?? "relationships",
+            entityName: parsed.entityName ?? "",
           },
         ],
       };
@@ -1093,7 +1095,7 @@ Respond in ${languageName}. JSON only. Return exactly one question per input les
         sphere: lesson.sphere,
       };
     })
-    .filter((q): q is PreloadedExamQuestion => q != null);
+    .filter((q): q is NonNullable<typeof q> => q != null) as PreloadedExamQuestion[];
 
   return resultItems;
 }

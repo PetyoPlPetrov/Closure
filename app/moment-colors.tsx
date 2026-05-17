@@ -607,7 +607,7 @@ export default function MomentColorsScreen() {
 
   // Carousel: which moment type is selected (0=sunny, 1=cloudy, 2=lesson)
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const carouselRef = useRef<FlatList<{ key: keyof MomentColors }>>(null);
+  const carouselRef = useRef<FlatList<{ key: keyof MomentColors; label: string; icon: string; sample: string }>>(null);
 
   const momentSections = useMemo(
     () => [
@@ -1007,7 +1007,7 @@ export default function MomentColorsScreen() {
                 />
                 <ThemedText
                   size="sm"
-                  weight={isDirty(selectedKey) ? "semibold" : "regular"}
+                  weight={isDirty(selectedKey) ? "semibold" : "normal"}
                   style={{
                     color: savedFlash[selectedKey]
                       ? "#4CAF50"

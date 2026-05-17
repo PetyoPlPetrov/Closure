@@ -10,7 +10,6 @@ import {
   sampleCornerBiasedPosition,
 } from "@/components/constellation-background";
 import { ThemedText } from "@/components/themed-text";
-import { SferaInsightEmptyGuideLink } from "@/components/sfera-insight-empty-guide-link";
 import { Colors } from "@/constants/theme";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -24,7 +23,6 @@ import { useMomentColors } from "@/utils/MomentColorsProvider";
 import type { Translations } from "@/utils/languages/translations";
 import { FOCUSED_DISPLAY_MODE_STORAGE_KEY } from "@/utils/focused-display-mode-storage";
 import { useTranslate } from "@/utils/languages/use-translate";
-import { sferaInsightEmptyEntitiesTranslationKey } from "@/utils/sfera-insight-empty-entities";
 import { reportCosmicPulseAccentSphere } from "@/utils/cosmic-pulse-accent-sphere";
 import {
   getSphere3DGradientColors,
@@ -2387,12 +2385,12 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
         subtext: t("sferaInsight.leastMemories"),
       },
       {
-        icon: "star",
+        icon: "star" as keyof typeof MaterialIcons.glyphMap,
         idx: mostMemoriesIdx,
         subtext: t("sferaInsight.mostMemories"),
       },
       {
-        icon: "schedule",
+        icon: "schedule" as keyof typeof MaterialIcons.glyphMap,
         idx: lastUpdatedIdx,
         subtext: t("sferaInsight.lastUpdated"),
       },
@@ -2524,50 +2522,6 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
     padding: 10,
     ...insightCardSurfaceShadow,
   };
-
-  if (numEntities === 0) {
-    const emptyOrbitMinH = cardSize * 1.38;
-    return (
-      <View style={[wrapperStyle, { height: undefined, minHeight: emptyOrbitMinH }]}>
-        {sphere3DEffect ? (
-          <LinearGradient
-            colors={[...gradientColors]}
-            style={[emptyCardStyle, { minHeight: cardSize }]}
-          >
-            <ThemedText
-              style={{
-                color: insightOrbitInk,
-                fontSize: 11,
-                fontWeight: "600",
-                textAlign: "center",
-                paddingHorizontal: 8,
-                opacity: 0.9,
-              }}
-            >
-              {t(sferaInsightEmptyEntitiesTranslationKey(sphere))}
-            </ThemedText>
-            <SferaInsightEmptyGuideLink sphere={sphere} compact />
-          </LinearGradient>
-        ) : (
-          <View style={{ ...emptyCardStyle, backgroundColor: insightCardBg, minHeight: cardSize }}>
-            <ThemedText
-              style={{
-                color: insightOrbitInk,
-                fontSize: 11,
-                fontWeight: "600",
-                textAlign: "center",
-                paddingHorizontal: 8,
-                opacity: 0.9,
-              }}
-            >
-              {t(sferaInsightEmptyEntitiesTranslationKey(sphere))}
-            </ThemedText>
-            <SferaInsightEmptyGuideLink sphere={sphere} compact />
-          </View>
-        )}
-      </View>
-    );
-  }
 
   // Entities exist but no memories yet — avoid misleading mode titles (e.g. "Most recently done")
   if (totalMemoriesCount === 0) {

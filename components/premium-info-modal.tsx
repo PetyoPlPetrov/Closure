@@ -63,7 +63,7 @@ export function PremiumInfoModal({ visible, onClose }: PremiumInfoModalProps) {
                   />
                 </View>
                 <ThemedText size="sm" style={styles.featureText}>
-                  {t(key)}
+                  {t(key as keyof import("@/utils/languages/translations").Translations)}
                 </ThemedText>
               </View>
             ))}

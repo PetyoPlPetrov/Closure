@@ -1,27 +1,5 @@
 import type { LifeSphere } from "@/utils/JourneyProvider";
 
-/** Translation keys used when an insight card has zero entities on a sphere */
-export type SferaInsightEmptyEntitiesTranslationKey =
-  | "sferaInsight.emptyEntities.relationships"
-  | "sferaInsight.emptyEntities.career"
-  | "sferaInsight.emptyEntities.family"
-  | "sferaInsight.emptyEntities.friends"
-  | "sferaInsight.emptyEntities.hobbies";
-
-const KEYS: Record<LifeSphere, SferaInsightEmptyEntitiesTranslationKey> = {
-  relationships: "sferaInsight.emptyEntities.relationships",
-  career: "sferaInsight.emptyEntities.career",
-  family: "sferaInsight.emptyEntities.family",
-  friends: "sferaInsight.emptyEntities.friends",
-  hobbies: "sferaInsight.emptyEntities.hobbies",
-};
-
-export function sferaInsightEmptyEntitiesTranslationKey(
-  sphere: LifeSphere,
-): SferaInsightEmptyEntitiesTranslationKey {
-  return KEYS[sphere];
-}
-
 /** Prefix before tap target “here” → Recording Memories guide (include trailing space where needed). */
 export type SferaInsightEmptyStateGuideBeforeLinkKey =
   | "sferaInsight.emptyStateGuide.beforeLink.relationships"

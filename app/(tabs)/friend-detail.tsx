@@ -110,7 +110,7 @@ export default function FriendDetailScreen() {
     const messageKey = `insights.detail.family.memories.${countComparison}.${qualityComparison}`;
     return {
       type: countComparison,
-      message: t(messageKey),
+      message: t(messageKey as keyof import('@/utils/languages/translations').Translations),
     };
   }, [friend, memories, friends, getIdealizedMemoriesByEntityId, t]);
 

@@ -326,7 +326,7 @@ function AppContent() {
 
     notFoundRecoveryAttemptsRef.current += 1;
     requestAnimationFrame(() => {
-      router.replace("/(tabs)/index");
+      router.replace("/");
     });
   }, [pathname]);
 
@@ -777,15 +777,15 @@ function AppContent() {
             }}
             pendingResponse={pendingAIResponseForButton}
             onSend={async (message: string) => {
-              const sphereTypes = [
-                ...profiles.map(() => "relationships" as const),
-                ...jobs.map(() => "career" as const),
-                ...familyMembers.map(() => "family" as const),
-                ...friends.map(() => "friends" as const),
-                ...hobbies.map(() => "hobbies" as const),
-              ];
-              const uniqueSpheres = [...new Set(sphereTypes)];
-              await sendToAI(message, { spheres: uniqueSpheres });
+              await sendToAI(message, {
+                sferas: {
+                  relationships: profiles.map((p: any) => ({ name: p.name, description: p.description })),
+                  career: jobs.map((j: any) => ({ name: j.name, description: j.description })),
+                  family: familyMembers.map((f: any) => ({ name: f.name, description: f.description })),
+                  friends: friends.map((f: any) => ({ name: f.name, description: f.description })),
+                  hobbies: hobbies.map((h: any) => ({ name: h.name, description: h.description })),
+                },
+              });
             }}
           />
         )}

@@ -51,7 +51,7 @@ export function HomeTransitionLoader() {
   const trackStyle = [
     styles.track,
     { backgroundColor: "rgba(0,0,0,0.3)" },
-  ] as const;
+  ];
 
   return (
     <View style={trackStyle} pointerEvents="none">
