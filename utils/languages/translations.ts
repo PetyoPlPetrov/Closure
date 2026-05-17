@@ -108,6 +108,7 @@ export interface Translations {
   "sferaInsight.noMemories": string;
   "sferaInsight.zeroMemoriesAvailable": string;
   "sferaInsight.addFirstMemory": string;
+  "sferaInsight.createMemoryFromHere": string;
   "sferaInsight.tapToAddMemory": string;
   "sferaInsight.memories": string;
   "sferaInsight.leastInteracted": string;
@@ -3975,6 +3976,7 @@ const translations = {
     "sferaInsight.noMemories": "No memories yet",
     "sferaInsight.zeroMemoriesAvailable": "0 memories available",
     "sferaInsight.addFirstMemory": "Add your first memory",
+    "sferaInsight.createMemoryFromHere": "Create memory from here",
     "sferaInsight.tapToAddMemory": "Tap to add a memory",
     "sferaInsight.memories": "memories",
     "sferaInsight.leastInteracted": "Least interacted",
@@ -8997,6 +8999,7 @@ const translations = {
     "sferaInsight.noMemories": "Няма спомени",
     "sferaInsight.zeroMemoriesAvailable": "0 налични спомена",
     "sferaInsight.addFirstMemory": "Добави първия си спомен",
+    "sferaInsight.createMemoryFromHere": "Създай спомен оттук",
     "sferaInsight.tapToAddMemory": "Натисни, за да добавиш спомен",
     "sferaInsight.memories": "спомена",
     "sferaInsight.leastInteracted": "Най-малко взаимодействие",

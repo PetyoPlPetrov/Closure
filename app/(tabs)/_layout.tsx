@@ -21,6 +21,7 @@ import {
   setPostOnboardingAIWelcomeDismissedThisSession as setPostOnboardingAIWelcomeDismissedThisSessionStorage,
   setShowPostOnboardingAIWelcome,
   setShowWalkthroughAfterOnboarding,
+  subscribeCreateMemoryHint,
 } from "@/utils/onboarding-storage";
 import { useVisualSettings, MAX_COSMIC_BACKGROUND_OPACITY } from "@/utils/VisualSettingsProvider";
 
@@ -317,6 +318,71 @@ export default function TabLayout() {
     emitGuideRecheckAfterWelcomeDismiss(1000);
   }, [showPostOnboardingAIWelcomeUI]);
 
+  // ─── "Create memory from here" hint above AI button ───
+  const [showCreateMemoryHint, setShowCreateMemoryHint] = useState(false);
+  const createMemoryHintOpacity = useRef(new Animated.Value(0)).current;
+  const createMemoryHintPulse = useRef(new Animated.Value(1)).current;
+  const createMemoryHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const createMemoryHintPulseRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeCreateMemoryHint(() => {
+      if (createMemoryHintTimerRef.current) {
+        clearTimeout(createMemoryHintTimerRef.current);
+      }
+      setShowCreateMemoryHint(true);
+      createMemoryHintTimerRef.current = setTimeout(() => {
+        setShowCreateMemoryHint(false);
+      }, 4000);
+    });
+    return () => {
+      unsub();
+      if (createMemoryHintTimerRef.current) {
+        clearTimeout(createMemoryHintTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showCreateMemoryHint) {
+      Animated.timing(createMemoryHintOpacity, {
+        toValue: 1,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+      createMemoryHintPulse.setValue(1);
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(createMemoryHintPulse, {
+            toValue: 1.08,
+            duration: 600,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+          Animated.timing(createMemoryHintPulse, {
+            toValue: 1,
+            duration: 600,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+        ]),
+      );
+      createMemoryHintPulseRef.current = pulse;
+      pulse.start();
+    } else {
+      createMemoryHintPulseRef.current?.stop();
+      createMemoryHintPulseRef.current = null;
+      createMemoryHintPulse.setValue(1);
+      Animated.timing(createMemoryHintOpacity, {
+        toValue: 0,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showCreateMemoryHint, createMemoryHintOpacity, createMemoryHintPulse]);
+
   return (
     <View style={styles.container}>
       {showPostOnboardingAIWelcomeUI && (
@@ -501,6 +567,47 @@ export default function TabLayout() {
             <MaterialIcons
               name="south"
               size={Math.round(36 * fontScale)}
+              color="#FFFFFF"
+            />
+          </Animated.View>
+        )}
+        {/* "Create memory from here" hint — triggered from focused-entities zero-memories view */}
+        {!showPostOnboardingAIWelcomeUI && showCreateMemoryHint && (
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              bottom: aiButtonSize + Math.round(16 * fontScale),
+              alignItems: "center",
+              gap: Math.round(4 * fontScale),
+              opacity: createMemoryHintOpacity,
+              transform: [
+                {
+                  translateY: createMemoryHintOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [10, 0],
+                  }),
+                },
+                { scale: createMemoryHintPulse },
+              ],
+            }}
+          >
+            <ThemedText
+              size="m"
+              weight="bold"
+              style={{
+                color: "#FFFFFF",
+                textAlign: "center",
+                textShadowColor: "rgba(0, 0, 0, 0.8)",
+                textShadowOffset: { width: 0, height: 1 },
+                textShadowRadius: 4,
+              }}
+            >
+              {t("sferaInsight.createMemoryFromHere")}
+            </ThemedText>
+            <MaterialIcons
+              name="south"
+              size={Math.round(28 * fontScale)}
               color="#FFFFFF"
             />
           </Animated.View>

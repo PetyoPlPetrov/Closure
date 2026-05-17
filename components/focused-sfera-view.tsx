@@ -2858,9 +2858,9 @@ const SferaInsightCard = React.memo(function SferaInsightCard({
   const insightCardFilledSurface = (
     <>
       <GestureDetector gesture={insightCardGesture}>
-        <View style={{ flex: 1, minHeight: 0 }} collapsable={false}>
+        <Animated.View style={{ flex: 1, minHeight: 0 }} collapsable={false}>
           {insightCardSwipeArea}
-        </View>
+        </Animated.View>
       </GestureDetector>
       {insightCardPagination}
     </>

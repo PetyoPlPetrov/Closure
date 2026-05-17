@@ -26,6 +26,7 @@ import {
   sferaInsightEmptyEntitiesWarmKey,
   sferaInsightNoMemoriesReflectionKey,
 } from "@/utils/sfera-insight-empty-entities";
+import { emitCreateMemoryHint } from "@/utils/onboarding-storage";
 import { RingPlanetSvg, sphereRingsForScheme } from "@/components/ring-planet";
 import {
   getSphereGradientColors,
@@ -1411,7 +1412,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   if (totalMemoriesCount === 0) {
     return (
       <View style={wrapperStyle} pointerEvents="box-none">
-        {/* Planet */}
+        {/* Planet with hint overlay inside */}
         <View style={{ width: INSIGHT_PLANET_CANVAS, height: INSIGHT_PLANET_CANVAS, alignItems: "center", justifyContent: "center" }}>
           <Animated.View
             pointerEvents="none"
@@ -1436,9 +1437,17 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             planetCanvas={INSIGHT_PLANET_CANVAS}
             planetC={INSIGHT_PLANET_C}
           />
-        </View>
-        <View style={{ alignItems: "center", gap: 8, marginTop: 8, paddingHorizontal: 20 }}>
-          <Pressable onPress={() => onNeedMemoriesHintCenter?.()}>
+          {/* Hint text + button inside the sfera */}
+          <View
+            style={{
+              position: "absolute",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingHorizontal: 24,
+              gap: 8,
+            }}
+            pointerEvents="box-none"
+          >
             <ThemedText
               style={{
                 color: insightInk,
@@ -1450,33 +1459,33 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             >
               {t(sferaInsightNoMemoriesReflectionKey(sphere))}
             </ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={openEntity}
-            style={{
-              borderRadius: 14,
-              borderWidth: 1.25,
-              borderColor: colorScheme === "dark"
-                ? Colors.dark.primary + "88"
-                : Colors.light.primary + "55",
-              backgroundColor: colorScheme === "dark"
-                ? Colors.dark.primary + "22"
-                : Colors.light.primary + "14",
-              paddingHorizontal: 14,
-              paddingVertical: 6,
-            }}
-          >
-            <ThemedText
+            <Pressable
+              onPress={() => emitCreateMemoryHint()}
               style={{
-                color: colorScheme === "dark" ? Colors.dark.primary : Colors.light.primary,
-                fontSize: 11,
-                fontWeight: "700",
-                textAlign: "center",
+                borderRadius: 14,
+                borderWidth: 1.25,
+                borderColor: colorScheme === "dark"
+                  ? Colors.dark.primary + "88"
+                  : Colors.light.primary + "55",
+                backgroundColor: colorScheme === "dark"
+                  ? Colors.dark.primary + "22"
+                  : Colors.light.primary + "14",
+                paddingHorizontal: 14,
+                paddingVertical: 6,
               }}
             >
-              {t("sferaInsight.addFirstMemory")}
-            </ThemedText>
-          </Pressable>
+              <ThemedText
+                style={{
+                  color: colorScheme === "dark" ? Colors.dark.primary : Colors.light.primary,
+                  fontSize: 11,
+                  fontWeight: "700",
+                  textAlign: "center",
+                }}
+              >
+                {t("sferaInsight.addFirstMemory")}
+              </ThemedText>
+            </Pressable>
+          </View>
         </View>
         {showNeedMemoriesHintBelowCard && (
           <View
@@ -1579,7 +1588,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             >
               {/* Entity name — tappable to pause/resume auto-swipe */}
               <GestureDetector gesture={titleTapGesture}>
-              <View
+              <Animated.View
                 style={{ alignItems: "center", gap: 3 }}
                 accessibilityRole="button"
                 accessibilityLabel={`${entityName}. ${isAutoLoopPaused ? "Resume auto-swipe" : "Pause auto-swipe"}`}
@@ -1631,7 +1640,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                     {featuredMemoryTitle}
                   </ThemedText>
                 )}
-              </View>
+              </Animated.View>
               </GestureDetector>
 
               {/* Memory image thumbnails row */}

@@ -105,6 +105,29 @@ export function subscribeGuideRecheckAfterWelcomeDismiss(
   };
 }
 
+// ─── "Create memory from here" hint above AI button ───
+type CreateMemoryHintListener = () => void;
+const createMemoryHintListeners = new Set<CreateMemoryHintListener>();
+
+export function subscribeCreateMemoryHint(
+  listener: CreateMemoryHintListener,
+): () => void {
+  createMemoryHintListeners.add(listener);
+  return () => {
+    createMemoryHintListeners.delete(listener);
+  };
+}
+
+export function emitCreateMemoryHint(): void {
+  createMemoryHintListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      // ignore listener errors
+    }
+  });
+}
+
 export function emitGuideRecheckAfterWelcomeDismiss(delayMs = 1000): void {
   setTimeout(() => {
     guideRecheckAfterWelcomeDismissListeners.forEach((listener) => {
