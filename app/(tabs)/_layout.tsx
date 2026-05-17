@@ -1,3 +1,4 @@
+import { useDemoMode } from "@/utils/DemoModeProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useGlobalSearchParams } from "expo-router";
@@ -108,6 +109,7 @@ export default function TabLayout() {
   const { cosmicBackgroundOpacity } = useVisualSettings();
   const fontScale = useFontScale();
   const t = useTranslate();
+  const { isDemoMode } = useDemoMode();
   const insets = useSafeAreaInsets();
   const { idealizedMemories } = useJourney();
   const globalParams = useGlobalSearchParams<{ insightsReturnPath?: string | string[] }>();
@@ -612,6 +614,7 @@ export default function TabLayout() {
             />
           </Animated.View>
         )}
+        {!isDemoMode && (
         <View style={{ pointerEvents: "auto" }}>
           <AITabButton
             size={aiButtonSize}
@@ -619,6 +622,7 @@ export default function TabLayout() {
             onPressed={handleAIButtonPressForWelcome}
           />
         </View>
+        )}
       </View>
     </View>
   );

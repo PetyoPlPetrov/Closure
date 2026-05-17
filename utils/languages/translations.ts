@@ -223,6 +223,25 @@ export interface Translations {
   "settings.devTools.initialOnboarding.button": string;
   "settings.devTools.initialOnboarding.hint": string;
   "settings.devTools.initialOnboarding.loading": string;
+  "settings.demoMode.enterTitle": string;
+  "settings.demoMode.enterMessage": string;
+  "settings.demoMode.enterButton": string;
+  "settings.demoMode.enterHint": string;
+  "settings.demoMode.entering": string;
+  "settings.demoMode.enterError": string;
+  "settings.demoMode.exitTitle": string;
+  "settings.demoMode.exitMessage": string;
+  "settings.demoMode.exitButton": string;
+  "settings.demoMode.exitError": string;
+  "settings.demoMode.activeTitle": string;
+  "settings.demoMode.activeMessage": string;
+  "settings.demoMode.activeHint": string;
+  "settings.demoMode.hasDataTitle": string;
+  "settings.demoMode.hasDataMessage": string;
+  "settings.demoMode.readonlyTitle": string;
+  "settings.demoMode.readonlyMessage": string;
+  "settings.demoMode.bannerText": string;
+  "settings.demoMode.cleaningUp": string;
   "settings.appVersion": string;
   "settings.deviceRegion": string;
   "settings.deviceRegionTown": string;
@@ -334,6 +353,7 @@ export interface Translations {
   "common.selectDate": string;
   "common.confirmDelete": string;
   "common.saving": string;
+  "common.stop": string;
   "common.photo": string;
   "common.addPhoto": string;
   "common.permissionRequired": string;
@@ -4187,6 +4207,25 @@ const translations = {
     "settings.devTools.initialOnboarding.hint":
       "Delete all app data to enable this button. When enabled, tap to start the initial onboarding flow.",
     "settings.devTools.initialOnboarding.loading": "Loading...",
+    "settings.demoMode.enterTitle": "Enter Demo Mode",
+    "settings.demoMode.enterMessage": "Demo mode lets you explore the app with sample data. All features are read-only — no creating, editing, or using AI. When you exit, all demo data will be removed.",
+    "settings.demoMode.enterButton": "Try Demo",
+    "settings.demoMode.enterHint": "Explore the app with sample data",
+    "settings.demoMode.entering": "Setting up demo...",
+    "settings.demoMode.enterError": "Failed to set up demo mode. Please try again.",
+    "settings.demoMode.exitTitle": "Exit Demo Mode",
+    "settings.demoMode.exitMessage": "This will delete all demo data and return the app to normal mode.",
+    "settings.demoMode.exitButton": "Exit Demo",
+    "settings.demoMode.exitError": "Failed to exit demo mode. Please try again.",
+    "settings.demoMode.activeTitle": "Demo Mode Active",
+    "settings.demoMode.activeMessage": "You can now browse the app with sample data. Everything is read-only. Go to Settings to exit demo mode when you're done.",
+    "settings.demoMode.activeHint": "Currently in demo mode — read only",
+    "settings.demoMode.hasDataTitle": "Cannot Enter Demo",
+    "settings.demoMode.hasDataMessage": "Demo mode can only be activated when the app has no existing data. Please clear your data first from the developer tools.",
+    "settings.demoMode.readonlyTitle": "Demo Mode",
+    "settings.demoMode.readonlyMessage": "This action is not available in demo mode. Exit demo mode from Settings to use the full app.",
+    "settings.demoMode.bannerText": "Demo Mode — Read Only",
+    "settings.demoMode.cleaningUp": "Removing demo data...",
     "settings.appVersion": "App version",
     "settings.deviceRegion": "Device region",
     "settings.deviceRegionTown": "Town",
@@ -4312,6 +4351,7 @@ const translations = {
     "common.required": "Required",
     "common.selectDate": "Select date",
     "common.confirmDelete": "Are you sure you want to delete this?",
+    "common.stop": "Stop",
     "common.saving": "Saving...",
     "common.photo": "Photo",
     "common.addPhoto": "Add Photo",
@@ -9217,6 +9257,25 @@ const translations = {
     "settings.devTools.initialOnboarding.hint":
       "Изтрийте всички данни от приложението, за да активирате този бутон. Когато е активиран, натиснете, за да стартирате началното въвеждане.",
     "settings.devTools.initialOnboarding.loading": "Зареждане...",
+    "settings.demoMode.enterTitle": "Демо режим",
+    "settings.demoMode.enterMessage": "Демо режимът позволява да разгледате приложението с примерни данни. Всички функции са само за четене — без създаване, редактиране или AI. Когато излезете, всички демо данни ще бъдат изтрити.",
+    "settings.demoMode.enterButton": "Опитай демо",
+    "settings.demoMode.enterHint": "Разгледай приложението с примерни данни",
+    "settings.demoMode.entering": "Подготовка на демо...",
+    "settings.demoMode.enterError": "Неуспешно стартиране на демо режим. Моля, опитайте отново.",
+    "settings.demoMode.exitTitle": "Излез от демо режим",
+    "settings.demoMode.exitMessage": "Това ще изтрие всички демо данни и ще върне приложението в нормален режим.",
+    "settings.demoMode.exitButton": "Излез от демо",
+    "settings.demoMode.exitError": "Неуспешно излизане от демо режим. Моля, опитайте отново.",
+    "settings.demoMode.activeTitle": "Демо режимът е активен",
+    "settings.demoMode.activeMessage": "Можете да разгледате приложението с примерни данни. Всичко е само за четене. Отидете в Настройки, за да излезете от демо режим.",
+    "settings.demoMode.activeHint": "В момента сте в демо режим — само за четене",
+    "settings.demoMode.hasDataTitle": "Не може да влезете в демо",
+    "settings.demoMode.hasDataMessage": "Демо режимът може да бъде активиран само когато приложението няма съществуващи данни. Моля, изтрийте данните си първо.",
+    "settings.demoMode.readonlyTitle": "Демо режим",
+    "settings.demoMode.readonlyMessage": "Това действие не е достъпно в демо режим. Излезте от демо режим от Настройки, за да използвате пълното приложение.",
+    "settings.demoMode.bannerText": "Демо режим — Само за четене",
+    "settings.demoMode.cleaningUp": "Премахване на демо данни...",
     "settings.appVersion": "Версия на приложението",
     "settings.deviceRegion": "Регион на устройството",
     "settings.deviceRegionTown": "Град",
@@ -9336,6 +9395,7 @@ const translations = {
     "common.error": "Грешка",
     "common.loading": "Зареждане...",
     "common.retry": "Опитай отново",
+    "common.stop": "Спри",
     "common.photo": "Снимка",
     "common.addPhoto": "Добави снимка",
     "common.permissionRequired": "Необходимо разрешение",

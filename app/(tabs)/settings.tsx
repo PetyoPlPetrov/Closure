@@ -18,6 +18,7 @@ import {
   clearCachedOnboardingResponse,
   setShowWalkthroughAfterOnboarding,
 } from "@/utils/onboarding-storage";
+import { useDemoMode, FAKE_ENTITY_NAMES, cleanupFakeData } from "@/utils/DemoModeProvider";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import { useSplash } from "@/utils/SplashAnimationProvider";
 import { type AppVersionInfo, getAppVersionInfo } from "@/utils/updates";
@@ -64,11 +65,6 @@ export default function SettingsScreen() {
     idealizedMemories,
     getIdealizedMemoriesByProfileId,
     getIdealizedMemoriesByEntityId,
-    deleteProfile,
-    deleteJob,
-    deleteFamilyMember,
-    deleteFriend,
-    deleteHobby,
     reloadIdealizedMemories,
     reloadProfiles,
     reloadJobs,
@@ -92,6 +88,7 @@ export default function SettingsScreen() {
     replaySplashAnimation,
   } = useSplash();
   const t = useTranslate();
+  const { isDemoMode, isCreatingDemo, setDemoModeActive, markDemoCreating, clearDemoCreating, setIsCreatingDemo, demoStopRequestedRef } = useDemoMode();
 
   const totalEntities =
     profiles.length +
@@ -334,20 +331,7 @@ export default function SettingsScreen() {
     }
   }, []);
 
-  const FAKE_ENTITY_NAMES = useMemo(() => new Set([
-    // Profiles
-    "Mark Johnson", "Emma Williams", "Olivia Brown", "Sophia Martinez", "James Wilson",
-    // Jobs
-    "Software Developer at TechCorp", "Senior Developer at StartupXYZ",
-    "Lead Engineer at CurrentCompany", "Junior Developer at WebSolutions",
-    "Full Stack Developer at DigitalAgency",
-    // Family
-    "Sarah Johnson", "Michael Johnson", "Maria Johnson", "Robert Johnson", "Emily Johnson",
-    // Friends
-    "Alex Thompson", "Jessica Martinez", "David Chen", "Sophie Anderson", "Ryan Taylor", "Maya Patel",
-    // Hobbies
-    "Photography", "Reading", "Cooking", "Hiking", "Yoga", "Painting",
-  ]), []);
+  // FAKE_ENTITY_NAMES imported from DemoModeProvider
 
   const [isDeletingFakeData, setIsDeletingFakeData] = useState(false);
 
@@ -365,40 +349,64 @@ export default function SettingsScreen() {
           onPress: async () => {
             setIsDeletingFakeData(true);
             try {
-              let deletedEntities = 0;
+              // Read directly from storage to avoid stale closure issues
+              // when deleting multiple entities sequentially
+              const [storedProfiles, storedJobs, storedFamily, storedFriends, storedHobbies, storedMemories] =
+                await Promise.all([
+                  AsyncStorage.getItem("@sferas:ex_profiles"),
+                  AsyncStorage.getItem("@sferas:jobs"),
+                  AsyncStorage.getItem("@sferas:family_members"),
+                  AsyncStorage.getItem("@sferas:friends"),
+                  AsyncStorage.getItem("@sferas:hobbies"),
+                  AsyncStorage.getItem("@sferas:idealized_memories"),
+                ]);
 
-              // Delete fake entities - each delete cascades to remove
-              // associated memories, moments, lessons, and AI summaries
-              for (const p of profiles) {
-                if (FAKE_ENTITY_NAMES.has(p.name)) {
-                  await deleteProfile(p.id);
-                  deletedEntities++;
-                }
-              }
-              for (const j of jobs) {
-                if (FAKE_ENTITY_NAMES.has(j.name)) {
-                  await deleteJob(j.id);
-                  deletedEntities++;
-                }
-              }
-              for (const f of familyMembers) {
-                if (FAKE_ENTITY_NAMES.has(f.name)) {
-                  await deleteFamilyMember(f.id);
-                  deletedEntities++;
-                }
-              }
-              for (const f of friends) {
-                if (FAKE_ENTITY_NAMES.has(f.name)) {
-                  await deleteFriend(f.id);
-                  deletedEntities++;
-                }
-              }
-              for (const h of hobbies) {
-                if (FAKE_ENTITY_NAMES.has(h.name)) {
-                  await deleteHobby(h.id);
-                  deletedEntities++;
-                }
-              }
+              const allProfiles = storedProfiles ? JSON.parse(storedProfiles) : [];
+              const allJobs = storedJobs ? JSON.parse(storedJobs) : [];
+              const allFamily = storedFamily ? JSON.parse(storedFamily) : [];
+              const allFriends = storedFriends ? JSON.parse(storedFriends) : [];
+              const allHobbies = storedHobbies ? JSON.parse(storedHobbies) : [];
+              const allMemories = storedMemories ? JSON.parse(storedMemories) : [];
+
+              // Collect IDs of fake entities to delete
+              const fakeProfileIds = new Set(allProfiles.filter((p: any) => FAKE_ENTITY_NAMES.has(p.name)).map((p: any) => p.id));
+              const fakeJobIds = new Set(allJobs.filter((j: any) => FAKE_ENTITY_NAMES.has(j.name)).map((j: any) => j.id));
+              const fakeFamilyIds = new Set(allFamily.filter((f: any) => FAKE_ENTITY_NAMES.has(f.name)).map((f: any) => f.id));
+              const fakeFriendIds = new Set(allFriends.filter((f: any) => FAKE_ENTITY_NAMES.has(f.name)).map((f: any) => f.id));
+              const fakeHobbyIds = new Set(allHobbies.filter((h: any) => FAKE_ENTITY_NAMES.has(h.name)).map((h: any) => h.id));
+
+              const allFakeEntityIds = new Set([...Array.from(fakeProfileIds), ...Array.from(fakeJobIds), ...Array.from(fakeFamilyIds), ...Array.from(fakeFriendIds), ...Array.from(fakeHobbyIds)]);
+              const deletedEntities = allFakeEntityIds.size;
+
+              // Filter out entities
+              const keptProfiles = allProfiles.filter((p: any) => !fakeProfileIds.has(p.id));
+              const keptJobs = allJobs.filter((j: any) => !fakeJobIds.has(j.id));
+              const keptFamily = allFamily.filter((f: any) => !fakeFamilyIds.has(f.id));
+              const keptFriends = allFriends.filter((f: any) => !fakeFriendIds.has(f.id));
+              const keptHobbies = allHobbies.filter((h: any) => !fakeHobbyIds.has(h.id));
+
+              // Filter out memories belonging to fake entities
+              const keptMemories = allMemories.filter((m: any) => !allFakeEntityIds.has(m.entityId) && !allFakeEntityIds.has(m.profileId));
+
+              // Write all filtered data back to storage in one batch
+              await Promise.all([
+                AsyncStorage.setItem("@sferas:ex_profiles", JSON.stringify(keptProfiles)),
+                AsyncStorage.setItem("@sferas:jobs", JSON.stringify(keptJobs)),
+                AsyncStorage.setItem("@sferas:family_members", JSON.stringify(keptFamily)),
+                AsyncStorage.setItem("@sferas:friends", JSON.stringify(keptFriends)),
+                AsyncStorage.setItem("@sferas:hobbies", JSON.stringify(keptHobbies)),
+                AsyncStorage.setItem("@sferas:idealized_memories", JSON.stringify(keptMemories)),
+              ]);
+
+              // Reload state from storage
+              await Promise.all([
+                reloadProfiles(),
+                reloadJobs(),
+                reloadFamilyMembers(),
+                reloadFriends(),
+                reloadHobbies(),
+                reloadIdealizedMemories(),
+              ]);
 
               Alert.alert(
                 t("common.success"),
@@ -415,10 +423,136 @@ export default function SettingsScreen() {
       ],
     );
   }, [
-    isDeletingFakeData, profiles, jobs, familyMembers, friends, hobbies,
-    FAKE_ENTITY_NAMES, deleteProfile, deleteJob,
-    deleteFamilyMember, deleteFriend, deleteHobby, t,
+    isDeletingFakeData, FAKE_ENTITY_NAMES,
+    reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies,
+    reloadIdealizedMemories, t,
   ]);
+
+  const handleEnterDemoMode = async () => {
+    if (isCreatingDemo || isDemoMode) return;
+    Alert.alert(
+      t("settings.demoMode.enterTitle"),
+      t("settings.demoMode.enterMessage"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("settings.demoMode.enterButton"),
+          onPress: async () => {
+            setIsCreatingDemo(true);
+            demoStopRequestedRef.current = false;
+            await markDemoCreating();
+            try {
+              // Generate fake data first, then activate demo mode
+              await generateFakeData();
+              if (demoStopRequestedRef.current) {
+                // User pressed stop — clean up partial data
+                await cleanupFakeData();
+                await reloadProfiles();
+                await reloadJobs();
+                await reloadFamilyMembers();
+                await reloadFriends();
+                await reloadHobbies();
+                await reloadIdealizedMemories();
+                return;
+              }
+              await clearDemoCreating();
+              await setDemoModeActive(true);
+              Alert.alert(
+                t("settings.demoMode.activeTitle"),
+                t("settings.demoMode.activeMessage"),
+                [{ text: t("common.ok") }],
+              );
+            } catch (_error) {
+              if (!demoStopRequestedRef.current) {
+                Alert.alert(t("common.error"), t("settings.demoMode.enterError"));
+              }
+              // Clean up partial data on error or stop
+              try {
+                await cleanupFakeData();
+                await reloadProfiles();
+                await reloadJobs();
+                await reloadFamilyMembers();
+                await reloadFriends();
+                await reloadHobbies();
+                await reloadIdealizedMemories();
+              } catch (_cleanupError) {
+                // best effort
+              }
+            } finally {
+              setIsCreatingDemo(false);
+              demoStopRequestedRef.current = false;
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleExitDemoMode = async () => {
+    if (!isDemoMode) return;
+    Alert.alert(
+      t("settings.demoMode.exitTitle"),
+      t("settings.demoMode.exitMessage"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("settings.demoMode.exitButton"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Read directly from storage and batch-delete fake entities
+              const [storedProfiles, storedJobs, storedFamily, storedFriends, storedHobbies, storedMemories] =
+                await Promise.all([
+                  AsyncStorage.getItem("@sferas:ex_profiles"),
+                  AsyncStorage.getItem("@sferas:jobs"),
+                  AsyncStorage.getItem("@sferas:family_members"),
+                  AsyncStorage.getItem("@sferas:friends"),
+                  AsyncStorage.getItem("@sferas:hobbies"),
+                  AsyncStorage.getItem("@sferas:idealized_memories"),
+                ]);
+
+              const allProfiles = storedProfiles ? JSON.parse(storedProfiles) : [];
+              const allJobs = storedJobs ? JSON.parse(storedJobs) : [];
+              const allFamily = storedFamily ? JSON.parse(storedFamily) : [];
+              const allFriends = storedFriends ? JSON.parse(storedFriends) : [];
+              const allHobbies = storedHobbies ? JSON.parse(storedHobbies) : [];
+              const allMemories = storedMemories ? JSON.parse(storedMemories) : [];
+
+              const fakeEntityIds = new Set([
+                ...allProfiles.filter((p: any) => FAKE_ENTITY_NAMES.has(p.name)).map((p: any) => p.id),
+                ...allJobs.filter((j: any) => FAKE_ENTITY_NAMES.has(j.name)).map((j: any) => j.id),
+                ...allFamily.filter((f: any) => FAKE_ENTITY_NAMES.has(f.name)).map((f: any) => f.id),
+                ...allFriends.filter((f: any) => FAKE_ENTITY_NAMES.has(f.name)).map((f: any) => f.id),
+                ...allHobbies.filter((h: any) => FAKE_ENTITY_NAMES.has(h.name)).map((h: any) => h.id),
+              ]);
+
+              await Promise.all([
+                AsyncStorage.setItem("@sferas:ex_profiles", JSON.stringify(allProfiles.filter((p: any) => !fakeEntityIds.has(p.id)))),
+                AsyncStorage.setItem("@sferas:jobs", JSON.stringify(allJobs.filter((j: any) => !fakeEntityIds.has(j.id)))),
+                AsyncStorage.setItem("@sferas:family_members", JSON.stringify(allFamily.filter((f: any) => !fakeEntityIds.has(f.id)))),
+                AsyncStorage.setItem("@sferas:friends", JSON.stringify(allFriends.filter((f: any) => !fakeEntityIds.has(f.id)))),
+                AsyncStorage.setItem("@sferas:hobbies", JSON.stringify(allHobbies.filter((h: any) => !fakeEntityIds.has(h.id)))),
+                AsyncStorage.setItem("@sferas:idealized_memories", JSON.stringify(allMemories.filter((m: any) => !fakeEntityIds.has(m.entityId) && !fakeEntityIds.has(m.profileId)))),
+              ]);
+
+              await Promise.all([
+                reloadProfiles(),
+                reloadJobs(),
+                reloadFamilyMembers(),
+                reloadFriends(),
+                reloadHobbies(),
+                reloadIdealizedMemories(),
+              ]);
+
+              await setDemoModeActive(false);
+            } catch (_error) {
+              Alert.alert(t("common.error"), t("settings.demoMode.exitError"));
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const generateFakeData = async () => {
     if (isGeneratingFakeData) return;
@@ -2186,6 +2320,63 @@ export default function SettingsScreen() {
               {t("settings.yourData.title")}
             </ThemedText>
           </Pressable>
+
+          {/* Demo Mode - visible to all users */}
+          {isDemoMode ? (
+            <TouchableOpacity
+              style={[styles.dropdown, { borderColor: '#FF6B6B', borderWidth: 1.5 }]}
+              onPress={handleExitDemoMode}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dropdownContent}>
+                <MaterialIcons
+                  name="visibility-off"
+                  size={24 * fontScale}
+                  color="#FF6B6B"
+                />
+                <View style={{ flex: 1 }}>
+                  <ThemedText size="l" style={[styles.dropdownText, { color: '#FF6B6B' }]}>
+                    {t("settings.demoMode.exitButton")}
+                  </ThemedText>
+                  <ThemedText size="sm" style={{ opacity: 0.7 }}>
+                    {t("settings.demoMode.activeHint")}
+                  </ThemedText>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.dropdown, isCreatingDemo && { opacity: 0.5 }]}
+              onPress={handleEnterDemoMode}
+              activeOpacity={0.7}
+              disabled={isCreatingDemo}
+            >
+              <View style={styles.dropdownContent}>
+                <MaterialIcons
+                  name="visibility"
+                  size={24 * fontScale}
+                  color={colors.icon}
+                />
+                <View style={{ flex: 1 }}>
+                  <ThemedText size="l" style={styles.dropdownText}>
+                    {isCreatingDemo
+                      ? t("settings.demoMode.entering")
+                      : t("settings.demoMode.enterButton")}
+                  </ThemedText>
+                  <ThemedText size="sm" style={{ opacity: 0.6 }}>
+                    {t("settings.demoMode.enterHint")}
+                  </ThemedText>
+                </View>
+              </View>
+              {isCreatingDemo && (
+                <MaterialIcons
+                  name="hourglass-empty"
+                  size={24 * fontScale}
+                  color={colors.text}
+                />
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Generate Fake Data - hidden in prod, tap "Your Data" title 7 times to reveal */}
           {(__DEV__ || devToolsVisible) && (

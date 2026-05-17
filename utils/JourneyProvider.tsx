@@ -2,6 +2,7 @@ import { logEntityCreated, logMemoryCreated, logMemoryDeleted, logMomentCreated 
 import { deleteSummariesByMemoryIds } from '@/utils/moment-notification-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useDemoMode, FAKE_ENTITY_NAMES } from '@/utils/DemoModeProvider';
 import { showPaywallForAnySubscriptionAccess } from '@/utils/premium-access';
 import { useSubscription } from '@/utils/SubscriptionProvider';
 
@@ -347,6 +348,7 @@ interface JourneyProviderProps {
 
 export function JourneyProvider({ children }: JourneyProviderProps) {
   const { hasPlusEntitlement, hasAIEntitlement, checkSubscription } = useSubscription();
+  const { isDemoMode } = useDemoMode();
   const [profiles, isLoading, error, setProfiles] = useProfiles();
 
   // Refs so addIdealizedMemory can call update functions defined later in this scope
@@ -1969,44 +1971,142 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     }
   }, [saveIdealizedMemoriesToStorage]);
 
+  // --- Demo mode: filter to only show fake entities and their memories ---
+  const isFake = useCallback((name: string) => FAKE_ENTITY_NAMES.has(name), []);
+
+  const demoProfiles = useMemo(
+    () => isDemoMode ? profiles.filter(p => isFake(p.name)) : profiles,
+    [isDemoMode, profiles, isFake],
+  );
+  const demoJobs = useMemo(
+    () => isDemoMode ? jobs.filter(j => isFake(j.name)) : jobs,
+    [isDemoMode, jobs, isFake],
+  );
+  const demoFamilyMembers = useMemo(
+    () => isDemoMode ? familyMembers.filter(m => isFake(m.name)) : familyMembers,
+    [isDemoMode, familyMembers, isFake],
+  );
+  const demoFriends = useMemo(
+    () => isDemoMode ? friends.filter(f => isFake(f.name)) : friends,
+    [isDemoMode, friends, isFake],
+  );
+  const demoHobbies = useMemo(
+    () => isDemoMode ? hobbies.filter(h => isFake(h.name)) : hobbies,
+    [isDemoMode, hobbies, isFake],
+  );
+
+  // Collect visible entity IDs for memory filtering
+  const visibleEntityIds = useMemo(() => {
+    if (!isDemoMode) return null; // null = no filtering
+    const ids = new Set<string>();
+    demoProfiles.forEach(p => ids.add(p.id));
+    demoJobs.forEach(j => ids.add(j.id));
+    demoFamilyMembers.forEach(m => ids.add(m.id));
+    demoFriends.forEach(f => ids.add(f.id));
+    demoHobbies.forEach(h => ids.add(h.id));
+    return ids;
+  }, [isDemoMode, demoProfiles, demoJobs, demoFamilyMembers, demoFriends, demoHobbies]);
+
+  const demoMemories = useMemo(
+    () => visibleEntityIds
+      ? idealizedMemories.filter(m => visibleEntityIds.has(m.entityId) || visibleEntityIds.has(m.profileId || ''))
+      : idealizedMemories,
+    [visibleEntityIds, idealizedMemories],
+  );
+
+  // Wrap getter functions for demo mode filtering
+  const demoGetOverallSunnyPercentage = useCallback(() => {
+    if (!isDemoMode) return getOverallSunnyPercentage();
+    // Compute from filtered data only
+    if (demoMemories.length === 0) {
+      const total = demoProfiles.length + demoJobs.length + demoFamilyMembers.length + demoFriends.length + demoHobbies.length;
+      return total > 0 ? 50 : 0;
+    }
+    let totalClouds = 0;
+    let totalSuns = 0;
+    demoMemories.forEach(m => {
+      totalClouds += (m.hardTruths || []).length;
+      totalSuns += (m.goodFacts || []).length;
+    });
+    const total = totalClouds + totalSuns;
+    if (total === 0) return 50;
+    return Math.max(0, Math.min(100, (totalSuns / total) * 100));
+  }, [isDemoMode, getOverallSunnyPercentage, demoMemories, demoProfiles, demoJobs, demoFamilyMembers, demoFriends, demoHobbies]);
+
+  const demoGetHasRealMomentDataForSunCelebration = useCallback(() => {
+    if (!isDemoMode) return getHasRealMomentDataForSunCelebration();
+    return demoMemories.some(m => {
+      const suns = (m.goodFacts || []).length;
+      const clouds = (m.hardTruths || []).length;
+      return suns + clouds > 0;
+    });
+  }, [isDemoMode, getHasRealMomentDataForSunCelebration, demoMemories]);
+
+  const demoGetEntitiesBySphere = useCallback(
+    (sphere: LifeSphere) => {
+      const result = getEntitiesBySphere(sphere);
+      if (!isDemoMode) return result;
+      return result.filter(e => FAKE_ENTITY_NAMES.has(e.name));
+    },
+    [getEntitiesBySphere, isDemoMode],
+  );
+
+  const demoGetIdealizedMemoriesByEntityId = useCallback(
+    (entityId: string, sphere: LifeSphere) => {
+      const result = getIdealizedMemoriesByEntityId(entityId, sphere);
+      if (!isDemoMode || !visibleEntityIds) return result;
+      return visibleEntityIds.has(entityId) ? result : [];
+    },
+    [getIdealizedMemoriesByEntityId, isDemoMode, visibleEntityIds],
+  );
+
+  const demoGetIdealizedMemoriesByProfileId = useCallback(
+    (profileId: string) => {
+      const result = getIdealizedMemoriesByProfileId(profileId);
+      if (!isDemoMode || !visibleEntityIds) return result;
+      return visibleEntityIds.has(profileId) ? result : [];
+    },
+    [getIdealizedMemoriesByProfileId, isDemoMode, visibleEntityIds],
+  );
+
   const value: JourneyContextType = useMemo(() => ({
-    profiles,
+    profiles: demoProfiles,
     isLoading: isLoading || isLoadingJobs || isLoadingFamily || isLoadingFriends || isLoadingHobbies,
     error,
     addProfile,
     updateProfile,
     deleteProfile,
     getProfile,
-    jobs,
+    jobs: demoJobs,
     addJob,
     updateJob,
     deleteJob,
     getJob,
-    familyMembers,
+    familyMembers: demoFamilyMembers,
     addFamilyMember,
     updateFamilyMember,
     deleteFamilyMember,
     getFamilyMember,
-    friends,
+    friends: demoFriends,
     addFriend,
     updateFriend,
     deleteFriend,
     getFriend,
-    hobbies,
+    hobbies: demoHobbies,
     addHobby,
     updateHobby,
     deleteHobby,
     getHobby,
-    idealizedMemories,
+    idealizedMemories: demoMemories,
     addIdealizedMemory,
     updateIdealizedMemory,
     setLessonFavorite,
     deleteIdealizedMemory,
-    getIdealizedMemoriesByEntityId,
-    getIdealizedMemoriesByProfileId, // Backward compatibility
-    getEntitiesBySphere,
-    getOverallSunnyPercentage,
-    getHasRealMomentDataForSunCelebration,
+    getIdealizedMemoriesByEntityId: demoGetIdealizedMemoriesByEntityId,
+    getIdealizedMemoriesByProfileId: demoGetIdealizedMemoriesByProfileId,
+    getEntitiesBySphere: demoGetEntitiesBySphere,
+    getOverallSunnyPercentage: demoGetOverallSunnyPercentage,
+    getHasRealMomentDataForSunCelebration: demoGetHasRealMomentDataForSunCelebration,
     reloadIdealizedMemories: loadIdealizedMemories,
     reloadProfiles,
     reloadJobs,
@@ -2016,16 +2116,16 @@ export function JourneyProvider({ children }: JourneyProviderProps) {
     reloadAll,
     cleanupOrphanedMemories,
   }), [
-    profiles, isLoading, isLoadingJobs, isLoadingFamily, isLoadingFriends, isLoadingHobbies,
+    demoProfiles, isLoading, isLoadingJobs, isLoadingFamily, isLoadingFriends, isLoadingHobbies,
     error,
     addProfile, updateProfile, deleteProfile, getProfile,
-    jobs, addJob, updateJob, deleteJob, getJob,
-    familyMembers, addFamilyMember, updateFamilyMember, deleteFamilyMember, getFamilyMember,
-    friends, addFriend, updateFriend, deleteFriend, getFriend,
-    hobbies, addHobby, updateHobby, deleteHobby, getHobby,
-    idealizedMemories, addIdealizedMemory, updateIdealizedMemory, setLessonFavorite, deleteIdealizedMemory,
-    getIdealizedMemoriesByEntityId, getIdealizedMemoriesByProfileId,
-    getEntitiesBySphere, getOverallSunnyPercentage, getHasRealMomentDataForSunCelebration,
+    demoJobs, addJob, updateJob, deleteJob, getJob,
+    demoFamilyMembers, addFamilyMember, updateFamilyMember, deleteFamilyMember, getFamilyMember,
+    demoFriends, addFriend, updateFriend, deleteFriend, getFriend,
+    demoHobbies, addHobby, updateHobby, deleteHobby, getHobby,
+    demoMemories, addIdealizedMemory, updateIdealizedMemory, setLessonFavorite, deleteIdealizedMemory,
+    demoGetIdealizedMemoriesByEntityId, demoGetIdealizedMemoriesByProfileId,
+    demoGetEntitiesBySphere, demoGetOverallSunnyPercentage, demoGetHasRealMomentDataForSunCelebration,
     loadIdealizedMemories, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies,
     reloadAll, cleanupOrphanedMemories,
   ]);

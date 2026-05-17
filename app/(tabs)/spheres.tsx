@@ -1,3 +1,4 @@
+import { useDemoMode } from "@/utils/DemoModeProvider";
 import { AIActionModal } from "@/components/ai-action-modal";
 import { ConstellationBackground } from "@/components/constellation-background";
 import { AIEntityCreationModal } from "@/components/ai-entity-creation-modal";
@@ -107,6 +108,7 @@ export default function SpheresScreen() {
     ensureSubscriptionResolved,
   } = useSubscription();
   const t = useTranslate();
+  const { isDemoMode } = useDemoMode();
   const aiConsent = useAIInsightsConsent();
   const aiMemoryModal = useAIMemoryModal();
 
@@ -219,9 +221,10 @@ export default function SpheresScreen() {
   const pendingAIIconActionRef = useRef<null | "open_ai">(null);
 
   const openEntityAIModal = useCallback(() => {
+    if (isDemoMode) { showDemoModeAlert(); return; }
     setAiActionModalVisible(false);
     setAiEntityCreationModalVisible(true);
-  }, []);
+  }, [isDemoMode]);
 
   // Poll for pending entity creation response
   useEffect(() => {
@@ -1607,7 +1610,16 @@ export default function SpheresScreen() {
     }
   };
 
+  const showDemoModeAlert = () => {
+    Alert.alert(
+      t("settings.demoMode.readonlyTitle"),
+      t("settings.demoMode.readonlyMessage"),
+      [{ text: t("common.ok") }],
+    );
+  };
+
   const handleMorePress = (profile: ExProfile) => {
+    if (isDemoMode) { showDemoModeAlert(); return; }
     router.push({
       pathname: "/edit-profile",
       params: { profileId: profile.id },
@@ -1615,6 +1627,7 @@ export default function SpheresScreen() {
   };
 
   const handleAddEntity = (sphere: LifeSphere) => {
+    if (isDemoMode) { showDemoModeAlert(); return; }
     // Paywall is shown on Save in add-entity screens, not here
     switch (sphere) {
       case "relationships":
@@ -1705,6 +1718,7 @@ export default function SpheresScreen() {
   }
 
   const handleJobMorePress = (job: Job) => {
+    if (isDemoMode) { showDemoModeAlert(); return; }
     router.push({
       pathname: "/edit-job",
       params: {
@@ -1946,6 +1960,7 @@ export default function SpheresScreen() {
   // Show family members view when family sphere is selected
   if (selectedSphere === "family") {
     const handleFamilyMemberMorePress = (member: FamilyMember) => {
+      if (isDemoMode) { showDemoModeAlert(); return; }
       router.push({
         pathname: "/edit-family-member",
         params: { memberId: member.id },
@@ -2117,6 +2132,7 @@ export default function SpheresScreen() {
 
   if (selectedSphere === "friends") {
     const handleFriendMorePress = (friend: Friend) => {
+      if (isDemoMode) { showDemoModeAlert(); return; }
       router.push({
         pathname: "/edit-friend",
         params: { friendId: friend.id },
@@ -2283,6 +2299,7 @@ export default function SpheresScreen() {
 
   if (selectedSphere === "hobbies") {
     const handleHobbyMorePress = (hobby: Hobby) => {
+      if (isDemoMode) { showDemoModeAlert(); return; }
       router.push({
         pathname: "/edit-hobby",
         params: { hobbyId: hobby.id },

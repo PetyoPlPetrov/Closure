@@ -5,6 +5,7 @@
  * The central avatar shows sunny vs cloudy percentage for the specific sphere.
  */
 
+import { useDemoMode } from "@/utils/DemoModeProvider";
 import {
   ConstellationBackground,
   sampleCornerBiasedPosition,
@@ -867,6 +868,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 }) {
   const t = useTranslate();
   const { momentColors } = useMomentColors();
+  const { isDemoMode: isDemoModeInsightCard } = useDemoMode();
   // relationships: only general comparisons (least/most memories, most cloudy/sunny) — no time-based modes
   // career: hide interaction modes (0-2) — processing sphere, not an active social one
   // hobbies: hide mood modes (4-5) — cloudy/sunny framing doesn't fit activities
@@ -1799,8 +1801,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         ) : <View style={{ width: 48 }} />}
       </View>
 
-      {/* Notification bell — below the planet */}
-      {showReminderBell && (
+      {/* Notification bell — below the planet (hidden in demo mode) */}
+      {showReminderBell && !isDemoModeInsightCard && (
         <Animated.View style={[insightCardAnimStyle, { alignSelf: "center" }]}>
           <Pressable
             onPress={() => {

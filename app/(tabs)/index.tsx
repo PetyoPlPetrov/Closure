@@ -1,3 +1,4 @@
+import { useDemoMode } from "@/utils/DemoModeProvider";
 import { AIInsightsConsentModal } from "@/components/ai-insights-consent-modal";
 import { ConstellationBackground } from "@/components/constellation-background";
 import { ExpandableMenuButton } from "@/components/expandable-menu-button";
@@ -14344,6 +14345,7 @@ export default function HomeScreen() {
   } = useJourney();
   const { hasAIEntitlement } = useSubscription();
   const t = useTranslate();
+  const { isDemoMode } = useDemoMode();
   const { language: appLanguage } = useLanguage();
   const appLang = appLanguage === "bg" ? "bg" : "en";
   const aiConsent = useAIInsightsConsent();
@@ -14603,7 +14605,9 @@ export default function HomeScreen() {
             walkthroughCheckedRef.current = false;
             return;
           }
-          setWalkthroughVisible(true);
+          if (!isDemoMode) {
+            setWalkthroughVisible(true);
+          }
         }
       }
     };
@@ -14627,7 +14631,15 @@ export default function HomeScreen() {
     familyMembers.length,
     friends.length,
     hobbies.length,
+    isDemoMode,
   ]);
+
+  // Hide guide prompt when entering demo mode
+  useEffect(() => {
+    if (isDemoMode) {
+      setWalkthroughVisible(false);
+    }
+  }, [isDemoMode]);
 
   const handleWalkthroughDismiss = useCallback(() => {
     setWalkthroughVisible(false);
@@ -22944,6 +22956,7 @@ export default function HomeScreen() {
     null;
 
   const handleOpenFocusedMemoryManualView = () => {
+    if (isDemoMode) return;
     if (!focusedMemory) return;
     const entityId = getEntityIdFromFocusedMemory(focusedMemory);
     if (!entityId) return;
@@ -23007,6 +23020,7 @@ export default function HomeScreen() {
           onPress={handleOpenFocusedMemoryManualView}
           accessibilityRole="button"
           accessibilityLabel={t("memory.edit")}
+          disabled={isDemoMode}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={{
             width: sphereHeaderBackSize,
@@ -23023,6 +23037,7 @@ export default function HomeScreen() {
               colorScheme === "dark"
                 ? "rgba(255, 255, 255, 0.25)"
                 : "rgba(0, 0, 0, 0.2)",
+            opacity: isDemoMode ? 0.35 : 1,
           }}
         >
           <MaterialIcons

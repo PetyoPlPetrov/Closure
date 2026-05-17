@@ -1,3 +1,4 @@
+import { useDemoMode } from '@/utils/DemoModeProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Haptics from 'expo-haptics';
 import * as Device from 'expo-device';
@@ -48,9 +49,10 @@ interface ChildButtonProps {
   onPress: () => void;
   fontScale: number;
   colorScheme: 'light' | 'dark';
+  disabled?: boolean;
 }
 
-function ChildButton({ iconName, progress, offsetY, onPress, fontScale, colorScheme }: ChildButtonProps) {
+function ChildButton({ iconName, progress, offsetY, onPress, fontScale, colorScheme, disabled }: ChildButtonProps) {
   const buttonSize = 40 * fontScale;
   const isDark = colorScheme === 'dark';
 
@@ -78,6 +80,7 @@ function ChildButton({ iconName, progress, offsetY, onPress, fontScale, colorSch
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.7}
+        disabled={disabled}
         style={{
           width: buttonSize,
           height: buttonSize,
@@ -92,6 +95,7 @@ function ChildButton({ iconName, progress, offsetY, onPress, fontScale, colorSch
           shadowOpacity: isDark ? 0.3 : 0.14,
           shadowRadius: isDark ? 6 : 4,
           elevation: isDark ? 4 : 3,
+          opacity: disabled ? 0.35 : 1,
         }}
       >
         <MaterialIcons
@@ -109,6 +113,7 @@ interface ExpandableMenuButtonProps {
 }
 
 export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
+  const { isDemoMode } = useDemoMode();
   const fontScale = useFontScale();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -299,6 +304,7 @@ export function ExpandableMenuButton({ top }: ExpandableMenuButtonProps) {
           onPress={handleEditPress}
           fontScale={fontScale}
           colorScheme={colorScheme}
+          disabled={isDemoMode}
         />
         <ChildButton
           iconName="palette"

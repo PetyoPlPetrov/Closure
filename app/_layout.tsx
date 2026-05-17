@@ -15,12 +15,16 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   AppState,
   type AppStateStatus,
   InteractionManager,
   Linking,
+  Alert,
   Platform,
+  Pressable,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
 import "react-native-reanimated";
@@ -83,6 +87,7 @@ import {
 } from "@/utils/ThemeContext";
 import { UnsavedChangesProvider } from "@/utils/UnsavedChangesContext";
 import { checkForUpdateAndReload } from "@/utils/updates";
+import { DemoModeProvider, useDemoMode, FAKE_ENTITY_NAMES, cleanupFakeData } from "@/utils/DemoModeProvider";
 import { VisualSettingsProvider } from "@/utils/VisualSettingsProvider";
 // Firebase is automatically initialized via Expo plugin (@react-native-firebase/app)
 // App Check is initialized in AppContent component
@@ -112,9 +117,72 @@ function AppContent() {
   const { showNotification: showInAppNotification } = useInAppNotification();
   const { enabled: eventInAppNotificationsEnabled, isLoaded: eventInAppPrefLoaded } =
     useEventInAppNotificationPreference();
-  const { profiles, jobs, familyMembers, friends, hobbies, idealizedMemories } =
-    useJourney();
+  const {
+    profiles, jobs, familyMembers, friends, hobbies, idealizedMemories,
+    deleteProfile, deleteJob, deleteFamilyMember, deleteFriend, deleteHobby,
+    reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, reloadIdealizedMemories,
+  } = useJourney();
   const aiConsent = useAIInsightsConsent();
+  const { isDemoMode, isCreatingDemo, isCleaningUpIncompleteDemo, setDemoModeActive, demoStopRequestedRef } = useDemoMode();
+  const [isExitingDemoMode, setIsExitingDemoMode] = useState(false);
+  const prevCleaningUp = useRef(isCleaningUpIncompleteDemo);
+
+  // Reload all data after incomplete demo cleanup finishes
+  useEffect(() => {
+    if (prevCleaningUp.current && !isCleaningUpIncompleteDemo) {
+      reloadProfiles();
+      reloadJobs();
+      reloadFamilyMembers();
+      reloadFriends();
+      reloadHobbies();
+      reloadIdealizedMemories();
+    }
+    prevCleaningUp.current = isCleaningUpIncompleteDemo;
+  }, [isCleaningUpIncompleteDemo, reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, reloadIdealizedMemories]);
+
+  const handleExitDemoMode = useCallback(() => {
+    Alert.alert(
+      'Exit Demo Mode',
+      'This will delete all demo data and return the app to normal mode.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Exit Demo',
+          style: 'destructive',
+          onPress: async () => {
+            setIsExitingDemoMode(true);
+            try {
+              for (const p of profiles) {
+                if (FAKE_ENTITY_NAMES.has(p.name)) await deleteProfile(p.id);
+              }
+              for (const j of jobs) {
+                if (FAKE_ENTITY_NAMES.has(j.name)) await deleteJob(j.id);
+              }
+              for (const f of familyMembers) {
+                if (FAKE_ENTITY_NAMES.has(f.name)) await deleteFamilyMember(f.id);
+              }
+              for (const f of friends) {
+                if (FAKE_ENTITY_NAMES.has(f.name)) await deleteFriend(f.id);
+              }
+              for (const h of hobbies) {
+                if (FAKE_ENTITY_NAMES.has(h.name)) await deleteHobby(h.id);
+              }
+              await setDemoModeActive(false);
+            } catch (_error) {
+              Alert.alert('Error', 'Failed to exit demo mode.');
+            } finally {
+              setIsExitingDemoMode(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [
+    profiles, jobs, familyMembers, friends, hobbies,
+    deleteProfile, deleteJob, deleteFamilyMember, deleteFriend, deleteHobby,
+    setDemoModeActive,
+  ]);
+
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const [onboardingRequestTrigger, setOnboardingRequestTrigger] = useState(0);
   const responseListener = useRef<Notifications.Subscription | null>(null);
@@ -149,6 +217,7 @@ function AppContent() {
   // Handle AI button press from any tab
   useEffect(() => {
     const unsubscribe = onAIButtonPress(async () => {
+      if (isDemoMode) return;
       if (!aiConsent.isEnabled) {
         setAiConsentModalForAIButton(true);
         return;
@@ -160,7 +229,7 @@ function AppContent() {
       openMemoryModal();
     });
     return () => unsubscribe();
-  }, [aiConsent.isEnabled, openMemoryModal]);
+  }, [aiConsent.isEnabled, isDemoMode, openMemoryModal]);
 
   // Auto-open modal when a pending AI response is detected (app resume / cold start)
   useEffect(() => {
@@ -741,6 +810,111 @@ function AppContent() {
         )}
       </OnboardingGateContext.Provider>
       </AIMemoryModalContext.Provider>
+      {isDemoMode && (
+        <View
+          pointerEvents="box-none"
+          style={{
+            position: 'absolute',
+            top: 54,
+            left: 0,
+            right: 0,
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <Pressable
+            onPress={handleExitDemoMode}
+            disabled={isExitingDemoMode}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: 'rgba(255, 107, 107, 0.95)',
+              paddingVertical: 6,
+              paddingLeft: 14,
+              paddingRight: 8,
+              borderRadius: 20,
+              gap: 6,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 4,
+              elevation: 5,
+              opacity: isExitingDemoMode ? 0.6 : 1,
+            }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+              Demo Mode
+            </Text>
+            <View
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13, lineHeight: 15 }}>
+                ✕
+              </Text>
+            </View>
+          </Pressable>
+        </View>
+      )}
+      {isCreatingDemo && (
+        <View
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 99999,
+          }}
+        >
+          <ActivityIndicator size="large" color="#64B5F6" />
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 20 }}>
+            Setting up demo...
+          </Text>
+          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
+            Preparing sample data for you to explore
+          </Text>
+          <Pressable
+            onPress={() => { demoStopRequestedRef.current = true; }}
+            style={{
+              marginTop: 32,
+              paddingVertical: 12,
+              paddingHorizontal: 28,
+              borderRadius: 24,
+              borderWidth: 1.5,
+              borderColor: '#FF6B6B',
+            }}
+          >
+            <Text style={{ color: '#FF6B6B', fontSize: 16, fontWeight: '600' }}>
+              Stop
+            </Text>
+          </Pressable>
+        </View>
+      )}
+      {isCleaningUpIncompleteDemo && (
+        <View
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 99999,
+          }}
+        >
+          <ActivityIndicator size="large" color="#64B5F6" />
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 20 }}>
+            Removing demo data...
+          </Text>
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
+            The app was closed while setting up demo mode. Cleaning up...
+          </Text>
+        </View>
+      )}
       </View>
     </ThemeProvider>
   );
@@ -796,6 +970,7 @@ export default function RootLayout() {
       <SplashAnimationProvider>
         <LanguageProvider>
           <SubscriptionProvider>
+            <DemoModeProvider>
             <JourneyProvider>
               <MomentNotificationProvider>
                 <MomentColorsProvider>
@@ -820,6 +995,7 @@ export default function RootLayout() {
                 </MomentColorsProvider>
               </MomentNotificationProvider>
             </JourneyProvider>
+            </DemoModeProvider>
           </SubscriptionProvider>
         </LanguageProvider>
       </SplashAnimationProvider>

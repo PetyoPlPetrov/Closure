@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
+import { useDemoMode } from "@/utils/DemoModeProvider";
 import { Colors, fabAccentBackground } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useLargeDevice } from "@/hooks/use-large-device";
@@ -26,7 +27,8 @@ export default function IdealizedMemoriesScreen() {
   const { getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, deleteIdealizedMemory } = useJourney();
   const { deleteSummariesByMemoryId } = useMomentNotifications();
   const t = useTranslate();
-  
+  const { isDemoMode } = useDemoMode();
+
   // Support both old (profileId) and new (entityId + sphere) parameters
   const profileId = params.profileId as string | undefined;
   const entityId = params.entityId as string | undefined;
@@ -159,6 +161,7 @@ export default function IdealizedMemoriesScreen() {
   );
 
   const handleAddMemory = () => {
+    if (isDemoMode) return;
     if (isNewMode && entityId && sphere) {
       // New signature: use entityId and sphere
       router.push({
@@ -196,6 +199,7 @@ export default function IdealizedMemoriesScreen() {
   };
 
   const handleEditMemory = () => {
+    if (isDemoMode) return;
     if (selectedMemory) {
       setActionSheetVisible(false);
       if (isNewMode && entityId && sphere) {
@@ -312,8 +316,8 @@ export default function IdealizedMemoriesScreen() {
                 <View key={memory.id} style={index < memories.length - 1 ? styles.memoryCardSpacing : undefined}>
                   <MemoryCard
                     memory={memory}
-                    onPress={() => handleMorePress(memory)}
-                    onMorePress={() => handleMorePress(memory)}
+                    onPress={() => handleMemoryPress(memory.id)}
+                    onMorePress={isDemoMode ? undefined : () => handleMorePress(memory)}
                   />
                 </View>
               ))}
@@ -321,17 +325,19 @@ export default function IdealizedMemoriesScreen() {
           </ScrollView>
 
           {/* Floating + button */}
-          <TouchableOpacity
-            onPress={handleAddMemory}
-            style={[
-              styles.fab,
-              {
-                backgroundColor: fabAccentBackground,
-              },
-            ]}
-          >
-            <MaterialIcons name="add" size={32} color="#fff" />
-          </TouchableOpacity>
+          {!isDemoMode && (
+            <TouchableOpacity
+              onPress={handleAddMemory}
+              style={[
+                styles.fab,
+                {
+                  backgroundColor: fabAccentBackground,
+                },
+              ]}
+            >
+              <MaterialIcons name="add" size={32} color="#fff" />
+            </TouchableOpacity>
+          )}
         </>
       ) : (
         <>
@@ -353,21 +359,24 @@ export default function IdealizedMemoriesScreen() {
           </View>
 
           {/* Floating + button */}
-          <TouchableOpacity
-            onPress={handleAddMemory}
-            style={[
-              styles.fab,
-              {
-                backgroundColor: fabAccentBackground,
-              },
-            ]}
-          >
-            <MaterialIcons name="add" size={32} color="#fff" />
-          </TouchableOpacity>
+          {!isDemoMode && (
+            <TouchableOpacity
+              onPress={handleAddMemory}
+              style={[
+                styles.fab,
+                {
+                  backgroundColor: fabAccentBackground,
+                },
+              ]}
+            >
+              <MaterialIcons name="add" size={32} color="#fff" />
+            </TouchableOpacity>
+          )}
         </>
       )}
 
-      {/* Action Sheet */}
+      {/* Action Sheet - hide edit/delete in demo mode */}
+      {!isDemoMode && (
       <ActionSheet
         visible={actionSheetVisible}
         title={selectedMemory ? selectedMemory.title : ""}
@@ -389,6 +398,7 @@ export default function IdealizedMemoriesScreen() {
           setSelectedMemory(null);
         }}
       />
+      )}
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
