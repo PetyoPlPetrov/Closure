@@ -13,7 +13,7 @@ export const SferaInsightEmptyDemoLink = memo(function SferaInsightEmptyDemoLink
 
   const openSettings = useCallback(() => {
     if (Platform.OS !== "web") void Haptics.selectionAsync();
-    router.push("/(tabs)/settings");
+    router.push({ pathname: "/(tabs)/settings", params: { highlight: "demo" } });
   }, []);
 
   return (

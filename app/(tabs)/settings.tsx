@@ -26,10 +26,11 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Asset } from "expo-asset";
 import { Image } from "expo-image";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Animated as RNAnimated,
   Dimensions,
   DimensionValue,
   Linking,
@@ -109,6 +110,13 @@ export default function SettingsScreen() {
   const [initialOnboardingRequesting, setInitialOnboardingRequesting] =
     useState(false);
   const [versionInfo, setVersionInfo] = useState<AppVersionInfo | null>(null);
+
+  // ─── Scroll-to & pulse for demo button when navigated with ?highlight=demo ───
+  const { highlight } = useLocalSearchParams<{ highlight?: string }>();
+  const scrollRef = useRef<ScrollView>(null);
+  const demoButtonYRef = useRef(0);
+  const scrollContentYRef = useRef(0);
+  const demoPulseAnim = useRef(new RNAnimated.Value(0)).current;
   const isInitialOnboardingEnabled = __DEV__
     ? !isDeletingData && !initialOnboardingRequesting
     : hasClearedDataForInitialOnboarding &&
@@ -129,6 +137,34 @@ export default function SettingsScreen() {
   useEffect(() => {
     getAppVersionInfo().then(setVersionInfo);
   }, []);
+
+  // Scroll to demo button & pulse when highlight=demo
+  useEffect(() => {
+    if (highlight !== "demo") return;
+    const timer = setTimeout(() => {
+      // demoButtonYRef has the y within the scroll content (captured via onLayout chain)
+      const y = demoButtonYRef.current;
+      if (y > 0) {
+        scrollRef.current?.scrollTo({ y: Math.max(0, y - 120), animated: true });
+        setTimeout(() => {
+          RNAnimated.sequence([
+            RNAnimated.timing(demoPulseAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
+            RNAnimated.timing(demoPulseAnim, { toValue: 0, duration: 400, useNativeDriver: false }),
+          ]).start();
+        }, 500);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [highlight]);
+
+  const demoPulseBorder = demoPulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.border ?? "transparent", colors.primary],
+  });
+  const demoPulseScale = demoPulseAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 1.03, 1.02],
+  });
 
   const styles = useMemo(
     () =>
@@ -2134,6 +2170,7 @@ export default function SettingsScreen() {
         <View style={styles.headerButton} />
       </View>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -2314,7 +2351,7 @@ export default function SettingsScreen() {
         )}
 
         {/* YOUR DATA */}
-        <View style={styles.section}>
+        <View style={styles.section} onLayout={(e) => { scrollContentYRef.current = e.nativeEvent.layout.y; }}>
           <Pressable onPress={handleDevTitleTap}>
             <ThemedText size="l" weight="medium" style={styles.sectionTitle}>
               {t("settings.yourData.title")}
@@ -2322,61 +2359,67 @@ export default function SettingsScreen() {
           </Pressable>
 
           {/* Demo Mode - visible to all users */}
-          {isDemoMode ? (
-            <TouchableOpacity
-              style={[styles.dropdown, { borderColor: '#FF6B6B', borderWidth: 1.5 }]}
-              onPress={handleExitDemoMode}
-              activeOpacity={0.7}
-            >
-              <View style={styles.dropdownContent}>
-                <MaterialIcons
-                  name="visibility-off"
-                  size={24 * fontScale}
-                  color="#FF6B6B"
-                />
-                <View style={{ flex: 1 }}>
-                  <ThemedText size="l" style={[styles.dropdownText, { color: '#FF6B6B' }]}>
-                    {t("settings.demoMode.exitButton")}
-                  </ThemedText>
-                  <ThemedText size="sm" style={{ opacity: 0.7 }}>
-                    {t("settings.demoMode.activeHint")}
-                  </ThemedText>
+          <View collapsable={false} onLayout={(e) => { demoButtonYRef.current = scrollContentYRef.current + e.nativeEvent.layout.y; }}>
+          <RNAnimated.View
+            style={highlight === "demo" ? { transform: [{ scale: demoPulseScale }], borderColor: demoPulseBorder, borderWidth: 2, borderRadius: 12 } : undefined}
+          >
+            {isDemoMode ? (
+              <TouchableOpacity
+                style={[styles.dropdown, { borderColor: '#FF6B6B', borderWidth: 1.5 }]}
+                onPress={handleExitDemoMode}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownContent}>
+                  <MaterialIcons
+                    name="visibility-off"
+                    size={24 * fontScale}
+                    color="#FF6B6B"
+                  />
+                  <View style={{ flex: 1 }}>
+                    <ThemedText size="l" style={[styles.dropdownText, { color: '#FF6B6B' }]}>
+                      {t("settings.demoMode.exitButton")}
+                    </ThemedText>
+                    <ThemedText size="sm" style={{ opacity: 0.7 }}>
+                      {t("settings.demoMode.activeHint")}
+                    </ThemedText>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.dropdown, isCreatingDemo && { opacity: 0.5 }]}
-              onPress={handleEnterDemoMode}
-              activeOpacity={0.7}
-              disabled={isCreatingDemo}
-            >
-              <View style={styles.dropdownContent}>
-                <MaterialIcons
-                  name="visibility"
-                  size={24 * fontScale}
-                  color={colors.icon}
-                />
-                <View style={{ flex: 1 }}>
-                  <ThemedText size="l" style={styles.dropdownText}>
-                    {isCreatingDemo
-                      ? t("settings.demoMode.entering")
-                      : t("settings.demoMode.enterButton")}
-                  </ThemedText>
-                  <ThemedText size="sm" style={{ opacity: 0.6 }}>
-                    {t("settings.demoMode.enterHint")}
-                  </ThemedText>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.dropdown, isCreatingDemo && { opacity: 0.5 }]}
+                onPress={handleEnterDemoMode}
+                activeOpacity={0.7}
+                disabled={isCreatingDemo}
+              >
+                <View style={styles.dropdownContent}>
+                  <MaterialIcons
+                    name="visibility"
+                    size={24 * fontScale}
+                    color={colors.icon}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <ThemedText size="l" style={styles.dropdownText}>
+                      {isCreatingDemo
+                        ? t("settings.demoMode.entering")
+                        : t("settings.demoMode.enterButton")}
+                    </ThemedText>
+                    <ThemedText size="sm" style={{ opacity: 0.6 }}>
+                      {t("settings.demoMode.enterHint")}
+                    </ThemedText>
+                  </View>
                 </View>
-              </View>
-              {isCreatingDemo && (
-                <MaterialIcons
-                  name="hourglass-empty"
-                  size={24 * fontScale}
-                  color={colors.text}
-                />
-              )}
-            </TouchableOpacity>
-          )}
+                {isCreatingDemo && (
+                  <MaterialIcons
+                    name="hourglass-empty"
+                    size={24 * fontScale}
+                    color={colors.text}
+                  />
+                )}
+              </TouchableOpacity>
+            )}
+          </RNAnimated.View>
+          </View>
 
           {/* Generate Fake Data - hidden in prod, tap "Your Data" title 7 times to reveal */}
           {(__DEV__ || devToolsVisible) && (
