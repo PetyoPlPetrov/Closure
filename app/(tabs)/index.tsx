@@ -836,12 +836,26 @@ const FloatingAvatar = React.memo(
     const baseAvatarSize = isTablet ? 120 : 100; // 50% larger on tablets, increased from 80 to 100
     const focusedAvatarSize = isTablet ? 150 : 120; // 50% larger on tablets, increased from 100 to 120
     const avatarSize = isFocused ? focusedAvatarSize : baseAvatarSize;
-    // Memory radius - when focused, ensure all floating elements fit within viewport
-    // Calculation: memoryRadius + memorySize/2 + momentRadius + momentSize/2 + padding <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
-    // Where: memoryRadius is from avatar center, memorySize/2 = 22.5, momentRadius = 40, momentSize/2 = 6, padding = 25
-    // So: memoryRadius + 22.5 + 40 + 6 + 25 = memoryRadius + 93.5 <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
-    // Therefore: memoryRadius <= min(SCREEN_WIDTH/2, SCREEN_HEIGHT/2) - 93.5
-    const maxDistanceFromCenter = Math.min(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+
+    // Compute usable viewport area (between header and tab bar) — used for centering + clamping
+    const iPadHeaderScaleEarly = Platform.OS === "ios" && Platform.isPad ? 1.3 : 1;
+    const headerBackSizeEarly = (isTablet ? 70 : 50) * iPadHeaderScaleEarly;
+    const usableTopEarly = 70 + headerBackSizeEarly + 8;
+    const tabBarHEarly = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+    const aiOverhangEarly = Math.round(56 * fontScale) / 2;
+    const usableBottomEarly = SCREEN_HEIGHT - tabBarHEarly - aiOverhangEarly;
+    const focusedCenterX = SCREEN_WIDTH / 2;
+    const focusedCenterY = (usableTopEarly + usableBottomEarly) / 2;
+
+    // Memory radius - when focused, ensure all floating elements fit within usable viewport
+    // Use actual distances from focused center to usable edges
+    const distToUsableTop = focusedCenterY - usableTopEarly;
+    const distToUsableBottom = usableBottomEarly - focusedCenterY;
+    const distToUsableLeft = focusedCenterX;
+    const distToUsableRight = SCREEN_WIDTH - focusedCenterX;
+    const maxDistanceFromCenter = isFocused
+      ? Math.min(distToUsableTop, distToUsableBottom, distToUsableLeft, distToUsableRight)
+      : Math.min(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
     const estimatedMaxMemorySize = isTablet ? 68 : 45; // Maximum memory size when focused (50% larger on tablets)
     const estimatedMaxMomentRadius = isTablet ? 60 : 40; // Maximum radius of moments around memory (50% larger on tablets)
     const estimatedMaxMomentSize = isTablet ? 18 : 12; // Maximum moment size (50% larger on tablets)
@@ -976,10 +990,13 @@ const FloatingAvatar = React.memo(
       const safetyPadding = isTablet ? 38 : 10; // Larger padding on tablets to match the increased sizes
 
       // Calculate distances from avatar center to each viewport edge
-      const distanceToTop = position.y;
-      const distanceToBottom = SCREEN_HEIGHT - position.y;
-      const distanceToLeft = position.x;
-      const distanceToRight = SCREEN_WIDTH - position.x;
+      // When focused, use the actual focused center position (usable area center)
+      const refX = isFocused ? focusedCenterX : position.x;
+      const refY = isFocused ? focusedCenterY : position.y;
+      const distanceToTop = isFocused ? refY - usableTopEarly : refY;
+      const distanceToBottom = isFocused ? usableBottomEarly - refY : SCREEN_HEIGHT - refY;
+      const distanceToLeft = refX;
+      const distanceToRight = SCREEN_WIDTH - refX;
 
       // Maximum safe radius is the minimum distance to any edge, minus memory radius and padding
       // Calculate minimum required radius: avatar radius + memory radius + padding to ensure memories float around avatar
@@ -1148,6 +1165,10 @@ const FloatingAvatar = React.memo(
       profile.id,
       profile.name,
       avatarSize,
+      focusedCenterX,
+      focusedCenterY,
+      usableTopEarly,
+      usableBottomEarly,
     ]);
 
     // Calculate SVG circle parameters for progress bar
@@ -1756,11 +1777,11 @@ const FloatingAvatar = React.memo(
     const startX = useSharedValue(clampedPositionX);
     const startY = useSharedValue(clampedPositionY);
 
-    // Target position for focused state (State B - centered in visible viewport)
-    const normalTargetY = SCREEN_HEIGHT / 2 + 80; // Lower the focused avatar by 80px
-    const wheelTargetY = SCREEN_HEIGHT / 2 - 120; // Higher position for wheel mode (moved up from -40 to -120)
-    const targetX = SCREEN_WIDTH / 2;
-    const targetY = normalTargetY; // Will be animated based on wheelModeProgress
+    // Target position for focused state (State B - centered in usable viewport between header and tab bar)
+    const normalTargetY = focusedCenterY;
+    const wheelTargetY = SCREEN_HEIGHT / 2 - 120; // Higher position for wheel mode
+    const targetX = focusedCenterX;
+    const targetY = normalTargetY;
 
     // Update star center to match avatar's actual visual position
     // Must use targetX/targetY (same as animatedStyle) - NOT focusedX/focusedY.
@@ -1841,13 +1862,27 @@ const FloatingAvatar = React.memo(
       }
     }, [canEnterEntityWheel, showEntityWheel, isFocused]);
 
-    // Pause wheel motion immediately when Home isn't active/focused.
+    // Pause/resume orbit when screen active state changes.
     React.useEffect(() => {
-      if (isScreenActive) return;
-      cancelAnimation(orbitAngle);
-      isWheelSpinning.value = false;
-      setIsWheelSpinningState(false);
-    }, [isScreenActive, orbitAngle, isWheelSpinning, profile.id]);
+      if (!isScreenActive) {
+        cancelAnimation(orbitAngle);
+        isWheelSpinning.value = false;
+        setIsWheelSpinningState(false);
+        return;
+      }
+      // Screen became active — restart orbit if focused (and not in wheel mode, which handles its own orbit)
+      if (isFocused && !showEntityWheel) {
+        orbitAngle.value = 0;
+        orbitAngle.value = withRepeat(
+          withTiming(360, {
+            duration: orbitDurationMs * 2,
+            easing: Easing.linear,
+          }),
+          -1,
+          false,
+        );
+      }
+    }, [isScreenActive, orbitAngle, isWheelSpinning, profile.id, isFocused, showEntityWheel, orbitDurationMs]);
 
     // Animate wheel mode - use useLayoutEffect to ensure star position is set before render
     useLayoutEffect(() => {
@@ -1889,9 +1924,6 @@ const FloatingAvatar = React.memo(
           stiffness: 100,
         });
 
-        // Stop orbit animation
-        cancelAnimation(orbitAngle);
-        orbitAngle.value = 0; // Reset orbit angle
         cancelAnimation(wheelSpinRotation);
         wheelSpinRotation.value = 0; // Reset rotation
 
@@ -1902,6 +1934,22 @@ const FloatingAvatar = React.memo(
             damping: 15,
             stiffness: 100,
           });
+          // Start slow orbit animation for memories even outside wheel mode
+          if (isScreenActive) {
+            orbitAngle.value = 0;
+            orbitAngle.value = withRepeat(
+              withTiming(360, {
+                duration: orbitDurationMs * 2, // Slower orbit in normal focused mode
+                easing: Easing.linear,
+              }),
+              -1,
+              false,
+            );
+          }
+        } else {
+          // Stop orbit animation when not focused
+          cancelAnimation(orbitAngle);
+          orbitAngle.value = 0;
         }
       }
 
@@ -2577,6 +2625,19 @@ const FloatingAvatar = React.memo(
           duration: zoomInDuration,
           easing: easingConfig,
         });
+
+        // Start slow orbit animation for memories in focused mode
+        if (isScreenActive) {
+          orbitAngle.value = 0;
+          orbitAngle.value = withRepeat(
+            withTiming(360, {
+              duration: orbitDurationMs * 2,
+              easing: Easing.linear,
+            }),
+            -1,
+            false,
+          );
+        }
       } else if (!isFocused && prevIsFocused) {
         // Transitioning from focused to unfocused - ensure we start from State B (focused state)
         // This prevents flashing by ensuring values are correct before zoom-out animation
@@ -2587,6 +2648,10 @@ const FloatingAvatar = React.memo(
         zoomScale.value = focusedScale; // Start at focused scale (State B) - will animate to baseScale
         focusedX.value = targetX; // Start at center (State B)
         focusedY.value = targetY; // Start at center (State B)
+
+        // Stop orbit animation when leaving focused mode
+        cancelAnimation(orbitAngle);
+        orbitAngle.value = 0;
       }
       // Update ref AFTER checking for transitions
       prevIsFocusedRef.current = isFocused;
@@ -2604,6 +2669,9 @@ const FloatingAvatar = React.memo(
       focusedScale,
       targetX,
       targetY,
+      orbitAngle,
+      orbitDurationMs,
+      isScreenActive,
     ]);
 
     React.useEffect(() => {
@@ -2649,6 +2717,19 @@ const FloatingAvatar = React.memo(
               duration: zoomInDuration,
               easing: easingConfig,
             });
+
+            // Start slow orbit animation for memories in focused mode (backup path)
+            if (isScreenActivePropRef.current) {
+              orbitAngle.value = 0;
+              orbitAngle.value = withRepeat(
+                withTiming(360, {
+                  duration: orbitDurationMs * 2,
+                  easing: Easing.linear,
+                }),
+                -1,
+                false,
+              );
+            }
           });
         }
       } else {
@@ -8745,8 +8826,8 @@ const FloatingMemory = React.memo(
         centerY = SCREEN_HEIGHT / 2 - offsetYValue;
         left = centerX - memorySize / 2;
         top = centerY - memorySize / 2;
-      } else if (isWheelMode && orbitAngle && baseOrbitAngle !== undefined) {
-        // In wheel mode with orbit animation, calculate position based on current orbit angle
+      } else if (orbitAngle && baseOrbitAngle !== undefined && (isWheelMode || isFocused)) {
+        // In focused or wheel mode with orbit animation, calculate position based on current orbit angle
         // IMPORTANT: Access orbitAngle.value to make this worklet reactive to changes
         const currentOrbitAngle = orbitAngle.value;
 

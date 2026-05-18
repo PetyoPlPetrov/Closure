@@ -14,6 +14,7 @@ import { SferaInsightEmptyDemoLink } from "@/components/sfera-insight-empty-demo
 import { SferaInsightEmptyGuideLink } from "@/components/sfera-insight-empty-guide-link";
 import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
+import { useFontScale } from "@/hooks/use-device-size";
 import { useLargeDevice } from "@/hooks/use-large-device";
 import type { BaseEntity, IdealizedMemory, LifeSphere } from "@/utils/JourneyProvider";
 import {
@@ -46,6 +47,7 @@ import {
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -85,7 +87,8 @@ const INSIGHT_CARD_SLIDE_X = Math.round(SW * 0.35);
 // Central avatar configuration
 const AVATAR_SIZE = 100;
 const AVATAR_CX = SW / 2;
-const AVATAR_CY = SH * 0.46;
+// AVATAR_CY is computed inside FocusedEntitiesView using useSafeAreaInsets()
+// to properly center in the usable area between header and tab bar.
 
 // Memory icons around each entity
 const MOMENT_ICON_SIZE = 16;
@@ -129,12 +132,14 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
   entityIndex,
   memories,
   orbitAngle,
+  momentOrbitRadius,
 }: {
   entityCenterX: number;
   entityCenterY: number;
   entityIndex: number;
   memories: IdealizedMemory[];
   orbitAngle: SharedValue<number>;
+  momentOrbitRadius: number;
 }) {
   const { momentColors } = useMomentColors();
 
@@ -173,6 +178,7 @@ const SmallFloatingMoments = React.memo(function SmallFloatingMoments({
             color={m.color}
             name={m.name}
             glowColor={m.glowColor}
+            momentOrbitRadius={momentOrbitRadius}
           />
         );
       })}
@@ -188,6 +194,7 @@ const SmallFloatingMomentIcon = React.memo(function SmallFloatingMomentIcon({
   color,
   name,
   glowColor,
+  momentOrbitRadius,
 }: {
   baseAngle: number;
   entityCenterX: number;
@@ -196,11 +203,12 @@ const SmallFloatingMomentIcon = React.memo(function SmallFloatingMomentIcon({
   color: string;
   name: "wb-sunny" | "cloud";
   glowColor: string;
+  momentOrbitRadius: number;
 }) {
   const animatedStyle = useAnimatedStyle(() => {
     const angle = baseAngle + orbitAngle.value;
-    const x = entityCenterX + Math.cos(angle) * MOMENT_ORBIT_RADIUS - MOMENT_ICON_SIZE / 2;
-    const y = entityCenterY + Math.sin(angle) * MOMENT_ORBIT_RADIUS - MOMENT_ICON_SIZE / 2;
+    const x = entityCenterX + Math.cos(angle) * momentOrbitRadius - MOMENT_ICON_SIZE / 2;
+    const y = entityCenterY + Math.sin(angle) * momentOrbitRadius - MOMENT_ICON_SIZE / 2;
     return {
       position: "absolute",
       left: x,
@@ -470,6 +478,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   isTablet,
   cardWidth,
   cardHeight,
+  momentOrbitRadius,
 }: {
   entity: BaseEntity | { id: string; name: string; imageUri?: string; isCompleted: boolean; createdAt?: string };
   memories: IdealizedMemory[];
@@ -487,6 +496,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   isTablet: boolean;
   cardWidth: number;
   cardHeight: number;
+  momentOrbitRadius: number;
 }) {
   const t = useTranslate();
   const scale = useSharedValue(1);
@@ -495,9 +505,20 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
   const gap = avatarSize / 2 + 10;
   const baseT = index / count;
 
+  // Fade radius: entities fade when within the sphere visual area
+  const fadeRadius = INSIGHT_ATMO_R + 20; // slightly larger than the visible sphere
+
   const animatedStyle = useAnimatedStyle(() => {
     const t = (baseT + perimeterOffset.value) % 1;
     const pos = perimeterPoint(t, centerX, centerY, cardWidth, cardHeight, gap);
+    // Distance from card center — entities overlapping the sphere fade out
+    const dx = pos.x - centerX;
+    const dy = pos.y - centerY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    // Smoothly fade: full opacity outside fadeRadius, low opacity when close to center
+    const opacityVal = dist < fadeRadius
+      ? 0.25 + 0.75 * (dist / fadeRadius)
+      : 1;
     return {
       position: "absolute",
       left: pos.x - avatarSize / 2,
@@ -505,20 +526,29 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
       width: avatarSize,
       height: avatarSize,
       transform: [{ scale: scale.value }],
+      opacity: opacityVal,
     };
   });
 
   // Moment icons rendered as an absolute sibling (not clipped by avatar circle)
-  const iconAreaSize = (MOMENT_ORBIT_RADIUS + MOMENT_ICON_SIZE) * 2;
+  const iconAreaSize = (momentOrbitRadius + MOMENT_ICON_SIZE) * 2;
   const momentIconsStyle = useAnimatedStyle(() => {
     const t = (baseT + perimeterOffset.value) % 1;
     const pos = perimeterPoint(t, centerX, centerY, cardWidth, cardHeight, gap);
+    // Match entity fade for moment icons
+    const dx = pos.x - centerX;
+    const dy = pos.y - centerY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const opacityVal = dist < fadeRadius
+      ? 0.25 + 0.75 * (dist / fadeRadius)
+      : 1;
     return {
       position: "absolute",
       left: pos.x - iconAreaSize / 2,
       top: pos.y - iconAreaSize / 2,
       width: iconAreaSize,
       height: iconAreaSize,
+      opacity: opacityVal,
     };
   });
 
@@ -535,7 +565,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
         animatedStyle,
         {
           borderRadius: avatarSize / 2,
-          zIndex: 11,
+          zIndex: 15,
           shadowColor: glowColor,
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.8,
@@ -626,13 +656,14 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
     </Animated.View>
 
     {/* Moment icons in a separate Animated.View so they are NOT clipped by the avatar circle */}
-    <Animated.View style={[momentIconsStyle, { zIndex: 11 }]} pointerEvents="none">
+    <Animated.View style={[momentIconsStyle, { zIndex: 15 }]} pointerEvents="none">
       <SmallFloatingMoments
-        entityCenterX={(MOMENT_ORBIT_RADIUS + MOMENT_ICON_SIZE)}
-        entityCenterY={(MOMENT_ORBIT_RADIUS + MOMENT_ICON_SIZE)}
+        entityCenterX={(momentOrbitRadius + MOMENT_ICON_SIZE)}
+        entityCenterY={(momentOrbitRadius + MOMENT_ICON_SIZE)}
         entityIndex={index}
         memories={memories}
         orbitAngle={momentsOrbitAngle}
+        momentOrbitRadius={momentOrbitRadius}
       />
     </Animated.View>
   </>
@@ -656,6 +687,7 @@ const EntityRing = React.memo(function EntityRing({
   animationsEnabled,
   cardWidth,
   cardHeight,
+  momentOrbitRadius,
 }: {
   entities: (BaseEntity | { id: string; name: string; imageUri?: string; isCompleted: boolean; createdAt?: string })[];
   memoriesPerEntity: IdealizedMemory[][];
@@ -671,6 +703,7 @@ const EntityRing = React.memo(function EntityRing({
   animationsEnabled: boolean;
   cardWidth: number;
   cardHeight: number;
+  momentOrbitRadius: number;
 }) {
   const { isTablet } = useLargeDevice();
   // Single offset value drives all entities sliding clockwise around the card perimeter
@@ -735,6 +768,7 @@ const EntityRing = React.memo(function EntityRing({
             isTablet={isTablet}
             cardWidth={cardWidth}
             cardHeight={cardHeight}
+            momentOrbitRadius={momentOrbitRadius}
           />
         );
       })}
@@ -1103,17 +1137,14 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     transform: [{ translateX: insightCardTranslateX.value + insightDragX.value }],
   }));
 
-  const insightTitleAnimStyle = useAnimatedStyle(() => {
-    // Fade based on total card displacement — the closer to the screen edge, the more faded
+  // Title overlay anim — fade & scale only, no translateX counteraction
+  // because the overlay is absolutely positioned at the screen level, not inside the sliding card.
+  const titleOverlayAnimStyle = useAnimatedStyle(() => {
     const totalDisplacement = Math.abs(insightCardTranslateX.value + insightDragX.value);
     const dragFade = Math.max(0, Math.min(1, 1 - (totalDisplacement / (SW * 0.35)) * 1.1));
     return {
       opacity: insightTitleOpacity.value * dragFade,
-      // Counteract the parent's translateX + drag so the title stays in place
-      transform: [
-        { translateX: -(insightCardTranslateX.value + insightDragX.value) },
-        { scale: insightTitleScale.value },
-      ],
+      transform: [{ scale: insightTitleScale.value }],
     };
   });
 
@@ -1525,6 +1556,40 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
 
   // ─── Main: ring-planet insight view ───
   return (
+    <>
+    {/* ── Title overlay — rendered as sibling (not child) of the card so it can
+         have a higher zIndex than orbiting entities while keeping the card body below them. ── */}
+    {numModes > 1 && numEntities > 0 && totalMemoriesCount > 0 && (
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          titleOverlayAnimStyle,
+          {
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: y - cardHeight / 2 - titleOffset,
+            zIndex: 20,
+            alignItems: "center",
+          },
+        ]}
+      >
+        <ThemedText
+          style={{
+            color: shadowColor,
+            fontSize: 23,
+            fontWeight: "900",
+            letterSpacing: 2.2,
+            textTransform: "uppercase",
+          }}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >
+          {cardLabel}
+        </ThemedText>
+      </Animated.View>
+    )}
     <View style={wrapperStyle} pointerEvents="box-none">
       {/* ── Planet with side chevrons ── */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", width: "100%", overflow: "visible" }} pointerEvents="box-none">
@@ -1548,12 +1613,12 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           collapsable={false}
           style={[insightCardAnimStyle, { alignItems: "center", flex: 1, overflow: "visible" }]}
         >
-          {/* ── Mode label — above the planet, fade-only (counteracts parent slide) ── */}
+          {/* ── Mode label spacer — visual title is rendered as a separate overlay
+               above orbiting entities. This invisible copy preserves layout spacing. ── */}
           {numModes > 1 && (
-            <Animated.View style={[insightTitleAnimStyle, { alignItems: "center", marginBottom: -14, zIndex: 10 }]}>
+            <View style={{ alignItems: "center", marginBottom: -14, opacity: 0 }} pointerEvents="none">
               <ThemedText
                 style={{
-                  color: shadowColor,
                   fontSize: 23,
                   fontWeight: "900",
                   letterSpacing: 2.2,
@@ -1565,7 +1630,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
               >
                 {cardLabel}
               </ThemedText>
-            </Animated.View>
+            </View>
           )}
           {/* ── Ring-planet with content overlay ── */}
           <View style={{ width: INSIGHT_PLANET_CANVAS, height: INSIGHT_PLANET_CANVAS, alignItems: "center", justifyContent: "center", overflow: "visible" }}>
@@ -1871,6 +1936,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         </View>
       ) : null}
     </View>
+    </>
   );
 });
 
@@ -1895,6 +1961,25 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
   const { sphere3DEffect } = useVisualSettings();
   const isScreenFocused = useIsFocused();
   const animationsEnabled = isActive && isScreenFocused && !hidden;
+  const insets = useSafeAreaInsets();
+
+  const fontScale = useFontScale();
+  // ─── Exact usable area calculation ───
+  // Header: back button row at top:70 with height sphereHeaderBackSize (50 on phone, 70*1.3 on iPad)
+  const iPadHeaderScale = IS_IPAD ? 1.3 : 1;
+  const headerBackSize = (isTablet ? 70 : 50) * iPadHeaderScale;
+  const headerBottom = 70 + headerBackSize; // bottom edge of header row
+
+  // Tab bar: matches _layout.tsx calculation exactly
+  const tabBarHeight = Math.round(78 * fontScale) + Math.max(12, insets.bottom + 12 - 20 * fontScale);
+  // AI floating button extends ~half its size above the tab bar top edge
+  const aiButtonOverhang = Math.round(56 * fontScale) / 2;
+  const bottomOccupied = tabBarHeight + aiButtonOverhang;
+
+  // Usable area: from below header to above tab bar + AI button
+  const usableTop = headerBottom;
+  const usableBottom = SH - bottomOccupied;
+  const avatarCY = Math.round((usableTop + usableBottom) / 2);
 
   const memoriesHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [memoriesHint, setMemoriesHint] = useState<
@@ -1981,6 +2066,43 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
   const gradientColors = getSphereGradientColors(sphere, sphereSunnyPercentage, colorScheme);
   const sunnyBackground = gradientColors[0];
 
+  // ─── Dynamic orbit entity sizing to keep everything within viewport ───
+  // An orbiting entity at the card edge extends from center:
+  //   cardDim/2 + gap + momentOrbitR + MOMENT_ICON_SIZE/2
+  //   where gap = avatarSize/2 + 10, momentOrbitR = avatarSize * 0.76
+  // We solve for the max avatarSize that fits, then scale moment orbit proportionally.
+  const { orbitEntitySize, orbitMomentRadius } = useMemo(() => {
+    const baseSize = (isTablet ? 60 : 50) * IPAD_ENTITIES_AVATAR_SCALE;
+    const GAP_PAD = 10;
+    const EDGE_PADDING = 8;
+    // Moment orbit scales with avatar: ratio = MOMENT_ORBIT_RADIUS / baseSize
+    const MOMENT_RATIO = MOMENT_ORBIT_RADIUS / baseSize;
+
+    // Horizontal: use full screen width
+    const availLeft = AVATAR_CX - EDGE_PADDING;
+    const availRight = SW - AVATAR_CX - EDGE_PADDING;
+    const availH = Math.min(availLeft, availRight);
+
+    // Vertical: from avatar center to safe edges
+    const availTop = avatarCY - usableTop - EDGE_PADDING;
+    const availBottom = usableBottom - avatarCY - EDGE_PADDING;
+    const availV = Math.min(availTop, availBottom);
+
+    // Total from center = cardDim/2 + avatarSize*(0.5 + MOMENT_RATIO) + GAP_PAD + MOMENT_ICON_SIZE/2
+    // Solve: avatarSize*(0.5 + MOMENT_RATIO) ≤ avail - cardDim/2 - GAP_PAD - MOMENT_ICON_SIZE/2
+    const sizeCoeff = 0.5 + MOMENT_RATIO;
+    const fixedOverhead = GAP_PAD + MOMENT_ICON_SIZE / 2;
+
+    const maxFromH = (availH - insightCardWidth / 2 - fixedOverhead) / sizeCoeff;
+    const maxFromV = (availV - insightCardHeight / 2 - fixedOverhead) / sizeCoeff;
+
+    const maxSize = Math.min(maxFromH, maxFromV);
+    const size = Math.round(Math.max(20, Math.min(baseSize, maxSize)));
+    const momentR = Math.round(size * MOMENT_RATIO);
+
+    return { orbitEntitySize: size, orbitMomentRadius: momentR };
+  }, [isTablet, insightCardWidth, insightCardHeight, avatarCY, usableTop, usableBottom]);
+
   if (sortedEntities.length === 0) {
     // No entities to display
     return (
@@ -2002,7 +2124,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         <SparkledDots
           avatarSize={AVATAR_SIZE}
           avatarCenterX={AVATAR_CX}
-          avatarCenterY={AVATAR_CY}
+          avatarCenterY={avatarCY}
           colorScheme={colorScheme}
           sunnyBackground={sunnyBackground}
           animationsEnabled={animationsEnabled}
@@ -2017,7 +2139,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
           showNeedMemoriesHintBelowCard={showInsightCardHint}
           colorScheme={colorScheme}
           x={AVATAR_CX}
-          y={AVATAR_CY}
+          y={avatarCY}
           animationsEnabled={animationsEnabled}
           sphere3DEffect={sphere3DEffect}
           cardWidth={insightCardWidth}
@@ -2049,7 +2171,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
       <SparkledDots
         avatarSize={AVATAR_SIZE}
         avatarCenterX={AVATAR_CX}
-        avatarCenterY={AVATAR_CY}
+        avatarCenterY={avatarCY}
         colorScheme={colorScheme}
         sunnyBackground={sunnyBackground}
         animationsEnabled={animationsEnabled}
@@ -2066,7 +2188,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         showNeedMemoriesHintBelowCard={showInsightCardHint}
         colorScheme={colorScheme}
         x={AVATAR_CX}
-        y={AVATAR_CY}
+        y={avatarCY}
         animationsEnabled={animationsEnabled}
         sphere3DEffect={sphere3DEffect}
         cardWidth={insightCardWidth}
@@ -2084,13 +2206,14 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
         onNeedMemoriesHint={showOrbitNeedMemoriesHint}
         sphere={sphere}
         centerX={AVATAR_CX}
-        centerY={AVATAR_CY}
-        avatarSize={(isTablet ? 60 : 50) * IPAD_ENTITIES_AVATAR_SCALE}
+        centerY={avatarCY}
+        avatarSize={orbitEntitySize}
         glowColor={sunnyBackground}
         orbitDurationMs={orbitDurationMs}
         animationsEnabled={animationsEnabled}
         cardWidth={insightCardWidth}
         cardHeight={insightCardHeight}
+        momentOrbitRadius={orbitMomentRadius}
       />
     </View>
   );
