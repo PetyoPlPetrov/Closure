@@ -1015,7 +1015,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
       opacity: interpolate(
         focusProgress.value,
         [0, 1],
-        [0.3, 1],
+        [0.3, 0.7],
         Extrapolation.CLAMP,
       ),
       shadowOpacity: interpolate(

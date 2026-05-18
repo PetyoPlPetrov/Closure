@@ -142,17 +142,28 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (highlight !== "demo") return;
     const timer = setTimeout(() => {
-      // demoButtonYRef has the y within the scroll content (captured via onLayout chain)
-      const y = demoButtonYRef.current;
-      if (y > 0) {
-        scrollRef.current?.scrollTo({ y: Math.max(0, y - 120), animated: true });
+      const targetY = Math.max(0, demoButtonYRef.current - 120);
+      if (targetY <= 0) return;
+      // Animate scroll position for a slower, smoother scroll
+      const scrollAnim = new RNAnimated.Value(0);
+      scrollAnim.addListener(({ value }) => {
+        scrollRef.current?.scrollTo({ y: value, animated: false });
+      });
+      RNAnimated.timing(scrollAnim, {
+        toValue: targetY,
+        duration: 800,
+        useNativeDriver: false,
+      }).start(({ finished }) => {
+        scrollAnim.removeAllListeners();
+        if (!finished) return;
+        // Pulse after scroll settles
         setTimeout(() => {
           RNAnimated.sequence([
-            RNAnimated.timing(demoPulseAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
-            RNAnimated.timing(demoPulseAnim, { toValue: 0, duration: 400, useNativeDriver: false }),
+            RNAnimated.timing(demoPulseAnim, { toValue: 1, duration: 500, useNativeDriver: false }),
+            RNAnimated.timing(demoPulseAnim, { toValue: 0, duration: 600, useNativeDriver: false }),
           ]).start();
-        }, 500);
-      }
+        }, 300);
+      });
     }, 600);
     return () => clearTimeout(timer);
   }, [highlight]);

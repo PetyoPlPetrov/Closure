@@ -377,12 +377,12 @@ const INSIGHT_PLANET_C = INSIGHT_PLANET_CANVAS / 2;
 const INSIGHT_MOON_SIZE = Math.round(54 * IPAD_ENTITIES_CARD_SCALE);
 
 /** Memory image thumbnails inside the insight card. */
-const INSIGHT_THUMB_SIZE = Math.round(28 * IPAD_ENTITIES_CARD_SCALE);
+const INSIGHT_THUMB_SIZE = Math.round(36 * IPAD_ENTITIES_CARD_SCALE);
 const INSIGHT_THUMB_MAX = 5;
 /** Featured memory image for single-memory modes (larger, emphasized). */
-const INSIGHT_FEATURED_IMG_SIZE = Math.round(50 * IPAD_ENTITIES_CARD_SCALE);
+const INSIGHT_FEATURED_IMG_SIZE = Math.round(62 * IPAD_ENTITIES_CARD_SCALE);
 /** Larger featured image for mood cards (most cloudy / most sunny) to draw attention. */
-const INSIGHT_FEATURED_IMG_SIZE_MOOD = Math.round(80 * IPAD_ENTITIES_CARD_SCALE);
+const INSIGHT_FEATURED_IMG_SIZE_MOOD = Math.round(96 * IPAD_ENTITIES_CARD_SCALE);
 
 /** Bounding box used by EntityRing to orbit entities around the insight view. */
 const INSIGHT_CARD_COLLAPSED_W = Math.round(INSIGHT_ATMO_R * 2.0) * IPAD_ENTITIES_CARD_SCALE;
@@ -535,7 +535,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
         animatedStyle,
         {
           borderRadius: avatarSize / 2,
-          zIndex: 15,
+          zIndex: 11,
           shadowColor: glowColor,
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.8,
@@ -626,7 +626,7 @@ const OrbitingEntity = React.memo(function OrbitingEntity({
     </Animated.View>
 
     {/* Moment icons in a separate Animated.View so they are NOT clipped by the avatar circle */}
-    <Animated.View style={[momentIconsStyle, { zIndex: 16 }]} pointerEvents="none">
+    <Animated.View style={[momentIconsStyle, { zIndex: 11 }]} pointerEvents="none">
       <SmallFloatingMoments
         entityCenterX={(MOMENT_ORBIT_RADIUS + MOMENT_ICON_SIZE)}
         entityCenterY={(MOMENT_ORBIT_RADIUS + MOMENT_ICON_SIZE)}
@@ -908,8 +908,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
   const insightCardOpacity = useSharedValue(1);
   const insightCardTranslateX = useSharedValue(0);
   const insightTitleOpacity = useSharedValue(1);
+  const insightTitleScale = useSharedValue(1);
   const insightDragX = useSharedValue(0);
   const insightTitleTransitionLockRef = useRef(false);
+  const { pulsingAnimations } = useVisualSettings();
   const shadowColor = getSphereShadowColor(sphere, colorScheme);
   const { ink: insightInk, inkMuted: insightInkMuted } = insightCardInk(colorScheme);
   const { cloudy: insightCloudyMeta, sunny: insightSunnyMeta } = insightSunnyCloudyMetaColors(
@@ -936,11 +938,13 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       cancelAnimation(insightCardOpacity);
       cancelAnimation(insightCardTranslateX);
       cancelAnimation(insightTitleOpacity);
+      cancelAnimation(insightTitleScale);
       cancelAnimation(insightDragX);
       insightTitleTransitionLockRef.current = false;
       insightCardOpacity.value = 1;
       insightCardTranslateX.value = 0;
       insightTitleOpacity.value = 1;
+      insightTitleScale.value = 1;
       insightDragX.value = 0;
       if (sphere === "family" || sphere === "friends") {
         const i = allowedModes.indexOf(1);
@@ -1005,6 +1009,12 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             duration: INSIGHT_CARD_IN_MS,
             easing: easeIn,
           });
+          if (pulsingAnimations) {
+            insightTitleScale.value = withSequence(
+              withTiming(1.18, { duration: 0 }),
+              withSpring(1, { damping: 10, stiffness: 120 }),
+            );
+          }
           insightCardTranslateX.value = withTiming(
             0,
             { duration: INSIGHT_CARD_IN_MS, easing: easeIn },
@@ -1024,6 +1034,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
       insightCardOpacity,
       insightCardTranslateX,
       insightTitleOpacity,
+      insightTitleScale,
+      pulsingAnimations,
     ],
   );
 
@@ -1098,7 +1110,10 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
     return {
       opacity: insightTitleOpacity.value * dragFade,
       // Counteract the parent's translateX + drag so the title stays in place
-      transform: [{ translateX: -(insightCardTranslateX.value + insightDragX.value) }],
+      transform: [
+        { translateX: -(insightCardTranslateX.value + insightDragX.value) },
+        { scale: insightTitleScale.value },
+      ],
     };
   });
 
@@ -1535,16 +1550,18 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
         >
           {/* ── Mode label — above the planet, fade-only (counteracts parent slide) ── */}
           {numModes > 1 && (
-            <Animated.View style={[insightTitleAnimStyle, { alignItems: "center", marginBottom: -4, zIndex: 10 }]}>
+            <Animated.View style={[insightTitleAnimStyle, { alignItems: "center", marginBottom: -14, zIndex: 10 }]}>
               <ThemedText
                 style={{
                   color: shadowColor,
-                  fontSize: 15,
+                  fontSize: 23,
                   fontWeight: "900",
-                  letterSpacing: 1.8,
+                  letterSpacing: 2.2,
                   textTransform: "uppercase",
                 }}
                 numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
               >
                 {cardLabel}
               </ThemedText>
