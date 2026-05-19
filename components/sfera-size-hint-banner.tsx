@@ -251,16 +251,22 @@ export function SferaSizeHintBanner({
   const isCollapsible = Boolean(onActionPress);
   const [collapsed, setCollapsed] = React.useState(isCollapsible && initialCollapsed);
 
+  // Notify parent when collapsed state changes (outside render to avoid setState-during-render).
+  const isFirstRender = React.useRef(true);
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    onCollapsedChange?.(collapsed);
+  }, [collapsed, onCollapsedChange]);
+
   const toggleCollapsed = React.useCallback(() => {
     LayoutAnimation.configureNext(
       LayoutAnimation.create(280, "easeInEaseOut", "opacity"),
     );
-    setCollapsed((prev) => {
-      const next = !prev;
-      onCollapsedChange?.(next);
-      return next;
-    });
-  }, [onCollapsedChange]);
+    setCollapsed((prev) => !prev);
+  }, []);
 
   if (isCollapsible && collapsed) {
     return (

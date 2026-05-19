@@ -1797,7 +1797,10 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     opacity: interpolate(
       focusProgress.value,
       [0, 1],
-      [isInitialView ? 0.5 : 0.75, 1],
+      // Light mode: higher floor so spheres don't wash out against white background
+      colorScheme === "light"
+        ? [isInitialView ? 0.75 : 0.88, 1]
+        : [isInitialView ? 0.5 : 0.75, 1],
       Extrapolation.CLAMP,
     ),
     transform: [
@@ -1825,7 +1828,16 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   });
 
   const entityRingStyle = useAnimatedStyle(() => {
-    return { opacity: 1 - sunExpanded.value };
+    // Dim entity avatars + moments on unfocused spheres to reduce visual clutter.
+    // focusnessSv is 1 when focused, 0 when fully unfocused — smooth during drag.
+    // Light mode needs a higher floor since low opacity washes out against white.
+    const focusOpacity = interpolate(
+      focusnessSv.value,
+      [0, 1],
+      [colorScheme === "light" ? 0.25 : 0.12, 1],
+      Extrapolation.CLAMP,
+    );
+    return { opacity: focusOpacity * (1 - sunExpanded.value) };
   });
 
   const iconWrapStyle = useAnimatedStyle(() => ({
@@ -1837,7 +1849,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
     zIndex: 1,
     justifyContent: "center",
     alignItems: "center",
-    opacity: interpolate(focusProgress.value, [0, 1], [0.62, 1], Extrapolation.CLAMP),
+    // Light mode: higher floor so icons stay readable against white background
+    opacity: interpolate(focusProgress.value, [0, 1], [colorScheme === "light" ? 0.82 : 0.62, 1], Extrapolation.CLAMP),
     transform: [
       {
         scale: Math.max(0.42, sizeSv.value / FOCUSED_SIZE),
@@ -1846,7 +1859,8 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
   }));
 
   const desaturationOverlayStyle = useAnimatedStyle(() => ({
-    opacity: (1 - focusProgress.value) * 0.65,
+    // Light mode: less desaturation so spheres don't wash out against white
+    opacity: (1 - focusProgress.value) * (colorScheme === "light" ? 0.28 : 0.65),
   }));
 
   const classicLayerStyle = useAnimatedStyle(() => ({
@@ -1932,6 +1946,9 @@ const AnimatedSphere = React.memo(function AnimatedSphere({
               alignItems: "center",
               shadowColor: colorScheme === "dark" ? SPHERE_NEON[sphere.type].glow : "#000",
               elevation: 10,
+              // Light mode: subtle border so spheres don't blend into white background
+              borderWidth: colorScheme === "light" ? 1.5 : 0,
+              borderColor: colorScheme === "light" ? "rgba(0,0,0,0.10)" : "transparent",
             },
             sphereVisualStyle,
           ]}
