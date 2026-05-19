@@ -87,7 +87,7 @@ import {
 } from "@/utils/ThemeContext";
 import { UnsavedChangesProvider } from "@/utils/UnsavedChangesContext";
 import { checkForUpdateAndReload } from "@/utils/updates";
-import { DemoModeProvider, useDemoMode, FAKE_ENTITY_NAMES, cleanupFakeData } from "@/utils/DemoModeProvider";
+import { DemoModeProvider, useDemoMode, cleanupFakeData } from "@/utils/DemoModeProvider";
 import { VisualSettingsProvider } from "@/utils/VisualSettingsProvider";
 // Firebase is automatically initialized via Expo plugin (@react-native-firebase/app)
 // App Check is initialized in AppContent component
@@ -119,7 +119,6 @@ function AppContent() {
     useEventInAppNotificationPreference();
   const {
     profiles, jobs, familyMembers, friends, hobbies, idealizedMemories,
-    deleteProfile, deleteJob, deleteFamilyMember, deleteFriend, deleteHobby,
     reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, reloadIdealizedMemories,
   } = useJourney();
   const aiConsent = useAIInsightsConsent();
@@ -152,22 +151,14 @@ function AppContent() {
           onPress: async () => {
             setIsExitingDemoMode(true);
             try {
-              for (const p of profiles) {
-                if (FAKE_ENTITY_NAMES.has(p.name)) await deleteProfile(p.id);
-              }
-              for (const j of jobs) {
-                if (FAKE_ENTITY_NAMES.has(j.name)) await deleteJob(j.id);
-              }
-              for (const f of familyMembers) {
-                if (FAKE_ENTITY_NAMES.has(f.name)) await deleteFamilyMember(f.id);
-              }
-              for (const f of friends) {
-                if (FAKE_ENTITY_NAMES.has(f.name)) await deleteFriend(f.id);
-              }
-              for (const h of hobbies) {
-                if (FAKE_ENTITY_NAMES.has(h.name)) await deleteHobby(h.id);
-              }
+              await cleanupFakeData();
               await setDemoModeActive(false);
+              reloadProfiles();
+              reloadJobs();
+              reloadFamilyMembers();
+              reloadFriends();
+              reloadHobbies();
+              reloadIdealizedMemories();
             } catch (_error) {
               Alert.alert('Error', 'Failed to exit demo mode.');
             } finally {
@@ -178,9 +169,8 @@ function AppContent() {
       ],
     );
   }, [
-    profiles, jobs, familyMembers, friends, hobbies,
-    deleteProfile, deleteJob, deleteFamilyMember, deleteFriend, deleteHobby,
     setDemoModeActive,
+    reloadProfiles, reloadJobs, reloadFamilyMembers, reloadFriends, reloadHobbies, reloadIdealizedMemories,
   ]);
 
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
@@ -912,6 +902,22 @@ function AppContent() {
           </Text>
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
             The app was closed while setting up demo mode. Cleaning up...
+          </Text>
+        </View>
+      )}
+      {isExitingDemoMode && (
+        <View
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 99999,
+          }}
+        >
+          <ActivityIndicator size="large" color="#64B5F6" />
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 20 }}>
+            Removing demo data...
           </Text>
         </View>
       )}

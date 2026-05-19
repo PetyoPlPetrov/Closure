@@ -1538,6 +1538,9 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
                 {t("sferaInsight.addFirstMemory")}
               </ThemedText>
             </Pressable>
+            {!isDemoModeInsightCard && (
+              <SferaInsightEmptyDemoLink />
+            )}
           </View>
         </View>
         {showNeedMemoriesHintBelowCard && (
