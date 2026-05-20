@@ -15253,8 +15253,14 @@ export default function HomeScreen() {
         clearTimeout(sferaSizeHintTimerRef.current);
         sferaSizeHintTimerRef.current = null;
       }
+      if (sferaSizeHintAutoDismissRef.current) {
+        clearTimeout(sferaSizeHintAutoDismissRef.current);
+        sferaSizeHintAutoDismissRef.current = null;
+      }
     };
   }, []);
+
+  const sferaSizeHintAutoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scheduleSferaSizeHintShow = useCallback(() => {
     if (sferaSizeHintTimerRef.current) {
@@ -15332,7 +15338,6 @@ export default function HomeScreen() {
       onFocusedOverviewSurface &&
       !isLoading &&
       focusedIntroComplete &&
-      hasAnyMoments &&
       !focusedSunMenuExpanded;
 
     if (isInsightsDrillMemoryFlow) {
@@ -15379,41 +15384,18 @@ export default function HomeScreen() {
       return;
     }
 
-    if (focusedHomeMemoryBalance !== true) {
-      if (focusedHomeMemoryBalance === false) {
-        prevMbForHintRef.current = false;
-      }
-      if (sferaSizeHintTimerRef.current) {
-        clearTimeout(sferaSizeHintTimerRef.current);
-        sferaSizeHintTimerRef.current = null;
-      }
-      setSferaSizeHintVisible(false);
-      return;
-    }
-
-    const enteredMbFromNonMb =
-      !prevMbForHintRef.current && focusedHomeMemoryBalance === true;
-    prevMbForHintRef.current = true;
-
     if (!prevCanShowFocusedOverviewRef.current) {
       prevCanShowFocusedOverviewRef.current = true;
-      scheduleSferaSizeHintShow();
-      return;
-    }
-
-    if (enteredMbFromNonMb) {
       scheduleSferaSizeHintShow();
     }
   }, [
     sferaSizeHintNeverShow,
-    focusedHomeMemoryBalance,
     isHomeTabFocused,
     homeViewMode,
     selectedSphere,
     focusedSunMenuExpanded,
     isLoading,
     focusedIntroComplete,
-    hasAnyMoments,
     scheduleSferaSizeHintShow,
     isInsightsDrillMemoryFlow,
   ]);
@@ -15513,16 +15495,47 @@ export default function HomeScreen() {
   }, [isSunnyVsCloudyHintEligible]);
 
   const handleSferaSizeHintClose = useCallback(() => {
+    if (sferaSizeHintAutoDismissRef.current) {
+      clearTimeout(sferaSizeHintAutoDismissRef.current);
+      sferaSizeHintAutoDismissRef.current = null;
+    }
     setSferaSizeHintVisible(false);
     scheduleSunnyVsCloudyHintAfterDelay();
   }, [scheduleSunnyVsCloudyHintAfterDelay]);
 
   const handleSferaSizeHintDontShowAgain = useCallback(() => {
+    if (sferaSizeHintAutoDismissRef.current) {
+      clearTimeout(sferaSizeHintAutoDismissRef.current);
+      sferaSizeHintAutoDismissRef.current = null;
+    }
     void setSferaSizeHintDismissedForever(true);
     setSferaSizeHintNeverShow(true);
     setSferaSizeHintVisible(false);
     scheduleSunnyVsCloudyHintAfterDelay();
   }, [scheduleSunnyVsCloudyHintAfterDelay]);
+
+  // Auto-dismiss sfera size hint after 5 seconds, but only when the
+  // sunny/cloudy collapsible notification would follow.
+  useEffect(() => {
+    if (!sferaSizeHintVisible || !isSunnyVsCloudyHintEligible) {
+      if (sferaSizeHintAutoDismissRef.current) {
+        clearTimeout(sferaSizeHintAutoDismissRef.current);
+        sferaSizeHintAutoDismissRef.current = null;
+      }
+      return;
+    }
+    sferaSizeHintAutoDismissRef.current = setTimeout(() => {
+      sferaSizeHintAutoDismissRef.current = null;
+      setSferaSizeHintVisible(false);
+      scheduleSunnyVsCloudyHintAfterDelay();
+    }, 5000);
+    return () => {
+      if (sferaSizeHintAutoDismissRef.current) {
+        clearTimeout(sferaSizeHintAutoDismissRef.current);
+        sferaSizeHintAutoDismissRef.current = null;
+      }
+    };
+  }, [sferaSizeHintVisible, isSunnyVsCloudyHintEligible, scheduleSunnyVsCloudyHintAfterDelay]);
 
   const handleSunnyVsCloudyHintClose = useCallback(() => {
     setSunnyVsCloudyHintVisible(false);

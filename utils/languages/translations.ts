@@ -3961,7 +3961,7 @@ const translations = {
     "home.sunnyVsCloudy.congrats":
       "You are doing great ☀️ {percentage}% of your moments of life feel sunny. Keep going, you are growing every day.",
     "home.sunnyVsCloudy.tapSunFlow":
-      "You've saved beautiful sunny moments ☀️ Tap the sun to watch them flow again and soak in the good. Life spherically, in all directions of life!",
+      "You've saved beautiful sunny moments ☀️ Tap the sun to watch them flow again and soak in the good. Live spherically, in all directions of life!",
     "home.sunnyCelebrate.speedA11y":
       "Animation speed. Higher speeds finish sooner when you have many sunny moments.",
     "home.sunnyCelebrate.densityA11y":

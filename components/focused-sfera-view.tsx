@@ -5290,9 +5290,8 @@ export function FocusedSferaView({
         </Animated.View>
       )}
 
-      {/* ─── Sfera size hint: Memory Balance view only (relative ring sizes); not default orbit / single-sphere focus ─── */}
+      {/* ─── Sfera size hint: shown on overview surface below the sphere cluster ─── */}
       {selectedSphere === null &&
-        isMemoryBalanceMode &&
         sunLoadComplete &&
         sferaSizeHint &&
         bottomTabBarInset > 0 &&
