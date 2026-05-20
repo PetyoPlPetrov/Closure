@@ -1253,6 +1253,22 @@ export default function AddIdealizedMemoryScreen() {
   const useListEditMode = isEditMode && !viewOnly;
   const listInputPlaceholderColor = colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.56)';
   const [focusedListInputId, setFocusedListInputId] = useState<string | null>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
   const cloudyRgb = hexToRgb(momentColors.cloudy.background);
   const sunnyRgb = hexToRgb(momentColors.sunny.background);
   const lessonRgb = hexToRgb(momentColors.lesson.background);
@@ -3417,6 +3433,7 @@ export default function AddIdealizedMemoryScreen() {
             </View>
           </View>
 
+          {!keyboardVisible && (
           <View style={styles.uploadShadowWrap}>
             <TouchableOpacity
               ref={containerRef}
@@ -3469,6 +3486,7 @@ export default function AddIdealizedMemoryScreen() {
               )}
             </TouchableOpacity>
           </View>
+          )}
 
           {/* Edit mode list view */}
           {useListEditMode && (
