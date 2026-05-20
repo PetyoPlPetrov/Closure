@@ -183,7 +183,7 @@ export default function IdealizedMemoriesScreen() {
     if (isNewMode && entityId && sphere) {
       router.push({
         pathname: "/add-idealized-memory",
-        params: { entityId, sphere, memoryId, viewOnly: 'true' },
+        params: { entityId, sphere, memoryId },
       });
     } else if (profileId) {
       router.push({
