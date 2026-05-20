@@ -71,6 +71,13 @@ export type AIModalResultsDraftV1 = {
   newEntityEndDateIso: string | null;
   newEntityIsCurrent: boolean;
   newEntityImage: string | null;
+  /** "Add to existing memory" mode fields */
+  addToExistingMemory?: boolean;
+  selectedExistingSphere?: LifeSphere | null;
+  selectedExistingEntityId?: string | null;
+  selectedExistingEntityName?: string | null;
+  selectedExistingMemoryId?: string | null;
+  selectedExistingMemoryTitle?: string | null;
 };
 
 export async function saveAIModalResultsDraft(

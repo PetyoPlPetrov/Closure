@@ -29,7 +29,7 @@ import {
   getRemainingAIRequests,
   REQUESTS_PER_DAY_PREMIUM,
 } from "@/utils/ai-rate-limiter";
-import { processMemoryPrompt, type AIMemoryResponse } from "@/utils/ai-service";
+import { processMemoryPrompt, processMomentsOnlyPrompt, type AIMemoryResponse, type AIMomentsOnlyResponse } from "@/utils/ai-service";
 import {
     logAIMemoryDiscarded,
     logAIMemorySaved,
@@ -158,7 +158,10 @@ export function AIModal({
     familyMembers,
     friends,
     hobbies,
+    idealizedMemories,
     addIdealizedMemory,
+    updateIdealizedMemory,
+    getIdealizedMemoriesByEntityId,
     addFriend,
     addFamilyMember,
     addJob,
@@ -218,6 +221,18 @@ export function AIModal({
     null,
   );
   const [freeAIDailyLimit, setFreeAIDailyLimit] = useState(3);
+
+  // "Add to existing memory" mode state
+  const [addToExistingMemory, setAddToExistingMemory] = useState(false);
+  const [selectedExistingSphere, setSelectedExistingSphere] = useState<LifeSphere | null>(null);
+  const [selectedExistingEntityId, setSelectedExistingEntityId] = useState<string | null>(null);
+  const [selectedExistingEntityName, setSelectedExistingEntityName] = useState<string | null>(null);
+  const [selectedExistingMemoryId, setSelectedExistingMemoryId] = useState<string | null>(null);
+  const [selectedExistingMemoryTitle, setSelectedExistingMemoryTitle] = useState<string | null>(null);
+  const [showMemoryPicker, setShowMemoryPicker] = useState(false);
+  const [memoryPickerSearch, setMemoryPickerSearch] = useState("");
+  const [showTopLevelSpherePicker, setShowTopLevelSpherePicker] = useState(false);
+  const [showTopLevelEntityPicker, setShowTopLevelEntityPicker] = useState(false);
 
   const handleAttemptClose = () => {
     if (inputText.trim().length > 0 || aiResponse) {
@@ -442,6 +457,12 @@ export function AIModal({
           : null,
         newEntityIsCurrent,
         newEntityImage,
+        addToExistingMemory,
+        selectedExistingSphere,
+        selectedExistingEntityId,
+        selectedExistingEntityName,
+        selectedExistingMemoryId,
+        selectedExistingMemoryTitle,
       };
       persistReviewDraftTimerRef.current = setTimeout(() => {
         persistReviewDraftTimerRef.current = null;
@@ -470,6 +491,12 @@ export function AIModal({
     newEntityEndDate,
     newEntityIsCurrent,
     newEntityImage,
+    addToExistingMemory,
+    selectedExistingSphere,
+    selectedExistingEntityId,
+    selectedExistingEntityName,
+    selectedExistingMemoryId,
+    selectedExistingMemoryTitle,
     flushAIModalReviewDraftToStorage,
   ]);
 
@@ -569,6 +596,13 @@ export function AIModal({
         );
         setNewEntityIsCurrent(draft.newEntityIsCurrent ?? false);
         setNewEntityImage(draft.newEntityImage ?? null);
+        // Restore "add to existing memory" state
+        setAddToExistingMemory(draft.addToExistingMemory ?? false);
+        setSelectedExistingSphere(draft.selectedExistingSphere ?? null);
+        setSelectedExistingEntityId(draft.selectedExistingEntityId ?? null);
+        setSelectedExistingEntityName(draft.selectedExistingEntityName ?? null);
+        setSelectedExistingMemoryId(draft.selectedExistingMemoryId ?? null);
+        setSelectedExistingMemoryTitle(draft.selectedExistingMemoryTitle ?? null);
         setCurrentView("loading");
         setIsProcessing(false);
         setErrorMessage(null);
@@ -1095,6 +1129,70 @@ export function AIModal({
     await speechToText.stop();
   };
 
+  // "Add to existing memory" top-level picker handlers
+  const handleTopLevelSphereSelect = useCallback((sphere: LifeSphere) => {
+    setSelectedExistingSphere(sphere);
+    setSelectedExistingEntityId(null);
+    setSelectedExistingEntityName(null);
+    setSelectedExistingMemoryId(null);
+    setSelectedExistingMemoryTitle(null);
+    setShowTopLevelSpherePicker(false);
+  }, []);
+
+  const handleTopLevelEntitySelect = useCallback((entityId: string, entityName: string) => {
+    setSelectedExistingEntityId(entityId);
+    setSelectedExistingEntityName(entityName);
+    setSelectedExistingMemoryId(null);
+    setSelectedExistingMemoryTitle(null);
+    setShowTopLevelEntityPicker(false);
+  }, []);
+
+  const handleMemorySelect = useCallback((memoryId: string, memoryTitle: string) => {
+    setSelectedExistingMemoryId(memoryId);
+    setSelectedExistingMemoryTitle(memoryTitle);
+    setShowMemoryPicker(false);
+  }, []);
+
+  const processAIMomentsOnlyResponse = useCallback(async (response: AIMomentsOnlyResponse) => {
+    try {
+      await forgetPersistedAIModalReviewState();
+      const momentTypeMap: Record<string, AIMemoryItem["type"]> = {
+        sunnyMoments: "goodFact",
+        hardTruths: "hardTruth",
+        lessonsLearned: "lesson",
+      };
+
+      const items: AIMemoryItem[] = (response.moments || []).map((moment, index) => ({
+        id: `${momentTypeMap[moment.type] || "goodFact"}_${Date.now()}_0_${index}_${Math.random().toString(36).slice(2, 8)}`,
+        type: momentTypeMap[moment.type] || "goodFact",
+        text: moment.text,
+        notificationMessage: moment.notificationMessage,
+      }));
+
+      const draft: AIMemoryDraft = {
+        id: `moments_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        title: "",
+        items,
+        sphere: null,
+        entityId: null,
+        entityName: null,
+      };
+
+      setAiResponse({ memories: [] } as any);
+      setMemoryDrafts([draft]);
+      setExpandedDraftIds([draft.id]);
+      // Stay on "loading" view — results render within it when aiResponse is set (same as normal flow)
+      setIsProcessing(false);
+    } catch (error) {
+      console.error("[AI Modal] Failed to process moments-only response:", error);
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to process AI response",
+      );
+      setCurrentView("error");
+      setIsProcessing(false);
+    }
+  }, [forgetPersistedAIModalReviewState]);
+
   const handleSend = async () => {
     if (!inputText.trim() || !canSubmit) {
       return;
@@ -1191,15 +1289,24 @@ export function AIModal({
       // If app is active, use foreground processing (faster). Otherwise use background task.
       if (appState === "active") {
         try {
-          const response = await processMemoryPrompt(
-            inputText.trim(),
-            { sferas },
-            language,
-            undefined,
-            narrativeAppendix,
-          );
-
-          await processAIResponse(response);
+          if (addToExistingMemory) {
+            // Moments-only mode: simpler/faster AI call, always foreground
+            const response = await processMomentsOnlyPrompt(
+              inputText.trim(),
+              { sferas },
+              language,
+            );
+            await processAIMomentsOnlyResponse(response);
+          } else {
+            const response = await processMemoryPrompt(
+              inputText.trim(),
+              { sferas },
+              language,
+              undefined,
+              narrativeAppendix,
+            );
+            await processAIResponse(response);
+          }
         } catch (error) {
           setIsProcessing(false);
           const errorMsg =
@@ -1211,6 +1318,22 @@ export function AIModal({
             await stopBackgroundAIProcessing();
             setBackgroundRequestId(null);
           }
+        }
+      } else if (addToExistingMemory) {
+        // Moments-only mode doesn't support background processing; wait for foreground
+        try {
+          const response = await processMomentsOnlyPrompt(
+            inputText.trim(),
+            { sferas },
+            language,
+          );
+          await processAIMomentsOnlyResponse(response);
+        } catch (error) {
+          setIsProcessing(false);
+          const errorMsg =
+            error instanceof Error ? error.message : String(error);
+          setErrorMessage(errorMsg);
+          setCurrentView("error");
         }
       } else {
         // App is already in background, use background task
@@ -1295,6 +1418,12 @@ export function AIModal({
     setSpherePickerDraftId(null);
     setEntityPickerDraftId(null);
     setAddEntityDraftId(null);
+    // Reset add-to-existing state
+    setSelectedExistingSphere(null);
+    setSelectedExistingEntityId(null);
+    setSelectedExistingEntityName(null);
+    setSelectedExistingMemoryId(null);
+    setSelectedExistingMemoryTitle(null);
   };
 
   const isMemoryDraftComplete = (d: AIMemoryDraft) =>
@@ -1373,10 +1502,35 @@ export function AIModal({
           !newEntityRelationship.trim())),
   );
 
-  const allMemoryDraftsReady =
+  // "Add to existing memory" computed values
+  const topLevelEntities = useMemo(() => {
+    return listEntitiesForSphere(selectedExistingSphere);
+  }, [selectedExistingSphere, profiles, jobs, familyMembers, friends, hobbies]);
+
+  const existingMemoriesForEntity = useMemo(() => {
+    if (!selectedExistingEntityId || !selectedExistingSphere) return [];
+    return getIdealizedMemoriesByEntityId(selectedExistingEntityId, selectedExistingSphere);
+  }, [selectedExistingEntityId, selectedExistingSphere, idealizedMemories]);
+
+  const filteredMemoriesForPicker = useMemo(() => {
+    if (!memoryPickerSearch.trim()) return existingMemoriesForEntity;
+    const q = memoryPickerSearch.trim().toLowerCase();
+    return existingMemoriesForEntity.filter((m) => m.title.toLowerCase().includes(q));
+  }, [existingMemoriesForEntity, memoryPickerSearch]);
+
+  const addToExistingReady =
+    addToExistingMemory &&
+    Boolean(selectedExistingSphere) &&
+    Boolean(selectedExistingEntityId) &&
+    Boolean(selectedExistingMemoryId) &&
     memoryDrafts.length > 0 &&
-    memoryDrafts.every(isMemoryDraftComplete) &&
-    !addEntityFormBlocksSave;
+    memoryDrafts.some((d) => d.items.length > 0);
+
+  const allMemoryDraftsReady = addToExistingMemory
+    ? Boolean(addToExistingReady)
+    : memoryDrafts.length > 0 &&
+      memoryDrafts.every(isMemoryDraftComplete) &&
+      !addEntityFormBlocksSave;
 
   useEffect(() => {
     if (addEntityDraftId == null) return;
@@ -1539,7 +1693,189 @@ export function AIModal({
     }
   };
 
+  const handleSaveToExisting = async () => {
+    if (!selectedExistingMemoryId || !selectedExistingSphere || !selectedExistingEntityId) return;
+    if (!memoryDrafts[0] || memoryDrafts[0].items.length === 0) return;
+
+    setIsProcessing(true);
+    try {
+      const draft = memoryDrafts[0];
+      const existingMemory = existingMemoriesForEntity.find((m) => m.id === selectedExistingMemoryId);
+      if (!existingMemory) throw new Error("Memory not found");
+
+      const newHardTruths = draft.items
+        .filter((i) => i.type === "hardTruth")
+        .map((i) => ({ id: i.id, text: i.text }));
+      const newGoodFacts = draft.items
+        .filter((i) => i.type === "goodFact")
+        .map((i) => ({ id: i.id, text: i.text }));
+      const newLessons = draft.items
+        .filter((i) => i.type === "lesson")
+        .map((i) => ({ id: i.id, text: i.text }));
+
+      await updateIdealizedMemory(selectedExistingMemoryId, {
+        hardTruths: [...(existingMemory.hardTruths || []), ...newHardTruths],
+        goodFacts: [...(existingMemory.goodFacts || []), ...newGoodFacts],
+        lessonsLearned: [...(existingMemory.lessonsLearned || []), ...newLessons],
+      });
+
+      // Handle notification messages for lesson/sunny moments
+      const itemsNeedingSummary = draft.items.filter(
+        (item) => item.type === "lesson" || item.type === "goodFact",
+      );
+      const lessonsWithoutMessage = itemsNeedingSummary.filter(
+        (item) => item.type === "lesson" && !item.notificationMessage?.trim(),
+      );
+      const sunnyWithoutMessage = itemsNeedingSummary.filter(
+        (item) => item.type === "goodFact" && !item.notificationMessage?.trim(),
+      );
+
+      const resolvedMessages: Record<string, string> = {};
+      if (lessonsWithoutMessage.length > 0 || sunnyWithoutMessage.length > 0) {
+        const {
+          suggestNotificationMessagesForLessons,
+          suggestNotificationMessagesForSunnyMoments,
+        } = await import("@/utils/ai-service");
+        const lang = language === "bg" ? "bg" : "en";
+        const [lessonMap, sunnyMap] = await Promise.all([
+          lessonsWithoutMessage.length > 0
+            ? suggestNotificationMessagesForLessons(
+                lessonsWithoutMessage.map((l) => ({
+                  id: l.id,
+                  text: l.text,
+                  memoryTitle: existingMemory.title,
+                  sphere: selectedExistingSphere,
+                })),
+                lang,
+              )
+            : Promise.resolve({} as Record<string, string>),
+          sunnyWithoutMessage.length > 0
+            ? suggestNotificationMessagesForSunnyMoments(
+                sunnyWithoutMessage.map((s) => ({
+                  id: s.id,
+                  text: s.text,
+                  memoryTitle: existingMemory.title,
+                  sphere: selectedExistingSphere,
+                })),
+                lang,
+              )
+            : Promise.resolve({} as Record<string, string>),
+        ]);
+        Object.assign(resolvedMessages, lessonMap, sunnyMap);
+      }
+
+      const toPersist: Parameters<typeof addSummariesBatch>[0] = [];
+      for (const item of itemsNeedingSummary) {
+        const message =
+          item.notificationMessage?.trim() || resolvedMessages[item.id]?.trim();
+        if (!message) continue;
+        toPersist.push({
+          momentId: item.id,
+          memoryId: selectedExistingMemoryId,
+          entityId: selectedExistingEntityId,
+          sphere: selectedExistingSphere,
+          momentType: item.type === "lesson" ? "lesson" : "sunny",
+          momentText: item.text,
+          notificationMessage: message,
+          source: "ai_suggested",
+        });
+      }
+      if (toPersist.length > 0) {
+        await addSummariesBatch(toPersist);
+      }
+
+      await logAIMemorySaved(selectedExistingSphere, false, draft.items.length);
+
+      // Streak update
+      try {
+        const streakResult = await updateStreakOnMemoryCreation();
+        const currentStreak = streakResult.data.currentStreak;
+        const milestoneBadge =
+          streakResult.newMilestones
+            .map((milestone) => getBadgeForStreak(milestone))
+            .find((badge): badge is NonNullable<typeof badge> => badge !== null) || null;
+        const unlockedBadge = streakResult.newBadges[0] || milestoneBadge;
+
+        if (unlockedBadge) {
+          const badge = unlockedBadge;
+          const emoji =
+            badge.daysRequired >= 14 ? "🏆" : badge.daysRequired >= 7 ? "🌟" : badge.daysRequired >= 3 ? "🔥" : "✨";
+          showNotification({ title: "New Badge Unlocked!", message: `You've earned the ${badge.name} badge with ${badge.daysRequired} consecutive days!`, emoji, duration: 4000 });
+        } else if (streakResult.newMilestones.length > 0) {
+          const milestone = streakResult.newMilestones[0];
+          const emoji = milestone >= 14 ? "🏆" : milestone >= 7 ? "🌟" : milestone >= 3 ? "🔥" : "✨";
+          showNotification({ title: `${milestone}-day streak!`, message: `Amazing! You've created memories for ${milestone} days in a row.`, emoji, duration: 4000 });
+        } else if (streakResult.streakIncreased || streakResult.isFirstMemory) {
+          const emoji = currentStreak >= 14 ? "🏆" : currentStreak >= 7 ? "⭐" : currentStreak >= 3 ? "🔥" : "✨";
+          const title = currentStreak === 1 ? "Streak started!" : currentStreak === 2 ? "Great start!" : `${currentStreak}-day streak!`;
+          const message = currentStreak === 1 ? "You're on day 1! Keep creating memories daily to build your streak." : currentStreak === 2 ? "2 days in a row! One more day until your Pulse badge." : `Amazing! You've created memories for ${currentStreak} days in a row. Keep it up!`;
+          showNotification({ title, message, emoji, duration: 3000 });
+        }
+      } catch {
+        // noop
+      }
+
+      await clearPendingAIResponse();
+      await clearPendingAIRequest();
+      await stopBackgroundAIProcessing();
+      await forgetPersistedAIModalReviewState();
+
+      onClose();
+
+      Alert.alert(
+        t("ai.save.updated"),
+        t("ai.save.updatedMessage"),
+        [
+          { text: t("common.close"), style: "cancel" },
+          {
+            text: t("ai.openMemory"),
+            onPress: () => {
+              const openSphere = selectedExistingSphere!;
+              const openEntityId = selectedExistingEntityId!;
+              const detailParams: {
+                sphere: LifeSphere;
+                entityId: string;
+                focusedMemoryId: string;
+                source?: string;
+                profileId?: string;
+                jobId?: string;
+                familyMemberId?: string;
+                friendId?: string;
+                hobbyId?: string;
+              } = {
+                sphere: openSphere,
+                entityId: openEntityId,
+                focusedMemoryId: selectedExistingMemoryId!,
+                source: "ai_modal_update",
+              };
+
+              if (openSphere === "relationships") detailParams.profileId = openEntityId;
+              else if (openSphere === "career") detailParams.jobId = openEntityId;
+              else if (openSphere === "family") detailParams.familyMemberId = openEntityId;
+              else if (openSphere === "friends") detailParams.friendId = openEntityId;
+              else if (openSphere === "hobbies") detailParams.hobbyId = openEntityId;
+
+              router.replace({
+                pathname: "/" as const,
+                params: detailParams,
+              });
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      Alert.alert(t("common.error"), (error as Error).message || t("ai.save.error"));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleSave = async () => {
+    if (addToExistingMemory) {
+      await handleSaveToExisting();
+      return;
+    }
+
     if (!aiResponse || memoryDrafts.length === 0) {
       return;
     }
@@ -3449,6 +3785,37 @@ export function AIModal({
                     </ThemedText>
                   </View>
 
+                  {/* Add to existing memory toggle */}
+                  {!onboardingSferaAI && !goldenEventId && (
+                    <Pressable
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingHorizontal: 16 * fontScale,
+                        marginBottom: 8 * fontScale,
+                        gap: 8 * fontScale,
+                      }}
+                      onPress={() => setAddToExistingMemory((prev) => !prev)}
+                    >
+                      <MaterialIcons
+                        name={
+                          addToExistingMemory
+                            ? "check-box"
+                            : "check-box-outline-blank"
+                        }
+                        size={22 * fontScale}
+                        color={
+                          addToExistingMemory
+                            ? colors.primary
+                            : colors.textMediumEmphasis || colors.text + "80"
+                        }
+                      />
+                      <ThemedText size="sm" style={{ opacity: 0.85 }}>
+                        {t("ai.addToExisting")}
+                      </ThemedText>
+                    </Pressable>
+                  )}
+
                   {/* Submit Button */}
                   <TouchableOpacity
                     onPress={handleSend}
@@ -3817,8 +4184,180 @@ export function AIModal({
                       </View>
                     )}
 
-                    {/* Results (shown when AI response arrives) */}
-                    {aiResponse && (
+                    {/* Results — Add to Existing Memory mode */}
+                    {aiResponse && addToExistingMemory && memoryDrafts[0] && (
+                      <>
+                        {/* Top-level dropdowns — always visible, disabled until previous is filled */}
+                        <View style={{ paddingHorizontal: 16 * fontScale, marginTop: 20 * fontScale }}>
+                          {/* Sfera picker */}
+                          <View style={styles.dropdownContainer}>
+                            <ThemedText size="xs" weight="medium" style={styles.dropdownLabel}>
+                              {t("ai.results.sphere")}
+                            </ThemedText>
+                            <Pressable
+                              style={[
+                                styles.dropdownButton,
+                                !selectedExistingSphere
+                                  ? { borderColor: colorScheme === "dark" ? "#FF6B6B" : "#D93025", borderWidth: 1.5 }
+                                  : null,
+                              ].filter(Boolean)}
+                              onPress={() => setShowTopLevelSpherePicker(true)}
+                            >
+                              <ThemedText size="sm" weight="semibold">
+                                {selectedExistingSphere
+                                  ? spherePickerLabels[selectedExistingSphere]
+                                  : t("ai.results.selectSphere")}
+                              </ThemedText>
+                              <MaterialIcons name="arrow-drop-down" size={24 * fontScale} color={colors.text} />
+                            </Pressable>
+                          </View>
+
+                          {/* Entity picker — always visible, disabled when no sphere */}
+                          <View style={[styles.dropdownContainer, { marginTop: 12 * fontScale }]}>
+                            <ThemedText
+                              size="xs"
+                              weight="medium"
+                              style={[styles.dropdownLabel, !selectedExistingSphere && { opacity: 0.4 }]}
+                            >
+                              {t("ai.results.entity")}
+                            </ThemedText>
+                            <Pressable
+                              style={[
+                                styles.dropdownButton,
+                                !selectedExistingSphere && { opacity: 0.4 },
+                                selectedExistingSphere && !selectedExistingEntityId
+                                  ? { borderColor: colorScheme === "dark" ? "#FF6B6B" : "#D93025", borderWidth: 1.5 }
+                                  : null,
+                              ].filter(Boolean)}
+                              onPress={() => {
+                                if (selectedExistingSphere) setShowTopLevelEntityPicker(true);
+                              }}
+                              disabled={!selectedExistingSphere}
+                            >
+                              <ThemedText size="sm" weight="semibold">
+                                {selectedExistingEntityName || t("ai.results.selectEntity")}
+                              </ThemedText>
+                              <MaterialIcons name="arrow-drop-down" size={24 * fontScale} color={colors.text} />
+                            </Pressable>
+                          </View>
+
+                          {/* Memory picker — always visible, disabled when no entity */}
+                          <View style={[styles.dropdownContainer, { marginTop: 12 * fontScale }]}>
+                            <ThemedText
+                              size="xs"
+                              weight="medium"
+                              style={[styles.dropdownLabel, !selectedExistingEntityId && { opacity: 0.4 }]}
+                            >
+                              {t("ai.results.memory")}
+                            </ThemedText>
+                            {selectedExistingEntityId && existingMemoriesForEntity.length === 0 ? (
+                              <ThemedText size="sm" style={{ opacity: 0.6, paddingVertical: 8 * fontScale }}>
+                                {t("ai.results.noMemories")}
+                              </ThemedText>
+                            ) : (
+                              <Pressable
+                                style={[
+                                  styles.dropdownButton,
+                                  !selectedExistingEntityId && { opacity: 0.4 },
+                                  selectedExistingEntityId && !selectedExistingMemoryId
+                                    ? { borderColor: colorScheme === "dark" ? "#FF6B6B" : "#D93025", borderWidth: 1.5 }
+                                    : null,
+                                ].filter(Boolean)}
+                                onPress={() => {
+                                  if (selectedExistingEntityId) {
+                                    setMemoryPickerSearch("");
+                                    setShowMemoryPicker(true);
+                                  }
+                                }}
+                                disabled={!selectedExistingEntityId}
+                              >
+                                <ThemedText size="sm" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>
+                                  {selectedExistingMemoryTitle || t("ai.results.selectMemory")}
+                                </ThemedText>
+                                <MaterialIcons name="arrow-drop-down" size={24 * fontScale} color={colors.text} />
+                              </Pressable>
+                            )}
+                          </View>
+                        </View>
+
+                        {/* Moments list */}
+                        <View style={{ paddingHorizontal: 16 * fontScale, marginTop: 16 * fontScale }}>
+                          {memoryDrafts[0].items
+                            .slice()
+                            .sort((a, b) => {
+                              const order: Record<string, number> = {
+                                goodFact: 0,
+                                hardTruth: 1,
+                                lesson: 2,
+                              };
+                              return (order[a.type] || 99) - (order[b.type] || 99);
+                            })
+                            .map((item) => (
+                              <Pressable
+                                key={item.id}
+                                style={styles.memoryItem}
+                                onPress={() => {
+                                  if (isKeyboardVisible) Keyboard.dismiss();
+                                }}
+                              >
+                                <View style={styles.memoryItemHeader}>
+                                  <MaterialIcons
+                                    name={
+                                      item.type === "hardTruth"
+                                        ? "cloud"
+                                        : item.type === "goodFact"
+                                          ? "wb-sunny"
+                                          : "lightbulb"
+                                    }
+                                    size={20 * fontScale}
+                                    color={
+                                      item.type === "hardTruth"
+                                        ? Colors.dark.primary
+                                        : item.type === "goodFact"
+                                          ? momentColors.sunny.background
+                                          : momentColors.lesson.background
+                                    }
+                                  />
+                                  <ThemedText
+                                    size="sm"
+                                    weight="medium"
+                                    style={{ marginLeft: 8 * fontScale, opacity: 0.7 }}
+                                  >
+                                    {item.type === "hardTruth"
+                                      ? t("ai.results.hardTruth")
+                                      : item.type === "goodFact"
+                                        ? t("ai.results.goodFact")
+                                        : t("ai.results.lesson")}
+                                  </ThemedText>
+                                  <TouchableOpacity
+                                    style={styles.removeItemButton}
+                                    onPress={() => handleRemoveItem(memoryDrafts[0].id, item.id)}
+                                  >
+                                    <MaterialIcons
+                                      name="close"
+                                      size={16 * fontScale}
+                                      color={colors.textMediumEmphasis || colors.text}
+                                    />
+                                  </TouchableOpacity>
+                                </View>
+                                <TextInput
+                                  style={styles.memoryItemText}
+                                  value={item.text}
+                                  onChangeText={(text) =>
+                                    handleEditItem(memoryDrafts[0].id, item.id, text)
+                                  }
+                                  multiline
+                                  scrollEnabled={false}
+                                  placeholderTextColor={colors.textMediumEmphasis || colors.text + "80"}
+                                />
+                              </Pressable>
+                            ))}
+                        </View>
+                      </>
+                    )}
+
+                    {/* Results (shown when AI response arrives) — Normal mode */}
+                    {aiResponse && !addToExistingMemory && (
                       <>
                         {/* Suggested memories — cards first so they are not pushed below the fold */}
                         <View
@@ -4290,6 +4829,20 @@ export function AIModal({
                       )}
                     </TouchableOpacity>
                   )}
+                  {/* Hint text for add-to-existing when fields not filled */}
+                  {aiResponse && addToExistingMemory && !addToExistingReady && (
+                    <ThemedText
+                      size="xs"
+                      style={{
+                        textAlign: "center",
+                        marginTop: 8 * fontScale,
+                        opacity: 0.7,
+                        color: colorScheme === "dark" ? "#FF6B6B" : "#D93025",
+                      }}
+                    >
+                      {t("ai.results.fillAllRequired")}
+                    </ThemedText>
+                  )}
                 </View>
               )}
             </Animated.View>
@@ -4469,6 +5022,183 @@ export function AIModal({
                     )}
                   </Pressable>
                 ))}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </RNModal>
+
+        {/* Top-Level Sphere Picker Modal (Add to Existing) */}
+        <RNModal
+          visible={showTopLevelSpherePicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowTopLevelSpherePicker(false)}
+        >
+          <Pressable
+            style={styles.pickerOverlay}
+            onPress={() => setShowTopLevelSpherePicker(false)}
+          >
+            <Pressable
+              style={styles.pickerContainer}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.pickerHeader}>
+                <ThemedText size="l" weight="bold">
+                  {t("ai.results.selectSphere")}
+                </ThemedText>
+                <Pressable onPress={() => setShowTopLevelSpherePicker(false)}>
+                  <MaterialIcons name="close" size={24 * fontScale} color={colors.text} />
+                </Pressable>
+              </View>
+              <ScrollView style={styles.pickerList}>
+                {(["relationships", "career", "family", "friends", "hobbies"] as LifeSphere[]).map((sphere) => (
+                  <Pressable
+                    key={sphere}
+                    style={[
+                      styles.pickerItem,
+                      selectedExistingSphere === sphere && styles.pickerItemSelected,
+                    ]}
+                    onPress={() => handleTopLevelSphereSelect(sphere)}
+                  >
+                    <ThemedText
+                      size="sm"
+                      weight={selectedExistingSphere === sphere ? "bold" : "normal"}
+                    >
+                      {spherePickerLabels[sphere]}
+                    </ThemedText>
+                    {selectedExistingSphere === sphere && (
+                      <MaterialIcons name="check" size={20 * fontScale} color={colors.primary} />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </RNModal>
+
+        {/* Top-Level Entity Picker Modal (Add to Existing) */}
+        <RNModal
+          visible={showTopLevelEntityPicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowTopLevelEntityPicker(false)}
+        >
+          <Pressable
+            style={styles.pickerOverlay}
+            onPress={() => setShowTopLevelEntityPicker(false)}
+          >
+            <Pressable
+              style={styles.pickerContainer}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.pickerHeader}>
+                <ThemedText size="l" weight="bold">
+                  {t("ai.results.entityPickerTitle")}
+                </ThemedText>
+                <Pressable onPress={() => setShowTopLevelEntityPicker(false)}>
+                  <MaterialIcons name="close" size={24 * fontScale} color={colors.text} />
+                </Pressable>
+              </View>
+              <ScrollView style={styles.pickerList}>
+                {topLevelEntities.map((entity) => (
+                  <Pressable
+                    key={entity.id}
+                    style={[
+                      styles.pickerItem,
+                      selectedExistingEntityId === entity.id && styles.pickerItemSelected,
+                    ]}
+                    onPress={() => handleTopLevelEntitySelect(entity.id, entity.name)}
+                  >
+                    <ThemedText
+                      size="sm"
+                      weight={selectedExistingEntityId === entity.id ? "bold" : "normal"}
+                    >
+                      {entity.name}
+                    </ThemedText>
+                    {selectedExistingEntityId === entity.id && (
+                      <MaterialIcons name="check" size={20 * fontScale} color={colors.primary} />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </RNModal>
+
+        {/* Memory Picker Modal (Add to Existing) */}
+        <RNModal
+          visible={showMemoryPicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowMemoryPicker(false)}
+        >
+          <Pressable
+            style={styles.pickerOverlay}
+            onPress={() => setShowMemoryPicker(false)}
+          >
+            <Pressable
+              style={styles.pickerContainer}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.pickerHeader}>
+                <ThemedText size="l" weight="bold">
+                  {t("ai.results.memoryPickerTitle")}
+                </ThemedText>
+                <Pressable onPress={() => setShowMemoryPicker(false)}>
+                  <MaterialIcons name="close" size={24 * fontScale} color={colors.text} />
+                </Pressable>
+              </View>
+              <TextInput
+                style={[
+                  styles.memoryDraftTitleInput,
+                  {
+                    marginHorizontal: 16 * fontScale,
+                    marginBottom: 8 * fontScale,
+                  },
+                ]}
+                value={memoryPickerSearch}
+                onChangeText={setMemoryPickerSearch}
+                placeholder={t("ai.results.searchMemory")}
+                placeholderTextColor={colors.textMediumEmphasis || colors.text + "80"}
+              />
+              <ScrollView
+                style={styles.pickerList}
+                keyboardShouldPersistTaps="handled"
+              >
+                {filteredMemoriesForPicker.map((memory) => (
+                  <Pressable
+                    key={memory.id}
+                    style={[
+                      styles.pickerItem,
+                      selectedExistingMemoryId === memory.id && styles.pickerItemSelected,
+                    ]}
+                    onPress={() => handleMemorySelect(memory.id, memory.title)}
+                  >
+                    <ThemedText
+                      size="sm"
+                      weight={selectedExistingMemoryId === memory.id ? "bold" : "normal"}
+                      numberOfLines={2}
+                      style={{ flex: 1 }}
+                    >
+                      {memory.title}
+                    </ThemedText>
+                    {selectedExistingMemoryId === memory.id && (
+                      <MaterialIcons name="check" size={20 * fontScale} color={colors.primary} />
+                    )}
+                  </Pressable>
+                ))}
+                {filteredMemoriesForPicker.length === 0 && (
+                  <ThemedText
+                    size="sm"
+                    style={{
+                      padding: 16 * fontScale,
+                      opacity: 0.6,
+                      textAlign: "center",
+                    }}
+                  >
+                    {t("ai.results.noMemories")}
+                  </ThemedText>
+                )}
               </ScrollView>
             </Pressable>
           </Pressable>

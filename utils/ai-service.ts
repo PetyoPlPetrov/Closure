@@ -327,6 +327,115 @@ REQUIRED: For EVERY sunnyMoments and lessonsLearned moment you MUST provide noti
 }
 
 /**
+ * Process a moments-only prompt for adding to an existing memory.
+ * Returns only moments (no memory title/description/date).
+ */
+export async function processMomentsOnlyPrompt(
+  prompt: string,
+  context: AIRequestContext,
+  language: string = "en",
+  imageUri?: string,
+): Promise<AIMomentsOnlyResponse> {
+  if (USE_MOCK_AI_REQUEST) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return {
+      moments: [
+        { type: "sunnyMoments", text: "I enjoyed this experience", notificationMessage: "You found joy in that moment." },
+        { type: "lessonsLearned", text: "I learned something valuable", notificationMessage: "You discovered an important lesson." },
+      ],
+    };
+  }
+
+  const languageName = language === "bg" ? "Bulgarian" : "English";
+  const languageCode = language === "bg" ? "bg" : "en";
+
+  const responseSchema = Schema.object({
+    properties: {
+      moments: Schema.array({
+        items: Schema.object({
+          properties: {
+            type: Schema.string({
+              enum: ["sunnyMoments", "lessonsLearned", "hardTruths"],
+              description: "Type of moment",
+            }),
+            text: Schema.string({
+              description:
+                'First-person moment text ("I", "my"). For lessonsLearned: a complete reflection in 1–3 sentences. For others: as appropriate.',
+            }),
+            notificationMessage: Schema.string({
+              description:
+                "REQUIRED for sunnyMoments and lessonsLearned: As Sfera addressing the user. Use second person and REFLECT what they did/learned. Max 15-20 words. No imperatives. Use empty string for hardTruths.",
+            }),
+          },
+          required: ["type", "text", "notificationMessage"],
+        }),
+        description:
+          "Moments to add: 2-4 sunny moments, 1-2 lessons, 0-2 hard truths.",
+      }),
+    },
+    required: ["moments"],
+  });
+
+  const systemPrompt = `Sfera AI coach. The user is adding moments to an EXISTING memory. Analyze the story and extract ONLY moments—no memory title, description, or date.
+
+CRITICAL: Generate moments in FIRST PERSON ("I", "my", "me") as if the user wrote them.
+
+Respond in ${languageName} (${languageCode}). JSON only.
+
+Rules:
+- Extract 2-4 sunny moments, 1-2 lessons, 0-2 hard truths
+- Use first person perspective ("I learned...", "I felt...", "My experience...")
+- Be honest about hard truths but compassionate
+- Lessons: write the full insight in 1–3 complete sentences (do not stop mid-thought); actionable and specific
+- Sunny moments should be specific positive experiences
+
+REQUIRED: For EVERY sunnyMoments and lessonsLearned moment you MUST provide notificationMessage. For hardTruths use empty string "". STRICT RULES FOR PUSH NOTIFICATIONS:
+- Format: Sfera speaks directly to the user in second person. REFLECT back what the user did/learned/felt—do not give advice or commands.
+- Start with "You...": e.g. "You learned that preparedness matters when traveling.", "You discovered you can trust your instincts."
+- BAD (avoid): Imperatives ("Trust your instincts.", "Be prepared!"), generic praise ("You did great."), advice ("You should...").
+- GOOD: Reflect the specific moment in second person.
+- Tone: Supportive, empathetic. Max 15-20 words (readable on lock screen).`;
+
+  const sferasContext = context.sferas
+    ? `\n\nUser's Sferas context:\n${JSON.stringify(context.sferas, null, 2)}`
+    : "";
+
+  const userPrompt = `${prompt}${sferasContext}`;
+
+  const app = getApp();
+  const ai = getAI(app, {
+    appCheck: firebase.appCheck(),
+  });
+
+  const model = getGenerativeModel(ai, {
+    model: "gemini-2.5-flash-lite",
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema,
+    },
+  });
+
+  const parts: any[] = [{ text: userPrompt }];
+  if (imageUri) {
+    try {
+      const base64Image = await readImageAsBase64(imageUri);
+      parts.push({ inlineData: { data: base64Image, mimeType: "image/jpeg" } });
+    } catch (error) {
+      console.error("Failed to process image for AI:", error);
+    }
+  }
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts }],
+    systemInstruction: systemPrompt,
+  });
+
+  const responseText = result.response.text();
+  const parsed = JSON.parse(responseText) as AIMomentsOnlyResponse;
+  return parsed;
+}
+
+/**
  * Suggest notification messages for manual-lesson moments (batch).
  * One AI request for all lessons; returns map of momentId -> notificationMessage.
  */
@@ -825,6 +934,14 @@ export interface AIMemoryResponse {
       text: string;
       notificationMessage?: string;
     }[];
+  }[];
+}
+
+export interface AIMomentsOnlyResponse {
+  moments: {
+    type: "sunnyMoments" | "lessonsLearned" | "hardTruths";
+    text: string;
+    notificationMessage?: string;
   }[];
 }
 

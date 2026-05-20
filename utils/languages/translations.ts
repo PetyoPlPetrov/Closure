@@ -1392,6 +1392,14 @@ export interface Translations {
   "ai.results.memoryCardToggle": string;
   "ai.results.tapToExpand": string;
   "ai.results.entityPickerTitle": string;
+  "ai.addToExisting": string;
+  "ai.results.selectMemory": string;
+  "ai.results.memory": string;
+  "ai.results.memoryPickerTitle": string;
+  "ai.results.searchMemory": string;
+  "ai.results.noMemories": string;
+  "ai.save.updated": string;
+  "ai.save.updatedMessage": string;
   "ai.save": string;
   "ai.saving": string;
   "ai.save.success": string;
@@ -5696,6 +5704,14 @@ const translations = {
     "ai.results.memoryCardToggle": "Expand or collapse memory",
     "ai.results.tapToExpand": "Tap to expand",
     "ai.results.entityPickerTitle": "Choose object",
+    "ai.addToExisting": "Add to existing memory",
+    "ai.results.selectMemory": "Select memory...",
+    "ai.results.memory": "Memory",
+    "ai.results.memoryPickerTitle": "Select a memory",
+    "ai.results.searchMemory": "Search memories...",
+    "ai.results.noMemories": "No memories found for this entity",
+    "ai.save.updated": "Memory Updated",
+    "ai.save.updatedMessage": "Your moments have been added to the memory.",
     "ai.save": "Save",
     "ai.saving": "Saving...",
     "ai.save.success": "Memory saved successfully!",
@@ -10761,6 +10777,14 @@ const translations = {
     "ai.results.memoryCardToggle": "Разгъни или сгъни спомена",
     "ai.results.tapToExpand": "Докоснете за разгъване",
     "ai.results.entityPickerTitle": "Изберете обект",
+    "ai.addToExisting": "Добави към съществуващ спомен",
+    "ai.results.selectMemory": "Избери спомен...",
+    "ai.results.memory": "Спомен",
+    "ai.results.memoryPickerTitle": "Изберете спомен",
+    "ai.results.searchMemory": "Търси спомени...",
+    "ai.results.noMemories": "Няма спомени за този обект",
+    "ai.save.updated": "Споменът е обновен",
+    "ai.save.updatedMessage": "Вашите моменти бяха добавени към спомена.",
     "ai.save": "Запази",
     "ai.saving": "Запазване...",
     "ai.save.success": "Споменът е запазен успешно!",
