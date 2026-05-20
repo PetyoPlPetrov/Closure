@@ -2,50 +2,43 @@
 
 ## Overview
 
-Automated push notifications that motivate users to maintain their daily journaling streak. Fires reminders before the streak resets, and sends celebration messages on milestones.
+Automated push notifications that motivate users to maintain their daily journaling streak. Fires reminders before the streak resets on the user's grace day (the day after their last logged memory).
 
 ## How It Works
 
-Streak notifications are scheduled automatically — no user configuration required. They are triggered by streak-related events throughout the app.
+Streak notifications are scheduled automatically. They are triggered by streak-related events throughout the app and rescheduled whenever a memory is saved.
 
 ## Notification Types
 
-### Daily Reminders
+### Scheduled Reminders (grace day)
 
 | Type | Time | Message |
 |------|------|---------|
-| Streak Reminder | 8 PM | "Keep your streak alive!" |
+| Badge Benefit Reminder | 2 PM | "Log one memory today to keep your badge" |
 | Streak Warning | 10 PM | "Streak ending soon! Only 2 hours left!" |
 
-Both are rescheduled daily. The warning fires only if the streak hasn't been extended by 10 PM.
+Both target the grace day. If the user logs a memory, they automatically reschedule to the next grace day.
 
-### Immediate Notifications (event-triggered)
-
-| Type | Trigger | Message |
-|------|---------|---------|
-| Streak Started | Day 1 | Encouragement for starting |
-| Streak Increment | Day 2+ | Celebration of current streak count |
-| Milestone | Badge unlock | Immediate celebration notification |
-| Streak Lost | Streak breaks | Gentle "come back" encouragement |
+The badge benefit reminder can be toggled by the user in the Streak Rules modal (enabled by default).
 
 ## Functions
 
 | Function | Description |
 |----------|-------------|
-| `scheduleStreakReminder()` | Schedule 8 PM daily reminder |
+| `scheduleBadgeBenefitReminder()` | Schedule 2 PM grace-day badge reminder |
 | `scheduleStreakWarning()` | Schedule 10 PM urgent reminder |
-| `sendMilestoneNotification()` | Immediate notification on badge unlock |
-| `sendStreakIncrementNotification()` | Immediate notification on streak day 1/2+ |
-| `sendStreakLostNotification()` | Gentle encouragement when streak breaks |
+| `refreshStreakNotifications()` | Re-schedule all reminders based on current streak state |
+| `cancelAllStreakNotifications()` | Cancel all scheduled streak notifications |
 
 ## Relevant Files
 
 | File | Purpose |
 |------|---------|
-| `utils/streak-notifications.ts` | All streak notification scheduling and sending logic |
+| `utils/streak-notifications.ts` | All streak notification scheduling logic |
+| `utils/streak-badge-reminder-preference.ts` | User preference for badge benefit reminder toggle |
 
 ## Notes
 
-- No user-facing settings for streak notifications — they are always active.
-- Reminders are re-scheduled on app open to stay current.
-- Milestone notifications fire immediately (not scheduled ahead of time).
+- Badge benefit reminder is user-toggleable; streak warning is always active.
+- Reminders are re-scheduled on app open and after every memory save.
+- Badge/milestone feedback while in-app uses `showNotification()` (in-app toast), not system notifications.

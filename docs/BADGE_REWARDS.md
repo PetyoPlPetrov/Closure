@@ -160,12 +160,11 @@ last log. The decision lives in `getGraceDayTrigger(streakData, hour)` in
   if not yet passed).
 - Last log older than yesterday → streak already broken, no reminder.
 
-The three reminders use this same trigger:
+The two reminders use this same trigger:
 
 | ID                              | Time  | Purpose |
 | ------------------------------- | ----- | ------- |
 | `streak-badge-benefit-reminder` | 2 PM  | "Keep your X badge — log today to keep your reward." User-toggleable from the streak rules modal. |
-| `streak-reminder`               | 8 PM  | "Keep your streak alive!" |
 | `streak-warning`                | 10 PM | "⚠️ Streak ending soon!" Last-chance warning. |
 
 **Why pre-scheduling matters.** When the user logs on day 3 and closes the
@@ -179,7 +178,7 @@ subscribeBadgeRewardsChanged(() => {
 });
 ```
 
-Every memory save / streak recompute → emits → re-runs all three schedule
+Every memory save / streak recompute → emits → re-runs both schedule
 functions → cancels stale reminders and queues fresh grace-day reminders.
 
 The `refreshStreakNotifications()` function is also called explicitly when the
