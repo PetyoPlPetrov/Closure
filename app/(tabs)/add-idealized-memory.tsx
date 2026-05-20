@@ -3,6 +3,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { useLargeDevice } from '@/hooks/use-large-device';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import { FloatingActionButton } from '@/library/components/floating-action-button';
 import { logMomentCreated } from '@/utils/analytics';
 import { ensureImageInAppDocuments } from '@/utils/entity-image-storage';
@@ -309,6 +310,8 @@ function AnimatedCloud({
   inputRef,
   shouldAutoFocus = false,
   cloudyBackground,
+  onMicPress,
+  isRecordingThis = false,
 }: {
   cloud: { id: string; text: string; x: number; y: number; startX?: number; startY?: number; placeholder?: string };
   panHandlers: any;
@@ -325,6 +328,8 @@ function AnimatedCloud({
   inputRef?: React.RefObject<TextInput | null>;
   shouldAutoFocus?: boolean;
   cloudyBackground: string;
+  onMicPress?: (id: string) => void;
+  isRecordingThis?: boolean;
 }) {
   // Animation values
   const translateX = useSharedValue(cloud.startX !== undefined ? cloud.startX : cloud.x);
@@ -553,6 +558,32 @@ function AnimatedCloud({
             <MaterialIcons name="check" size={16} color="#FFFFFF" />
           </TouchableOpacity>
         )}
+        {/* Mic button for speech-to-text */}
+        {!viewOnly && onMicPress && (
+          <TouchableOpacity
+            onPress={() => onMicPress(cloud.id)}
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: showApplyIcon ? 50 : 20,
+              backgroundColor: isRecordingThis ? '#FF3B30' : 'rgba(0,0,0,0.45)',
+              borderRadius: 12,
+              width: 24,
+              height: 24,
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1001,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 4,
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialIcons name={isRecordingThis ? "stop" : "mic"} size={14} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </View>
     </Animated.View>
   );
@@ -575,6 +606,8 @@ function AnimatedSun({
   inputRef,
   shouldAutoFocus = false,
   sunnyBackground,
+  onMicPress,
+  isRecordingThis = false,
 }: {
   sun: { id: string; text: string; x: number; y: number; startX?: number; startY?: number; placeholder?: string };
   panHandlers: any;
@@ -591,6 +624,8 @@ function AnimatedSun({
   inputRef?: React.RefObject<TextInput | null>;
   shouldAutoFocus?: boolean;
   sunnyBackground: string;
+  onMicPress?: (id: string) => void;
+  isRecordingThis?: boolean;
 }) {
   // Animation values
   const translateX = useSharedValue(sun.startX !== undefined ? sun.startX : sun.x);
@@ -863,6 +898,32 @@ function AnimatedSun({
             <MaterialIcons name="check" size={16} color="#FFFFFF" />
           </TouchableOpacity>
         )}
+        {/* Mic button for speech-to-text */}
+        {!viewOnly && onMicPress && (
+          <TouchableOpacity
+            onPress={() => onMicPress(sun.id)}
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: showApplyIcon ? 40 : 10,
+              backgroundColor: isRecordingThis ? '#FF3B30' : 'rgba(0,0,0,0.45)',
+              borderRadius: 12,
+              width: 24,
+              height: 24,
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1001,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 4,
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialIcons name={isRecordingThis ? "stop" : "mic"} size={14} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </Pressable>
     </Animated.View>
   );
@@ -887,6 +948,8 @@ function AnimatedLesson({
   shouldAutoFocus = false,
   lessonBackground,
   lessonText,
+  onMicPress,
+  isRecordingThis = false,
 }: {
   lesson: { id: string; text: string; x: number; y: number; startX?: number; startY?: number };
   panHandlers: any;
@@ -905,6 +968,8 @@ function AnimatedLesson({
   shouldAutoFocus?: boolean;
   lessonBackground: string;
   lessonText: string;
+  onMicPress?: (id: string) => void;
+  isRecordingThis?: boolean;
 }) {
   // Animation values
   const translateX = useSharedValue(lesson.startX !== undefined ? lesson.startX : lesson.x);
@@ -1099,6 +1164,32 @@ function AnimatedLesson({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <MaterialIcons name="check" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+          {/* Mic button for speech-to-text */}
+          {!viewOnly && onMicPress && (
+            <TouchableOpacity
+              onPress={() => onMicPress(lesson.id)}
+              style={{
+                position: 'absolute',
+                top: -8,
+                right: showApplyIcon ? lessonWidth * 0.05 + 30 : lessonWidth * 0.05,
+                backgroundColor: isRecordingThis ? '#FF3B30' : 'rgba(0,0,0,0.45)',
+                borderRadius: 12,
+                width: 24,
+                height: 24,
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 1001,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 4,
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MaterialIcons name={isRecordingThis ? "stop" : "mic"} size={14} color="#FFFFFF" />
             </TouchableOpacity>
           )}
         </View>
@@ -1794,7 +1885,73 @@ export default function AddIdealizedMemoryScreen() {
   const cloudInputRefs = useRef<Record<string, React.RefObject<TextInput | null>>>({});
   const sunInputRefs = useRef<Record<string, React.RefObject<TextInput | null>>>({});
   const lessonInputRefs = useRef<Record<string, React.RefObject<TextInput | null>>>({});
-  
+
+  // Speech-to-text for moments
+  const recordingMomentRef = useRef<{ type: 'cloud' | 'sun' | 'lesson'; id: string } | null>(null);
+  const [recordingMomentId, setRecordingMomentId] = useState<string | null>(null);
+
+  const getSpeechText = useCallback(() => {
+    const target = recordingMomentRef.current;
+    if (!target) return '';
+    if (target.type === 'cloud') return clouds.find(c => c.id === target.id)?.text ?? '';
+    if (target.type === 'sun') return suns.find(s => s.id === target.id)?.text ?? '';
+    return lessons.find(l => l.id === target.id)?.text ?? '';
+  }, [clouds, suns, lessons]);
+
+  const setSpeechText = useCallback((text: string) => {
+    const target = recordingMomentRef.current;
+    if (!target) return;
+    if (target.type === 'cloud') {
+      setClouds(prev => prev.map(c => c.id === target.id ? { ...c, text } : c));
+    } else if (target.type === 'sun') {
+      setSuns(prev => prev.map(s => s.id === target.id ? { ...s, text } : s));
+    } else {
+      setLessons(prev => prev.map(l => l.id === target.id ? { ...l, text } : l));
+    }
+  }, []);
+
+  const speechToText = useSpeechToText({
+    language,
+    getText: getSpeechText,
+    setText: setSpeechText,
+    disabled: viewOnly,
+  });
+
+  const micStartingRef = useRef(false);
+
+  const handleMomentMicPress = useCallback(async (type: 'cloud' | 'sun' | 'lesson', id: string) => {
+    // If already recording this moment, stop
+    if (speechToText.isRecording && recordingMomentRef.current?.id === id) {
+      await speechToText.stop();
+      recordingMomentRef.current = null;
+      setRecordingMomentId(null);
+      return;
+    }
+    // If recording another moment, stop first
+    if (speechToText.isRecording) {
+      await speechToText.stop();
+    }
+    recordingMomentRef.current = { type, id };
+    setRecordingMomentId(id);
+    micStartingRef.current = true;
+    try {
+      await speechToText.start();
+    } catch (err) {
+      recordingMomentRef.current = null;
+      setRecordingMomentId(null);
+    } finally {
+      micStartingRef.current = false;
+    }
+  }, [speechToText]);
+
+  // Clear recording state when speech ends (but not during start sequence)
+  useEffect(() => {
+    if (!speechToText.isRecording && recordingMomentId && !micStartingRef.current) {
+      recordingMomentRef.current = null;
+      setRecordingMomentId(null);
+    }
+  }, [speechToText.isRecording, recordingMomentId]);
+
   // Auto-focus title input when screen opens (only for new memories, not view-only)
   useEffect(() => {
     if (!viewOnly && !isEditMode && titleInputRef.current) {
@@ -3379,6 +3536,12 @@ export default function AddIdealizedMemoryScreen() {
                             <MaterialIcons name="check" size={16} color="#FFFFFF" />
                           </TouchableOpacity>
                         )}
+                        <TouchableOpacity
+                          style={[styles.editListApplyButton, { backgroundColor: recordingMomentId === cloud.id ? '#FF3B30' : 'rgba(0,0,0,0.45)', marginLeft: 4 }]}
+                          onPress={() => handleMomentMicPress('cloud', cloud.id)}
+                        >
+                          <MaterialIcons name={recordingMomentId === cloud.id ? "stop" : "mic"} size={16} color="#FFFFFF" />
+                        </TouchableOpacity>
                       </View>
                       <TouchableOpacity
                         style={styles.editListRemoveButton}
@@ -3460,6 +3623,12 @@ export default function AddIdealizedMemoryScreen() {
                               <MaterialIcons name="check" size={16} color="#FFFFFF" />
                             </TouchableOpacity>
                           )}
+                        <TouchableOpacity
+                          style={[styles.editListApplyButton, { backgroundColor: recordingMomentId === sun.id ? '#FF3B30' : 'rgba(0,0,0,0.45)', marginLeft: 4 }]}
+                          onPress={() => handleMomentMicPress('sun', sun.id)}
+                        >
+                          <MaterialIcons name={recordingMomentId === sun.id ? "stop" : "mic"} size={16} color="#FFFFFF" />
+                        </TouchableOpacity>
                       </View>
                       <TouchableOpacity
                         style={styles.editListRemoveButton}
@@ -3535,6 +3704,12 @@ export default function AddIdealizedMemoryScreen() {
                             <MaterialIcons name="check" size={16} color="#FFFFFF" />
                           </TouchableOpacity>
                         )}
+                        <TouchableOpacity
+                          style={[styles.editListApplyButton, { backgroundColor: recordingMomentId === lesson.id ? '#FF3B30' : 'rgba(0,0,0,0.45)', marginLeft: 4 }]}
+                          onPress={() => handleMomentMicPress('lesson', lesson.id)}
+                        >
+                          <MaterialIcons name={recordingMomentId === lesson.id ? "stop" : "mic"} size={16} color="#FFFFFF" />
+                        </TouchableOpacity>
                       </View>
                       <TouchableOpacity
                         style={styles.editListRemoveButton}
@@ -3841,6 +4016,8 @@ export default function AddIdealizedMemoryScreen() {
             viewOnly={viewOnly}
             inputRef={inputRef}
             shouldAutoFocus={shouldAutoFocus}
+            onMicPress={(id) => handleMomentMicPress('cloud', id)}
+            isRecordingThis={recordingMomentId === cloud.id}
           />
         );
       })}
@@ -3900,6 +4077,8 @@ export default function AddIdealizedMemoryScreen() {
             viewOnly={viewOnly}
             inputRef={inputRef}
             shouldAutoFocus={shouldAutoFocus}
+            onMicPress={(id) => handleMomentMicPress('sun', id)}
+            isRecordingThis={recordingMomentId === sun.id}
           />
         );
       })}
@@ -3960,6 +4139,8 @@ export default function AddIdealizedMemoryScreen() {
             viewOnly={viewOnly}
             inputRef={inputRef}
             shouldAutoFocus={shouldAutoFocus}
+            onMicPress={(id) => handleMomentMicPress('lesson', id)}
+            isRecordingThis={recordingMomentId === lesson.id}
           />
         );
       })}

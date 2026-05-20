@@ -1398,6 +1398,7 @@ export interface Translations {
   "ai.results.memoryPickerTitle": string;
   "ai.results.searchMemory": string;
   "ai.results.noMemories": string;
+  "ai.results.fillAllRequired": string;
   "ai.save.updated": string;
   "ai.save.updatedMessage": string;
   "ai.save": string;
@@ -5710,6 +5711,7 @@ const translations = {
     "ai.results.memoryPickerTitle": "Select a memory",
     "ai.results.searchMemory": "Search memories...",
     "ai.results.noMemories": "No memories found for this entity",
+    "ai.results.fillAllRequired": "Fill all required fields above to save",
     "ai.save.updated": "Memory Updated",
     "ai.save.updatedMessage": "Your moments have been added to the memory.",
     "ai.save": "Save",
@@ -10783,6 +10785,7 @@ const translations = {
     "ai.results.memoryPickerTitle": "Изберете спомен",
     "ai.results.searchMemory": "Търси спомени...",
     "ai.results.noMemories": "Няма спомени за този обект",
+    "ai.results.fillAllRequired": "Попълнете всички задължителни полета по-горе, за да запазите",
     "ai.save.updated": "Споменът е обновен",
     "ai.save.updatedMessage": "Вашите моменти бяха добавени към спомена.",
     "ai.save": "Запази",
