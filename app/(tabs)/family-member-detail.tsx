@@ -5,14 +5,20 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFontScale } from '@/hooks/use-device-size';
 import { TabScreenContainer } from '@/library/components/tab-screen-container';
 import { useVisualSettings } from '@/utils/VisualSettingsProvider';
+import {
+  ENTITIES_DISPLAY_MODE_STORAGE_KEY,
+  type EntitiesDisplayMode,
+} from '@/utils/entities-display-mode-storage';
 import type { FamilyMember } from '@/utils/JourneyProvider';
 import { useJourney } from '@/utils/JourneyProvider';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useMomentColors } from '@/utils/MomentColorsProvider';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -25,7 +31,27 @@ export default function FamilyMemberDetailScreen() {
   const { momentColors } = useMomentColors();
   const { constellationAmount, constellationOpacity } = useVisualSettings();
   const { id } = useLocalSearchParams<{ id: string }>();
-  
+
+  const [displayMode, setDisplayMode] = useState<EntitiesDisplayMode>('orbit');
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const raw = await AsyncStorage.getItem(ENTITIES_DISPLAY_MODE_STORAGE_KEY);
+      if (cancelled) return;
+      if (raw === 'orbit' || raw === 'list') setDisplayMode(raw);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const toggleDisplayMode = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setDisplayMode((prev) => {
+      const next = prev === 'orbit' ? 'list' : 'orbit';
+      void AsyncStorage.setItem(ENTITIES_DISPLAY_MODE_STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
+  const isListMode = displayMode === 'list';
+
   const { familyMembers, getIdealizedMemoriesByEntityId } = useJourney();
 
   const familyMember = useMemo(() => {
@@ -232,6 +258,41 @@ export default function FamilyMemberDetailScreen() {
       opacity: 0.7,
       marginTop: 40 * fontScale,
     },
+    // Compact list mode styles
+    compactProfileHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      marginBottom: 12 * fontScale,
+      gap: 10 * fontScale,
+    },
+    compactAvatarContainer: {
+      width: 36 * fontScale,
+      height: 36 * fontScale,
+      borderRadius: 18 * fontScale,
+      overflow: 'hidden' as const,
+      backgroundColor: colorScheme === 'dark'
+        ? 'rgba(255, 255, 255, 0.1)'
+        : 'rgba(0, 0, 0, 0.1)',
+    },
+    compactMemoryRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingVertical: 10 * fontScale,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colorScheme === 'dark'
+        ? 'rgba(255, 255, 255, 0.08)'
+        : 'rgba(0, 0, 0, 0.08)',
+    },
+    compactMemoryBar: {
+      height: 14 * fontScale,
+      borderRadius: 7 * fontScale,
+      overflow: 'hidden' as const,
+      flexDirection: 'row' as const,
+      backgroundColor: colorScheme === 'dark'
+        ? 'rgba(255, 255, 255, 0.1)'
+        : 'rgba(0, 0, 0, 0.1)',
+      width: 80,
+    },
   }), [fontScale, colorScheme, colors]);
 
   const handleBack = useCallback(() => router.back(), []);
@@ -308,8 +369,21 @@ export default function FamilyMemberDetailScreen() {
           <ThemedText size="l" weight="bold" style={styles.headerTitle}>
             {familyMember.name}
           </ThemedText>
-          
-          <View style={styles.headerButton} />
+
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={toggleDisplayMode}
+            activeOpacity={0.7}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={isListMode ? t('displayMode.switchToOrbit') : t('displayMode.switchToList')}
+          >
+            <MaterialIcons
+              name={isListMode ? 'blur-circular' : 'view-list'}
+              size={24 * fontScale}
+              color={colors.text}
+            />
+          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -318,46 +392,72 @@ export default function FamilyMemberDetailScreen() {
         >
           <View style={styles.content}>
             {/* Family Member Header */}
-            <View style={styles.profileHeader}>
-              <View style={styles.avatarContainer}>
-                {familyMember.imageUri ? (
-                  <Image
-                    source={{ uri: familyMember.imageUri }}
-                    style={styles.avatar}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <MaterialIcons 
-                      name="family-restroom" 
-                      size={32 * fontScale} 
-                      color="#10b981" 
-                    />
+            {isListMode ? (
+              <View style={styles.compactProfileHeader}>
+                <View style={styles.compactAvatarContainer}>
+                  {familyMember.imageUri ? (
+                    <Image source={{ uri: familyMember.imageUri }} style={styles.avatar} contentFit="cover" />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <MaterialIcons name="family-restroom" size={18 * fontScale} color="#10b981" />
+                    </View>
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ThemedText size="sm" weight="semibold" numberOfLines={1}>{familyMember.name}</ThemedText>
+                  {comparisonData && (
+                    <ThemedText size="xs" emphasis="medium" numberOfLines={2} style={{ marginTop: 2 }}>
+                      {comparisonData.message}
+                    </ThemedText>
+                  )}
+                </View>
+              </View>
+            ) : (
+              <>
+                <View style={styles.profileHeader}>
+                  <View style={styles.avatarContainer}>
+                    {familyMember.imageUri ? (
+                      <Image
+                        source={{ uri: familyMember.imageUri }}
+                        style={styles.avatar}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={styles.avatarPlaceholder}>
+                        <MaterialIcons
+                          name="family-restroom"
+                          size={32 * fontScale}
+                          color="#10b981"
+                        />
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.profileInfo}>
+                    <ThemedText size="lg" weight="bold" style={styles.profileName}>
+                      {familyMember.name}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                {/* Comparison Message */}
+                {comparisonData && (
+                  <View style={styles.comparisonCard}>
+                    <ThemedText size="sm" style={styles.comparisonText}>
+                      {comparisonData.message}
+                    </ThemedText>
                   </View>
                 )}
-              </View>
-              <View style={styles.profileInfo}>
-                <ThemedText size="lg" weight="bold" style={styles.profileName}>
-                  {familyMember.name}
-                </ThemedText>
-              </View>
-            </View>
-
-            {/* Comparison Message */}
-            {comparisonData && (
-              <View style={styles.comparisonCard}>
-                <ThemedText size="sm" style={styles.comparisonText}>
-                  {comparisonData.message}
-                </ThemedText>
-              </View>
+              </>
             )}
 
             {/* Memories Section */}
             <View style={styles.memoriesSection}>
-              <ThemedText size="lg" weight="bold" style={{ marginBottom: 16 * fontScale }}>
-                {t('insights.detail.family.memories.title')}
-              </ThemedText>
-              
+              {!isListMode && (
+                <ThemedText size="lg" weight="bold" style={{ marginBottom: 16 * fontScale }}>
+                  {t('insights.detail.family.memories.title')}
+                </ThemedText>
+              )}
+
               {memories.length === 0 ? (
                 <ThemedText size="sm" style={styles.noData}>
                   {t('insights.detail.family.memories.noData')}
@@ -367,25 +467,51 @@ export default function FamilyMemberDetailScreen() {
                   const cloudyCount = (memory.hardTruths || []).length;
                   const sunnyCount = (memory.goodFacts || []).length;
                   const total = cloudyCount + sunnyCount;
-                  
+
                   if (total === 0) return null;
-                  
+
                   const cloudyPercentage = (cloudyCount / total) * 100;
                   const sunnyPercentage = (sunnyCount / total) * 100;
-                  
+
+                  if (isListMode) {
+                    return (
+                      <TouchableOpacity
+                        key={memory.id}
+                        style={styles.compactMemoryRow}
+                        onPress={() => handleMemoryPress(memory.id)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={{ flex: 1, marginRight: 8 * fontScale }}>
+                          <ThemedText size="xs" weight="semibold" numberOfLines={1}>
+                            {memory.title}
+                          </ThemedText>
+                        </View>
+                        <View style={styles.compactMemoryBar}>
+                          {cloudyCount > 0 && (
+                            <View style={[styles.memoryBarSegment, { width: `${cloudyPercentage}%`, backgroundColor: '#000000' }]} />
+                          )}
+                          {sunnyCount > 0 && (
+                            <View style={[styles.memoryBarSegment, { width: `${sunnyPercentage}%`, backgroundColor: momentColors.sunny.background }]} />
+                          )}
+                        </View>
+                        <MaterialIcons name="chevron-right" size={18 * fontScale} color={colors.textMediumEmphasis} style={{ marginLeft: 4 }} />
+                      </TouchableOpacity>
+                    );
+                  }
+
                   return (
-                    <TouchableOpacity 
-                      key={memory.id} 
+                    <TouchableOpacity
+                      key={memory.id}
                       style={styles.memoryCard}
                       onPress={() => handleMemoryPress(memory.id)}
                       activeOpacity={0.7}
-              hitSlop={12}
+                      hitSlop={12}
                     >
                       <View style={styles.memoryCardContent}>
                         <ThemedText size="sm" weight="semibold" style={styles.memoryTitle}>
                           {memory.title}
                         </ThemedText>
-                        
+
                         <View style={styles.memoryBar}>
                         {cloudyCount > 0 && (
                           <View
@@ -433,9 +559,9 @@ export default function FamilyMemberDetailScreen() {
                         )}
                       </View>
                       </View>
-                      <MaterialIcons 
-                        name="chevron-right" 
-                        size={24 * fontScale} 
+                      <MaterialIcons
+                        name="chevron-right"
+                        size={24 * fontScale}
                         color={colors.textMediumEmphasis}
                       />
                     </TouchableOpacity>

@@ -3949,6 +3949,15 @@ export interface Translations {
   "suggestions.liberation.lessons.2": string;
   "suggestions.liberation.lessons.3": string;
   "suggestions.liberation.lessons.4": string;
+
+  // Display mode toggle
+  "displayMode.orbit": string;
+  "displayMode.list": string;
+  "displayMode.switchToList": string;
+  "displayMode.switchToOrbit": string;
+  "displayMode.memories": string;
+  "displayMode.sort.memories": string;
+  "displayMode.sort.sunny": string;
 }
 
 /** Runtime merges bg → en via getTranslation; bg omits keys that reuse English. */
@@ -9002,6 +9011,15 @@ const translations = {
     "suggestions.liberation.lessons.2": "I'm free from their control",
     "suggestions.liberation.lessons.3": "Liberation brings peace",
     "suggestions.liberation.lessons.4": "I deserve to live a liberated life",
+
+    // Display mode toggle
+    "displayMode.orbit": "Orbit",
+    "displayMode.list": "List",
+    "displayMode.switchToList": "Switch to list view",
+    "displayMode.switchToOrbit": "Switch to orbit view",
+    "displayMode.memories": "memories",
+    "displayMode.sort.memories": "Most memories",
+    "displayMode.sort.sunny": "Most sunny",
   },
   bg: {
     // Tab labels
@@ -14307,6 +14325,15 @@ const translations = {
     "suggestions.liberation.lessons.2": "Свободен съм от техния контрол",
     "suggestions.liberation.lessons.3": "Освобождението носи мир",
     "suggestions.liberation.lessons.4": "Заслужавам да живея освободен живот",
+
+    // Display mode toggle
+    "displayMode.orbit": "Орбита",
+    "displayMode.list": "Списък",
+    "displayMode.switchToList": "Превключи към списък",
+    "displayMode.switchToOrbit": "Превключи към орбита",
+    "displayMode.memories": "спомени",
+    "displayMode.sort.memories": "Най-много спомени",
+    "displayMode.sort.sunny": "Най-слънчеви",
   },
 } as Record<Language, Translations>;
 

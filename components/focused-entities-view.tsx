@@ -10,6 +10,7 @@ import {
   ConstellationBackground,
   sampleCornerBiasedPosition,
 } from "@/components/constellation-background";
+import { EntityListItem } from "@/components/entity-list-item";
 import { SferaInsightEmptyDemoLink } from "@/components/sfera-insight-empty-demo-link";
 import { SferaInsightEmptyGuideLink } from "@/components/sfera-insight-empty-guide-link";
 import { ThemedText } from "@/components/themed-text";
@@ -44,6 +45,8 @@ import {
   Dimensions,
   Platform,
   Pressable,
+  ScrollView,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -111,6 +114,7 @@ export type FocusedEntitiesViewProps = {
   constellationOpacity?: number;
   hidden?: boolean;
   isActive?: boolean;
+  displayMode?: "orbit" | "list";
 };
 
 // ───────────────────── Helper functions ─────────────────────────────
@@ -1571,7 +1575,7 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
             position: "absolute",
             left: 0,
             right: 0,
-            top: y - cardHeight / 2 - titleOffset,
+            top: y - cardHeight / 2 + Math.round(cardHeight * 0.07),
             zIndex: 20,
             alignItems: "center",
           },
@@ -1959,6 +1963,7 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
   constellationOpacity = 5,
   hidden = false,
   isActive = true,
+  displayMode = "orbit",
 }: FocusedEntitiesViewProps) {
   const { isTablet } = useLargeDevice();
   const { sphere3DEffect } = useVisualSettings();
@@ -2106,6 +2111,39 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
     return { orbitEntitySize: size, orbitMomentRadius: momentR };
   }, [isTablet, insightCardWidth, insightCardHeight, avatarCY, usableTop, usableBottom]);
 
+  // ─── List sort state ───
+  const [listSortBy, setListSortBy] = useState<"memories" | "sunny">("memories");
+  const [listSortDir, setListSortDir] = useState<"desc" | "asc">("desc");
+  const t = useTranslate();
+
+  const { listSortedEntities, listSortedMemories } = useMemo(() => {
+    const paired = sortedEntities.map((e, i) => ({
+      entity: e,
+      memories: sortedMemoriesPerEntity[i] ?? [],
+    }));
+
+    const dir = listSortDir === "desc" ? 1 : -1;
+    paired.sort((a, b) => {
+      if (listSortBy === "sunny") {
+        const sunA = a.memories.reduce(
+          (sum, m) => sum + (m.goodFacts || []).length,
+          0,
+        );
+        const sunB = b.memories.reduce(
+          (sum, m) => sum + (m.goodFacts || []).length,
+          0,
+        );
+        return (sunB - sunA) * dir;
+      }
+      return (b.memories.length - a.memories.length) * dir;
+    });
+
+    return {
+      listSortedEntities: paired.map((p) => p.entity),
+      listSortedMemories: paired.map((p) => p.memories),
+    };
+  }, [sortedEntities, sortedMemoriesPerEntity, listSortBy, listSortDir]);
+
   if (sortedEntities.length === 0) {
     // No entities to display
     return (
@@ -2150,6 +2188,198 @@ export const FocusedEntitiesView = React.memo(function FocusedEntitiesView({
           isExpanded={isCardExpanded}
           onToggleSize={() => setIsCardExpanded((prev) => !prev)}
         />
+      </View>
+    );
+  }
+
+  // ─── List mode ───
+  const listPlaceholderIcon: keyof typeof MaterialIcons.glyphMap =
+    sphere === "relationships"
+      ? "person"
+      : sphere === "career"
+        ? "work"
+        : sphere === "family"
+          ? "family-restroom"
+          : sphere === "friends"
+            ? "people"
+            : "sports-esports";
+
+  if (displayMode === "list") {
+    // List layout: SferaInsightsCard at the top, scrollable entity list below
+    const insightCardListY = usableTop + insightCardHeight / 2 + 8;
+
+    return (
+      <View
+        style={{
+          flex: 1,
+          width: SW,
+          height: SH,
+          opacity: hidden ? 0 : 1,
+          pointerEvents: hidden ? "none" : "auto",
+        }}
+      >
+        <ConstellationBackground
+          width={SW}
+          height={SH}
+          constellationAmount={constellationAmount}
+          constellationOpacity={constellationOpacity}
+        />
+
+        {/* Central insight card shifted toward top */}
+        <SferaInsightsCard
+          sphere={sphere}
+          entities={sortedEntities}
+          memoriesPerEntity={sortedMemoriesPerEntity}
+          onMemorySelect={onMemorySelect}
+          onEntitySelect={onEntitySelect}
+          onNeedMemoriesHintCenter={showInsightCardNeedMemoriesHint}
+          showNeedMemoriesHintBelowCard={showInsightCardHint}
+          colorScheme={colorScheme}
+          x={AVATAR_CX}
+          y={insightCardListY}
+          animationsEnabled={animationsEnabled}
+          sphere3DEffect={sphere3DEffect}
+          cardWidth={insightCardWidth}
+          cardHeight={insightCardHeight}
+          isExpanded={isCardExpanded}
+          onToggleSize={() => setIsCardExpanded((prev) => !prev)}
+        />
+
+        {/* Fixed sort pill row */}
+        <View
+          style={{
+            position: "absolute",
+            top: insightCardListY + insightCardHeight / 2 + 16,
+            left: 0,
+            right: 0,
+            zIndex: 10,
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            paddingHorizontal: 20,
+            paddingVertical: 8,
+            gap: 8,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => {
+              if (listSortBy === "memories") {
+                setListSortDir((d) => (d === "desc" ? "asc" : "desc"));
+              } else {
+                setListSortBy("memories");
+                setListSortDir("desc");
+              }
+            }}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingLeft: 10,
+              paddingRight: 8,
+              paddingVertical: 6,
+              borderRadius: 14,
+              gap: 3,
+              backgroundColor:
+                listSortBy === "memories"
+                  ? colorScheme === "dark"
+                    ? "rgba(255, 255, 255, 0.18)"
+                    : "rgba(0, 0, 0, 0.12)"
+                  : "transparent",
+              borderWidth: 1,
+              borderColor:
+                colorScheme === "dark"
+                  ? "rgba(255, 255, 255, 0.15)"
+                  : "rgba(0, 0, 0, 0.1)",
+            }}
+          >
+            <ThemedText
+              size="xs"
+              weight={listSortBy === "memories" ? "semibold" : "normal"}
+              style={{
+                opacity: listSortBy === "memories" ? 1 : 0.6,
+              }}
+            >
+              {t("displayMode.sort.memories")}
+            </ThemedText>
+            <MaterialIcons
+              name={listSortBy === "memories" && listSortDir === "asc" ? "arrow-upward" : "arrow-downward"}
+              size={12}
+              color={Colors[colorScheme].text}
+              style={{ opacity: listSortBy === "memories" ? 0.8 : 0.4 }}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              if (listSortBy === "sunny") {
+                setListSortDir((d) => (d === "desc" ? "asc" : "desc"));
+              } else {
+                setListSortBy("sunny");
+                setListSortDir("desc");
+              }
+            }}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingLeft: 10,
+              paddingRight: 8,
+              paddingVertical: 6,
+              borderRadius: 14,
+              gap: 3,
+              backgroundColor:
+                listSortBy === "sunny"
+                  ? colorScheme === "dark"
+                    ? "rgba(255, 255, 255, 0.18)"
+                    : "rgba(0, 0, 0, 0.12)"
+                  : "transparent",
+              borderWidth: 1,
+              borderColor:
+                colorScheme === "dark"
+                  ? "rgba(255, 255, 255, 0.15)"
+                  : "rgba(0, 0, 0, 0.1)",
+            }}
+          >
+            <ThemedText
+              size="xs"
+              weight={listSortBy === "sunny" ? "semibold" : "normal"}
+              style={{
+                opacity: listSortBy === "sunny" ? 1 : 0.6,
+              }}
+            >
+              {t("displayMode.sort.sunny")}
+            </ThemedText>
+            <MaterialIcons
+              name={listSortBy === "sunny" && listSortDir === "asc" ? "arrow-upward" : "arrow-downward"}
+              size={12}
+              color={Colors[colorScheme].text}
+              style={{ opacity: listSortBy === "sunny" ? 0.8 : 0.4 }}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Scrollable entity list */}
+        <ScrollView
+          style={{
+            position: "absolute",
+            top: insightCardListY + insightCardHeight / 2 + 16 + 40,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+          contentContainerStyle={{ paddingBottom: 120 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {listSortedEntities.map((entity, idx) => (
+            <EntityListItem
+              key={entity.id}
+              id={entity.id}
+              name={entity.name}
+              imageUri={entity.imageUri}
+              memories={listSortedMemories[idx] ?? []}
+              placeholderIcon={listPlaceholderIcon}
+              onPress={(entityId) => onEntitySelect?.(entityId)}
+            />
+          ))}
+        </ScrollView>
       </View>
     );
   }

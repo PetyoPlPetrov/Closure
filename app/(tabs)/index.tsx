@@ -4,6 +4,7 @@ import { ConstellationBackground } from "@/components/constellation-background";
 import { ExpandableMenuButton } from "@/components/expandable-menu-button";
 import { Fireworks } from "@/components/fireworks";
 import { FocusedEntitiesView } from "@/components/focused-entities-view";
+import { FocusedEntityMemoryList } from "@/components/focused-entity-memory-list";
 import { FocusedSferaView } from "@/components/focused-sfera-view";
 import { PulsingPressable } from "@/components/pulsing-pressable";
 import { SferaSizeHintBanner } from "@/components/sfera-size-hint-banner";
@@ -31,6 +32,10 @@ import {
   getReadSections,
   setGuideDismissedForever,
 } from "@/utils/guide-storage";
+import {
+  ENTITIES_DISPLAY_MODE_STORAGE_KEY,
+  type EntitiesDisplayMode,
+} from "@/utils/entities-display-mode-storage";
 import { onHomeTabPress } from "@/utils/home-tab-press";
 import { useHomeTransitionLoader } from "@/utils/home-transition-loader-context";
 import { useJourney, type LifeSphere } from "@/utils/JourneyProvider";
@@ -14362,16 +14367,6 @@ export default function HomeScreen() {
   const iPadIndividualHeaderScale =
     Platform.OS === "ios" && Platform.isPad ? 1.3 : 1;
   const sphereHeaderBackSize = (isTablet ? 70 : 50) * iPadIndividualHeaderScale;
-  const sphereHeaderTitleRowStyle = {
-    position: "absolute" as const,
-    top: sphereHeaderBackTop,
-    left: 20 + sphereHeaderBackSize + 12,
-    right: 20,
-    height: sphereHeaderBackSize,
-    justifyContent: "center" as const,
-    alignItems: "flex-end" as const,
-    zIndex: 1000,
-  };
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const isInsightsDrillMemoryFlow =
@@ -14911,6 +14906,41 @@ export default function HomeScreen() {
     sphere: LifeSphere;
     momentToShowId?: string;
   } | null>(null);
+
+  // Entities display mode (orbit vs list)
+  const [entitiesDisplayMode, setEntitiesDisplayMode] =
+    useState<EntitiesDisplayMode>("orbit");
+  const [entitiesDisplayModeHydrated, setEntitiesDisplayModeHydrated] =
+    useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(
+          ENTITIES_DISPLAY_MODE_STORAGE_KEY,
+        );
+        if (cancelled) return;
+        if (raw === "orbit" || raw === "list") {
+          setEntitiesDisplayMode(raw);
+        }
+        setEntitiesDisplayModeHydrated(true);
+      } catch {
+        if (!cancelled) setEntitiesDisplayModeHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!entitiesDisplayModeHydrated) return;
+    void AsyncStorage.setItem(
+      ENTITIES_DISPLAY_MODE_STORAGE_KEY,
+      entitiesDisplayMode,
+    );
+  }, [entitiesDisplayMode, entitiesDisplayModeHydrated]);
 
   // Track if any entity wheel is active (to disable scrolling)
   const [isAnyEntityWheelActive, setIsAnyEntityWheelActive] =
@@ -23065,20 +23095,91 @@ export default function HomeScreen() {
     });
   };
 
-  const focusedMemoryTitleHeader = (() => {
-    if (!focusedMemory) return null;
+  // --- Breadcrumb header (replaces separate sphere name / entity name / memory title headers) ---
+  const breadcrumbHeader = (() => {
+    if (!selectedSphere) return null;
+    const sphere = selectedSphere as LifeSphere;
+    const sphereLabel = t(`spheres.${sphere}`);
 
-    const entityId = getEntityIdFromFocusedMemory(focusedMemory);
-    const sphere = focusedMemory.sphere;
-    if (!entityId) return null;
+    // Resolve entity name
+    let entityName: string | null = null;
+    const eid =
+      focusedProfileId || focusedJobId || focusedFamilyMemberId || focusedFriendId || focusedHobbyId;
+    if (eid) {
+      if (focusedProfileId && sphere === "relationships") {
+        entityName = profiles.find((p) => p.id === focusedProfileId)?.name || null;
+      } else if (focusedJobId && sphere === "career") {
+        entityName = jobs.find((j) => j.id === focusedJobId)?.name || null;
+      } else if (focusedFamilyMemberId && sphere === "family") {
+        entityName = familyMembers.find((m) => m.id === focusedFamilyMemberId)?.name || null;
+      } else if (focusedFriendId && sphere === "friends") {
+        entityName = friends.find((f) => f.id === focusedFriendId)?.name || null;
+      } else if (focusedHobbyId && sphere === "hobbies") {
+        entityName = hobbies.find((h) => h.id === focusedHobbyId)?.name || null;
+      }
+    }
 
-    const memories =
-      sphere === "relationships" && focusedMemory.profileId
-        ? getIdealizedMemoriesByProfileId(focusedMemory.profileId)
-        : getIdealizedMemoriesByEntityId(entityId, sphere);
+    // Resolve memory title
+    let memoryTitle: string | null = null;
+    if (focusedMemory) {
+      const memEntityId = getEntityIdFromFocusedMemory(focusedMemory);
+      if (memEntityId) {
+        const memories =
+          sphere === "relationships" && focusedMemory.profileId
+            ? getIdealizedMemoriesByProfileId(focusedMemory.profileId)
+            : getIdealizedMemoriesByEntityId(memEntityId, sphere);
+        const memoryData = memories.find((m) => m.id === focusedMemory.memoryId);
+        memoryTitle = memoryData?.title || null;
+      }
+    }
 
-    const memoryData = memories.find((m) => m.id === focusedMemory.memoryId);
-    if (!memoryData) return null;
+    // Build crumb segments: [{ label, onPress? }]
+    const crumbs: { label: string; onPress?: () => void }[] = [];
+
+    if (entityName || memoryTitle) {
+      // Sphere label is tappable — navigate back to sphere level
+      crumbs.push({
+        label: sphereLabel,
+        onPress: () => {
+          setFocusedMemory(null);
+          setFocusedProfileId(null);
+          setFocusedJobId(null);
+          setFocusedFamilyMemberId(null);
+          setFocusedFriendId(null);
+          setFocusedHobbyId(null);
+        },
+      });
+    } else {
+      // Only sphere — not tappable (already at this level)
+      crumbs.push({ label: sphereLabel });
+    }
+
+    if (entityName) {
+      if (memoryTitle) {
+        // Entity is tappable — navigate back to entity level
+        crumbs.push({
+          label: entityName,
+          onPress: () => {
+            setFocusedMemory(null);
+          },
+        });
+      } else {
+        // Entity is the deepest level — not tappable
+        crumbs.push({ label: entityName });
+      }
+    }
+
+    if (memoryTitle) {
+      crumbs.push({ label: memoryTitle });
+    }
+
+    const isMemoryLevel = !!focusedMemory;
+    const isSphereLevel = !entityName && !memoryTitle;
+    const hasRightButton = isMemoryLevel;
+    // Truncate long labels to keep breadcrumb compact
+    const maxLabelChars = 20;
+    const truncate = (text: string, max: number) =>
+      text.length > max ? text.slice(0, max - 1).trimEnd() + "\u2026" : text;
 
     return (
       <View
@@ -23086,60 +23187,141 @@ export default function HomeScreen() {
         style={{
           position: "absolute",
           top: sphereHeaderBackTop,
-          left: 20,
-          right: 20,
+          left: 20 + sphereHeaderBackSize + 12,
+          right: hasRightButton ? 20 + (isTablet ? 70 : 50) + 16 : 20,
           height: sphereHeaderBackSize,
           zIndex: 1000,
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "flex-end",
         }}
       >
-        {/* Left spacer keeps title perfectly centered between equal side controls. */}
-        <View style={{ width: sphereHeaderBackSize, height: sphereHeaderBackSize }} />
-        <ThemedText
-          size="l"
-          weight="semibold"
-          numberOfLines={1}
-          ellipsizeMode="tail"
+        <View
           style={{
-            color: colors.text,
-            textAlign: "center",
-            flex: 1,
-            marginHorizontal: 8,
-          }}
-        >
-          {memoryData.title || "Memory"}
-        </ThemedText>
-        <Pressable
-          onPress={handleOpenFocusedMemoryManualView}
-          accessibilityRole="button"
-          accessibilityLabel={t("memory.edit")}
-          disabled={isDemoMode}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={{
-            width: sphereHeaderBackSize,
-            height: sphereHeaderBackSize,
-            borderRadius: sphereHeaderBackSize / 2,
-            backgroundColor:
-              colorScheme === "dark"
-                ? "rgba(255, 255, 255, 0.12)"
-                : "rgba(0, 0, 0, 0.12)",
-            justifyContent: "center",
+            flexDirection: "row",
             alignItems: "center",
-            borderWidth: 1,
-            borderColor:
-              colorScheme === "dark"
-                ? "rgba(255, 255, 255, 0.25)"
-                : "rgba(0, 0, 0, 0.2)",
-            opacity: isDemoMode ? 0.35 : 1,
+            flexShrink: 1,
           }}
         >
-          <MaterialIcons
-            name="edit"
-            size={isTablet ? 36 : 24}
-            color={colors.text}
-          />
-        </Pressable>
+          {crumbs.map((crumb, i) => {
+            const isLast = i === crumbs.length - 1;
+            const displayLabel = crumbs.length === 1
+              ? crumb.label
+              : truncate(crumb.label, maxLabelChars);
+            return (
+              <React.Fragment key={i}>
+                {i > 0 && (
+                  <ThemedText
+                    size="l"
+                    emphasis="medium"
+                    style={{
+                      marginHorizontal: 4,
+                      color: colors.text,
+                      opacity: 0.35,
+                    }}
+                  >
+                    /
+                  </ThemedText>
+                )}
+                {crumb.onPress ? (
+                  <Pressable
+                    onPress={crumb.onPress}
+                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  >
+                    <ThemedText
+                      size="l"
+                      weight="medium"
+                      numberOfLines={1}
+                      style={{
+                        color: colors.text,
+                        opacity: 0.5,
+                      }}
+                    >
+                      {displayLabel}
+                    </ThemedText>
+                  </Pressable>
+                ) : (
+                  <ThemedText
+                    size="l"
+                    weight="semibold"
+                    numberOfLines={1}
+                    style={{
+                      color: colors.text,
+                      flexShrink: isLast ? 1 : 0,
+                    }}
+                  >
+                    {displayLabel}
+                  </ThemedText>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </View>
+        {isMemoryLevel && (
+          <Pressable
+            onPress={handleOpenFocusedMemoryManualView}
+            accessibilityRole="button"
+            accessibilityLabel={t("memory.edit")}
+            disabled={isDemoMode}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{
+              width: isTablet ? 70 : 50,
+              height: isTablet ? 70 : 50,
+              borderRadius: isTablet ? 35 : 25,
+              backgroundColor:
+                colorScheme === "dark"
+                  ? "rgba(255, 255, 255, 0.12)"
+                  : "rgba(0, 0, 0, 0.12)",
+              justifyContent: "center",
+              alignItems: "center",
+              borderWidth: 1,
+              borderColor:
+                colorScheme === "dark"
+                  ? "rgba(255, 255, 255, 0.25)"
+                  : "rgba(0, 0, 0, 0.2)",
+              opacity: isDemoMode ? 0.35 : 1,
+              position: "absolute",
+              right: -(isTablet ? 70 : 50) - 12,
+            }}
+          >
+            <MaterialIcons
+              name="edit"
+              size={isTablet ? 32 : 20}
+              color={colors.text}
+            />
+          </Pressable>
+        )}
+        {isSphereLevel && (
+          <Pressable
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setEntitiesDisplayMode((prev) =>
+                prev === "orbit" ? "list" : "orbit",
+              );
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              entitiesDisplayMode === "orbit"
+                ? t("displayMode.switchToList")
+                : t("displayMode.switchToOrbit")
+            }
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{
+              marginLeft: 10,
+              opacity: 0.5,
+            }}
+          >
+            <MaterialIcons
+              name={
+                entitiesDisplayMode === "orbit"
+                  ? "view-list"
+                  : "blur-circular"
+              }
+              size={isTablet ? 30 : 22}
+              color={colors.text}
+            />
+          </Pressable>
+        )}
       </View>
     );
   })();
@@ -23269,162 +23451,8 @@ export default function HomeScreen() {
             />
           </PulsingPressable>
 
-          {/* Year title below back arrow - shown when partner/job is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              let yearTitle: string | null = null;
-              const sphere = selectedSphere as LifeSphere;
-
-              // Get year for focused entity
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                if (job?.startDate) {
-                  const year = new Date(job.startDate).getFullYear();
-                  yearTitle = year.toString();
-                }
-              }
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                if (profile?.relationshipStartDate) {
-                  const year = new Date(
-                    profile.relationshipStartDate,
-                  ).getFullYear();
-                  yearTitle = year.toString();
-                }
-              }
-
-              if (yearTitle) {
-                return (
-                  <ThemedText
-                    size="l"
-                    weight="bold"
-                    numberOfLines={1}
-                    style={{
-                      position: "absolute",
-                      top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Below back arrow
-                      left: 20, // Align with back arrow
-                      zIndex: 1000,
-                      color: colors.text,
-                      opacity: 0.6,
-                    }}
-                  >
-                    {yearTitle}
-                  </ThemedText>
-                );
-              }
-              return null;
-            })()}
-
-          {/* Entity name below back arrow - shown when partner/job/friend/family/hobby is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              let entityName: string | null = null;
-              const sphere = selectedSphere as LifeSphere;
-
-              // Include jobs (career sphere) - show name below back arrow for all entities
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                entityName = job?.name || null;
-              }
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                entityName = profile?.name || null;
-              }
-              if (focusedFriendId && sphere === "friends") {
-                const friend = friends.find((f) => f.id === focusedFriendId);
-                entityName = friend?.name || null;
-              }
-              if (focusedFamilyMemberId && sphere === "family") {
-                const member = familyMembers.find(
-                  (m) => m.id === focusedFamilyMemberId,
-                );
-                entityName = member?.name || null;
-              }
-              if (focusedHobbyId && sphere === "hobbies") {
-                const hobby = hobbies.find((h) => h.id === focusedHobbyId);
-                entityName = hobby?.name || null;
-              }
-
-              if (entityName) {
-                return (
-                  <View style={sphereHeaderTitleRowStyle}>
-                    <ThemedText
-                      size="l"
-                      weight="medium"
-                      numberOfLines={1}
-                      style={{
-                        color: colors.text,
-                        textAlign: "right",
-                      }}
-                    >
-                      {entityName}
-                    </ThemedText>
-                  </View>
-                );
-              }
-              return null;
-            })()}
-
-          {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              // Check if an entity is focused and get its name
-              let entityName: string | null = null;
-              const sphere = selectedSphere as LifeSphere; // Use type assertion to avoid type narrowing issues
-
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                entityName = profile?.name || null;
-              }
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                entityName = job?.name || null;
-              }
-              if (focusedFamilyMemberId && sphere === "family") {
-                const member = familyMembers.find(
-                  (m) => m.id === focusedFamilyMemberId,
-                );
-                entityName = member?.name || null;
-              }
-              if (focusedFriendId && sphere === "friends") {
-                const friend = friends.find((f) => f.id === focusedFriendId);
-                entityName = friend?.name || null;
-              }
-              if (focusedHobbyId && sphere === "hobbies") {
-                const hobby = hobbies.find((h) => h.id === focusedHobbyId);
-                entityName = hobby?.name || null;
-              }
-
-              // Only show sphere name when no entity is focused - entity name is shown below Текуща
-              // Don't show entity name here to avoid duplication
-              if (entityName) {
-                return null; // Hide when entity is focused - title is shown below Текуща
-              }
-
-              const displayText = t(`spheres.${sphere}`);
-
-              return (
-                <View style={sphereHeaderTitleRowStyle} pointerEvents="none">
-                  <ThemedText
-                    size="l"
-                    weight="semibold"
-                    numberOfLines={1}
-                    style={{
-                      color: colors.text,
-                      textAlign: "right",
-                    }}
-                  >
-                    {displayText}
-                  </ThemedText>
-                </View>
-              );
-            })()}
-
-          {/* Memory title header - shown when memory is focused */}
-          {focusedMemoryTitleHeader}
+          {/* Breadcrumb navigation header */}
+          {breadcrumbHeader}
 
           <ScrollView
             scrollEnabled={scrollEnabledForSphere}
@@ -23459,11 +23487,41 @@ export default function HomeScreen() {
                 orbitDurationMs={orbitDurationMs}
                 constellationAmount={constellationAmount}
                 constellationOpacity={constellationOpacity}
+                displayMode={entitiesDisplayMode}
               />
             )}
 
             {/* Render focused profiles separately when focused (but hide profile when memory is focused) */}
-            {focusedProfilesRender}
+            {entitiesDisplayMode === "list" &&
+            focusedProfileId &&
+            !focusedMemory &&
+            animationsReady
+              ? (() => {
+                  const profile = sortedProfiles.find(
+                    (p) => p.id === focusedProfileId,
+                  );
+                  if (!profile) return null;
+                  const mem = getIdealizedMemoriesByEntityId(
+                    profile.id,
+                    "relationships",
+                  );
+                  return (
+                    <FocusedEntityMemoryList
+                      entity={profile}
+                      memories={mem}
+                      sphere="relationships"
+                      colorScheme={colorScheme ?? "dark"}
+                      onMemoryFocus={(eid, mid, sph) =>
+                        setFocusedMemory({
+                          profileId: eid,
+                          memoryId: mid,
+                          sphere: sph,
+                        })
+                      }
+                    />
+                  );
+                })()
+              : focusedProfilesRender}
 
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -23582,162 +23640,8 @@ export default function HomeScreen() {
             />
           </PulsingPressable>
 
-          {/* Year title below back arrow - shown when partner/job is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              let yearTitle: string | null = null;
-              const sphere = selectedSphere as LifeSphere;
-
-              // Get year for focused entity
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                if (job?.startDate) {
-                  const year = new Date(job.startDate).getFullYear();
-                  yearTitle = year.toString();
-                }
-              }
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                if (profile?.relationshipStartDate) {
-                  const year = new Date(
-                    profile.relationshipStartDate,
-                  ).getFullYear();
-                  yearTitle = year.toString();
-                }
-              }
-
-              if (yearTitle) {
-                return (
-                  <ThemedText
-                    size="l"
-                    weight="bold"
-                    numberOfLines={1}
-                    style={{
-                      position: "absolute",
-                      top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Below back arrow
-                      left: 20, // Align with back arrow
-                      zIndex: 1000,
-                      color: colors.text,
-                      opacity: 0.6,
-                    }}
-                  >
-                    {yearTitle}
-                  </ThemedText>
-                );
-              }
-              return null;
-            })()}
-
-          {/* Entity name below back arrow - shown when partner/job/friend/family/hobby is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              let entityName: string | null = null;
-              const sphere = selectedSphere as LifeSphere;
-
-              // Include jobs (career sphere) - show name below back arrow for all entities
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                entityName = job?.name || null;
-              }
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                entityName = profile?.name || null;
-              }
-              if (focusedFriendId && sphere === "friends") {
-                const friend = friends.find((f) => f.id === focusedFriendId);
-                entityName = friend?.name || null;
-              }
-              if (focusedFamilyMemberId && sphere === "family") {
-                const member = familyMembers.find(
-                  (m) => m.id === focusedFamilyMemberId,
-                );
-                entityName = member?.name || null;
-              }
-              if (focusedHobbyId && sphere === "hobbies") {
-                const hobby = hobbies.find((h) => h.id === focusedHobbyId);
-                entityName = hobby?.name || null;
-              }
-
-              if (entityName) {
-                return (
-                  <View style={sphereHeaderTitleRowStyle}>
-                    <ThemedText
-                      size="l"
-                      weight="medium"
-                      numberOfLines={1}
-                      style={{
-                        color: colors.text,
-                        textAlign: "right",
-                      }}
-                    >
-                      {entityName}
-                    </ThemedText>
-                  </View>
-                );
-              }
-              return null;
-            })()}
-
-          {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              // Check if an entity is focused and get its name
-              let entityName: string | null = null;
-              const sphere = selectedSphere as LifeSphere; // Use type assertion to avoid type narrowing issues
-
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                entityName = profile?.name || null;
-              }
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                entityName = job?.name || null;
-              }
-              if (focusedFamilyMemberId && sphere === "family") {
-                const member = familyMembers.find(
-                  (m) => m.id === focusedFamilyMemberId,
-                );
-                entityName = member?.name || null;
-              }
-              if (focusedFriendId && sphere === "friends") {
-                const friend = friends.find((f) => f.id === focusedFriendId);
-                entityName = friend?.name || null;
-              }
-              if (focusedHobbyId && sphere === "hobbies") {
-                const hobby = hobbies.find((h) => h.id === focusedHobbyId);
-                entityName = hobby?.name || null;
-              }
-
-              // Only show sphere name when no entity is focused - entity name is shown below Текуща
-              // Don't show entity name here to avoid duplication
-              if (entityName) {
-                return null; // Hide when entity is focused - title is shown below Текуща
-              }
-
-              const displayText = t(`spheres.${sphere}`);
-
-              return (
-                <View style={sphereHeaderTitleRowStyle} pointerEvents="none">
-                  <ThemedText
-                    size="l"
-                    weight="semibold"
-                    numberOfLines={1}
-                    style={{
-                      color: colors.text,
-                      textAlign: "right",
-                    }}
-                  >
-                    {displayText}
-                  </ThemedText>
-                </View>
-              );
-            })()}
-
-          {/* Memory title header - shown when memory is focused */}
-          {focusedMemoryTitleHeader}
+          {/* Breadcrumb navigation header */}
+          {breadcrumbHeader}
 
           <ScrollView
             scrollEnabled={scrollEnabledForSphere}
@@ -23772,12 +23676,42 @@ export default function HomeScreen() {
                 orbitDurationMs={orbitDurationMs}
                 constellationAmount={constellationAmount}
                 constellationOpacity={constellationOpacity}
+                displayMode={entitiesDisplayMode}
               />
             )}
 
             {/* Render focused jobs separately when focused (but hide job when memory is focused) */}
             {/* Only render if there's actually a focused job - not when showing orbital view */}
-            {focusedJobId && focusedJobsRender}
+            {focusedJobId &&
+              (entitiesDisplayMode === "list" &&
+              !focusedMemory &&
+              animationsReady
+                ? (() => {
+                    const job = sortedJobs.find(
+                      (j) => j.id === focusedJobId,
+                    );
+                    if (!job) return null;
+                    const mem = getIdealizedMemoriesByEntityId(
+                      job.id,
+                      "career",
+                    );
+                    return (
+                      <FocusedEntityMemoryList
+                        entity={job}
+                        memories={mem}
+                        sphere="career"
+                        colorScheme={colorScheme ?? "dark"}
+                        onMemoryFocus={(eid, mid, sph) =>
+                          setFocusedMemory({
+                            jobId: eid,
+                            memoryId: mid,
+                            sphere: sph,
+                          })
+                        }
+                      />
+                    );
+                  })()
+                : focusedJobsRender)}
 
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -23911,162 +23845,8 @@ export default function HomeScreen() {
             />
           </PulsingPressable>
 
-          {/* Year title below back arrow - shown when partner/job is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              let yearTitle: string | null = null;
-              const sphere = selectedSphere as LifeSphere;
-
-              // Get year for focused entity
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                if (job?.startDate) {
-                  const year = new Date(job.startDate).getFullYear();
-                  yearTitle = year.toString();
-                }
-              }
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                if (profile?.relationshipStartDate) {
-                  const year = new Date(
-                    profile.relationshipStartDate,
-                  ).getFullYear();
-                  yearTitle = year.toString();
-                }
-              }
-
-              if (yearTitle) {
-                return (
-                  <ThemedText
-                    size="l"
-                    weight="bold"
-                    numberOfLines={1}
-                    style={{
-                      position: "absolute",
-                      top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Below back arrow
-                      left: 20, // Align with back arrow
-                      zIndex: 1000,
-                      color: colors.text,
-                      opacity: 0.6,
-                    }}
-                  >
-                    {yearTitle}
-                  </ThemedText>
-                );
-              }
-              return null;
-            })()}
-
-          {/* Entity name below back arrow - shown when partner/job/friend/family/hobby is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              let entityName: string | null = null;
-              const sphere = selectedSphere as LifeSphere;
-
-              // Include jobs (career sphere) - show name below back arrow for all entities
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                entityName = job?.name || null;
-              }
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                entityName = profile?.name || null;
-              }
-              if (focusedFriendId && sphere === "friends") {
-                const friend = friends.find((f) => f.id === focusedFriendId);
-                entityName = friend?.name || null;
-              }
-              if (focusedFamilyMemberId && sphere === "family") {
-                const member = familyMembers.find(
-                  (m) => m.id === focusedFamilyMemberId,
-                );
-                entityName = member?.name || null;
-              }
-              if (focusedHobbyId && sphere === "hobbies") {
-                const hobby = hobbies.find((h) => h.id === focusedHobbyId);
-                entityName = hobby?.name || null;
-              }
-
-              if (entityName) {
-                return (
-                  <View style={sphereHeaderTitleRowStyle}>
-                    <ThemedText
-                      size="l"
-                      weight="medium"
-                      numberOfLines={1}
-                      style={{
-                        color: colors.text,
-                        textAlign: "right",
-                      }}
-                    >
-                      {entityName}
-                    </ThemedText>
-                  </View>
-                );
-              }
-              return null;
-            })()}
-
-          {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              // Check if an entity is focused and get its name
-              let entityName: string | null = null;
-              const sphere = selectedSphere as LifeSphere; // Use type assertion to avoid type narrowing issues
-
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                entityName = profile?.name || null;
-              }
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                entityName = job?.name || null;
-              }
-              if (focusedFamilyMemberId && sphere === "family") {
-                const member = familyMembers.find(
-                  (m) => m.id === focusedFamilyMemberId,
-                );
-                entityName = member?.name || null;
-              }
-              if (focusedFriendId && sphere === "friends") {
-                const friend = friends.find((f) => f.id === focusedFriendId);
-                entityName = friend?.name || null;
-              }
-              if (focusedHobbyId && sphere === "hobbies") {
-                const hobby = hobbies.find((h) => h.id === focusedHobbyId);
-                entityName = hobby?.name || null;
-              }
-
-              // Only show sphere name when no entity is focused - entity name is shown below Текуща
-              // Don't show entity name here to avoid duplication
-              if (entityName) {
-                return null; // Hide when entity is focused - title is shown below Текуща
-              }
-
-              const displayText = t(`spheres.${sphere}`);
-
-              return (
-                <View style={sphereHeaderTitleRowStyle} pointerEvents="none">
-                  <ThemedText
-                    size="l"
-                    weight="semibold"
-                    numberOfLines={1}
-                    style={{
-                      color: colors.text,
-                      textAlign: "right",
-                    }}
-                  >
-                    {displayText}
-                  </ThemedText>
-                </View>
-              );
-            })()}
-
-          {/* Memory title header - shown when memory is focused */}
-          {focusedMemoryTitleHeader}
+          {/* Breadcrumb navigation header */}
+          {breadcrumbHeader}
 
           <View
             style={[
@@ -24096,12 +23876,42 @@ export default function HomeScreen() {
                 orbitDurationMs={orbitDurationMs}
                 constellationAmount={constellationAmount}
                 constellationOpacity={constellationOpacity}
+                displayMode={entitiesDisplayMode}
               />
             )}
 
             {/* Render focused family members separately when focused (but hide family member when memory is focused) */}
             {/* Only render if there's actually a focused family member - not when showing orbital view */}
-            {focusedFamilyMemberId && focusedFamilyMembersRender}
+            {focusedFamilyMemberId &&
+              (entitiesDisplayMode === "list" &&
+              !focusedMemory &&
+              animationsReady
+                ? (() => {
+                    const member = familyMembers.find(
+                      (m) => m.id === focusedFamilyMemberId,
+                    );
+                    if (!member) return null;
+                    const mem = getIdealizedMemoriesByEntityId(
+                      member.id,
+                      "family",
+                    );
+                    return (
+                      <FocusedEntityMemoryList
+                        entity={member}
+                        memories={mem}
+                        sphere="family"
+                        colorScheme={colorScheme ?? "dark"}
+                        onMemoryFocus={(eid, mid, sph) =>
+                          setFocusedMemory({
+                            familyMemberId: eid,
+                            memoryId: mid,
+                            sphere: sph,
+                          })
+                        }
+                      />
+                    );
+                  })()
+                : focusedFamilyMembersRender)}
 
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -24230,162 +24040,8 @@ export default function HomeScreen() {
             />
           </PulsingPressable>
 
-          {/* Year title below back arrow - shown when partner/job is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              let yearTitle: string | null = null;
-              const sphere = selectedSphere as LifeSphere;
-
-              // Get year for focused entity
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                if (job?.startDate) {
-                  const year = new Date(job.startDate).getFullYear();
-                  yearTitle = year.toString();
-                }
-              }
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                if (profile?.relationshipStartDate) {
-                  const year = new Date(
-                    profile.relationshipStartDate,
-                  ).getFullYear();
-                  yearTitle = year.toString();
-                }
-              }
-
-              if (yearTitle) {
-                return (
-                  <ThemedText
-                    size="l"
-                    weight="bold"
-                    numberOfLines={1}
-                    style={{
-                      position: "absolute",
-                      top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Below back arrow
-                      left: 20, // Align with back arrow
-                      zIndex: 1000,
-                      color: colors.text,
-                      opacity: 0.6,
-                    }}
-                  >
-                    {yearTitle}
-                  </ThemedText>
-                );
-              }
-              return null;
-            })()}
-
-          {/* Entity name below back arrow - shown when partner/job/friend/family/hobby is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              let entityName: string | null = null;
-              const sphere = selectedSphere as LifeSphere;
-
-              // Include jobs (career sphere) - show name below back arrow for all entities
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                entityName = job?.name || null;
-              }
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                entityName = profile?.name || null;
-              }
-              if (focusedFriendId && sphere === "friends") {
-                const friend = friends.find((f) => f.id === focusedFriendId);
-                entityName = friend?.name || null;
-              }
-              if (focusedFamilyMemberId && sphere === "family") {
-                const member = familyMembers.find(
-                  (m) => m.id === focusedFamilyMemberId,
-                );
-                entityName = member?.name || null;
-              }
-              if (focusedHobbyId && sphere === "hobbies") {
-                const hobby = hobbies.find((h) => h.id === focusedHobbyId);
-                entityName = hobby?.name || null;
-              }
-
-              if (entityName) {
-                return (
-                  <View style={sphereHeaderTitleRowStyle}>
-                    <ThemedText
-                      size="l"
-                      weight="medium"
-                      numberOfLines={1}
-                      style={{
-                        color: colors.text,
-                        textAlign: "right",
-                      }}
-                    >
-                      {entityName}
-                    </ThemedText>
-                  </View>
-                );
-              }
-              return null;
-            })()}
-
-          {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              // Check if an entity is focused and get its name
-              let entityName: string | null = null;
-              const sphere = selectedSphere as LifeSphere; // Use type assertion to avoid type narrowing issues
-
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                entityName = profile?.name || null;
-              }
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                entityName = job?.name || null;
-              }
-              if (focusedFamilyMemberId && sphere === "family") {
-                const member = familyMembers.find(
-                  (m) => m.id === focusedFamilyMemberId,
-                );
-                entityName = member?.name || null;
-              }
-              if (focusedFriendId && sphere === "friends") {
-                const friend = friends.find((f) => f.id === focusedFriendId);
-                entityName = friend?.name || null;
-              }
-              if (focusedHobbyId && sphere === "hobbies") {
-                const hobby = hobbies.find((h) => h.id === focusedHobbyId);
-                entityName = hobby?.name || null;
-              }
-
-              // Only show sphere name when no entity is focused - entity name is shown below Текуща
-              // Don't show entity name here to avoid duplication
-              if (entityName) {
-                return null; // Hide when entity is focused - title is shown below Текуща
-              }
-
-              const displayText = t(`spheres.${sphere}`);
-
-              return (
-                <View style={sphereHeaderTitleRowStyle} pointerEvents="none">
-                  <ThemedText
-                    size="l"
-                    weight="semibold"
-                    numberOfLines={1}
-                    style={{
-                      color: colors.text,
-                      textAlign: "right",
-                    }}
-                  >
-                    {displayText}
-                  </ThemedText>
-                </View>
-              );
-            })()}
-
-          {/* Memory title header - shown when memory is focused */}
-          {focusedMemoryTitleHeader}
+          {/* Breadcrumb navigation header */}
+          {breadcrumbHeader}
 
           <View
             style={[
@@ -24415,12 +24071,42 @@ export default function HomeScreen() {
                 orbitDurationMs={orbitDurationMs}
                 constellationAmount={constellationAmount}
                 constellationOpacity={constellationOpacity}
+                displayMode={entitiesDisplayMode}
               />
             )}
 
             {/* Render focused friends separately when focused (but hide friend when memory is focused) */}
             {/* Only render if there's actually a focused friend - not when showing orbital view */}
-            {focusedFriendId && focusedFriendsRender}
+            {focusedFriendId &&
+              (entitiesDisplayMode === "list" &&
+              !focusedMemory &&
+              animationsReady
+                ? (() => {
+                    const friend = friends.find(
+                      (f) => f.id === focusedFriendId,
+                    );
+                    if (!friend) return null;
+                    const mem = getIdealizedMemoriesByEntityId(
+                      friend.id,
+                      "friends",
+                    );
+                    return (
+                      <FocusedEntityMemoryList
+                        entity={friend}
+                        memories={mem}
+                        sphere="friends"
+                        colorScheme={colorScheme ?? "dark"}
+                        onMemoryFocus={(eid, mid, sph) =>
+                          setFocusedMemory({
+                            friendId: eid,
+                            memoryId: mid,
+                            sphere: sph,
+                          })
+                        }
+                      />
+                    );
+                  })()
+                : focusedFriendsRender)}
 
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
@@ -24549,162 +24235,8 @@ export default function HomeScreen() {
             />
           </PulsingPressable>
 
-          {/* Year title below back arrow - shown when partner/job is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              let yearTitle: string | null = null;
-              const sphere = selectedSphere as LifeSphere;
-
-              // Get year for focused entity
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                if (job?.startDate) {
-                  const year = new Date(job.startDate).getFullYear();
-                  yearTitle = year.toString();
-                }
-              }
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                if (profile?.relationshipStartDate) {
-                  const year = new Date(
-                    profile.relationshipStartDate,
-                  ).getFullYear();
-                  yearTitle = year.toString();
-                }
-              }
-
-              if (yearTitle) {
-                return (
-                  <ThemedText
-                    size="l"
-                    weight="bold"
-                    numberOfLines={1}
-                    style={{
-                      position: "absolute",
-                      top: (isTablet ? 70 : 50) + (isTablet ? 70 : 50) + 26, // Below back arrow
-                      left: 20, // Align with back arrow
-                      zIndex: 1000,
-                      color: colors.text,
-                      opacity: 0.6,
-                    }}
-                  >
-                    {yearTitle}
-                  </ThemedText>
-                );
-              }
-              return null;
-            })()}
-
-          {/* Entity name below back arrow - shown when partner/job/friend/family/hobby is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              let entityName: string | null = null;
-              const sphere = selectedSphere as LifeSphere;
-
-              // Include jobs (career sphere) - show name below back arrow for all entities
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                entityName = job?.name || null;
-              }
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                entityName = profile?.name || null;
-              }
-              if (focusedFriendId && sphere === "friends") {
-                const friend = friends.find((f) => f.id === focusedFriendId);
-                entityName = friend?.name || null;
-              }
-              if (focusedFamilyMemberId && sphere === "family") {
-                const member = familyMembers.find(
-                  (m) => m.id === focusedFamilyMemberId,
-                );
-                entityName = member?.name || null;
-              }
-              if (focusedHobbyId && sphere === "hobbies") {
-                const hobby = hobbies.find((h) => h.id === focusedHobbyId);
-                entityName = hobby?.name || null;
-              }
-
-              if (entityName) {
-                return (
-                  <View style={sphereHeaderTitleRowStyle}>
-                    <ThemedText
-                      size="l"
-                      weight="medium"
-                      numberOfLines={1}
-                      style={{
-                        color: colors.text,
-                        textAlign: "right",
-                      }}
-                    >
-                      {entityName}
-                    </ThemedText>
-                  </View>
-                );
-              }
-              return null;
-            })()}
-
-          {/* Entity or sphere name header - shown when sphere is selected and no memory is focused */}
-          {!focusedMemory &&
-            selectedSphere &&
-            (() => {
-              // Check if an entity is focused and get its name
-              let entityName: string | null = null;
-              const sphere = selectedSphere as LifeSphere; // Use type assertion to avoid type narrowing issues
-
-              if (focusedProfileId && sphere === "relationships") {
-                const profile = profiles.find((p) => p.id === focusedProfileId);
-                entityName = profile?.name || null;
-              }
-              if (focusedJobId && sphere === "career") {
-                const job = jobs.find((j) => j.id === focusedJobId);
-                entityName = job?.name || null;
-              }
-              if (focusedFamilyMemberId && sphere === "family") {
-                const member = familyMembers.find(
-                  (m) => m.id === focusedFamilyMemberId,
-                );
-                entityName = member?.name || null;
-              }
-              if (focusedFriendId && sphere === "friends") {
-                const friend = friends.find((f) => f.id === focusedFriendId);
-                entityName = friend?.name || null;
-              }
-              if (focusedHobbyId && sphere === "hobbies") {
-                const hobby = hobbies.find((h) => h.id === focusedHobbyId);
-                entityName = hobby?.name || null;
-              }
-
-              // Only show sphere name when no entity is focused - entity name is shown below Текуща
-              // Don't show entity name here to avoid duplication
-              if (entityName) {
-                return null; // Hide when entity is focused - title is shown below Текуща
-              }
-
-              const displayText = t(`spheres.${sphere}`);
-
-              return (
-                <View style={sphereHeaderTitleRowStyle} pointerEvents="none">
-                  <ThemedText
-                    size="l"
-                    weight="semibold"
-                    numberOfLines={1}
-                    style={{
-                      color: colors.text,
-                      textAlign: "right",
-                    }}
-                  >
-                    {displayText}
-                  </ThemedText>
-                </View>
-              );
-            })()}
-
-          {/* Memory title header - shown when memory is focused */}
-          {focusedMemoryTitleHeader}
+          {/* Breadcrumb navigation header */}
+          {breadcrumbHeader}
 
           <View
             style={[
@@ -24734,12 +24266,42 @@ export default function HomeScreen() {
                 orbitDurationMs={orbitDurationMs}
                 constellationAmount={constellationAmount}
                 constellationOpacity={constellationOpacity}
+                displayMode={entitiesDisplayMode}
               />
             )}
 
             {/* Render focused hobbies separately when focused (but hide hobby when memory is focused) */}
             {/* Only render if there's actually a focused hobby - not when showing orbital view */}
-            {focusedHobbyId && focusedHobbiesRender}
+            {focusedHobbyId &&
+              (entitiesDisplayMode === "list" &&
+              !focusedMemory &&
+              animationsReady
+                ? (() => {
+                    const hobby = hobbies.find(
+                      (h) => h.id === focusedHobbyId,
+                    );
+                    if (!hobby) return null;
+                    const mem = getIdealizedMemoriesByEntityId(
+                      hobby.id,
+                      "hobbies",
+                    );
+                    return (
+                      <FocusedEntityMemoryList
+                        entity={hobby}
+                        memories={mem}
+                        sphere="hobbies"
+                        colorScheme={colorScheme ?? "dark"}
+                        onMemoryFocus={(eid, mid, sph) =>
+                          setFocusedMemory({
+                            hobbyId: eid,
+                            memoryId: mid,
+                            sphere: sph,
+                          })
+                        }
+                      />
+                    );
+                  })()
+                : focusedHobbiesRender)}
 
             {/* Render focused memory separately when memory is focused */}
             {focusedMemory && animationsReady && (
