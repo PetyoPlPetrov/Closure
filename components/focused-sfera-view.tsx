@@ -129,11 +129,14 @@ const FOCUSED_ICON_SIZE = scaleFocused(72);
 /** Memory Balance: hint overlay band starts this far down the screen (fraction of height). Larger = strip nearer tab bar. */
 const SFERA_HINT_MB_BAND_TOP_FRAC = 0.7;
 /**
- * Pulls the hint strip closer to the tab bar: tab inset minus a fraction of screen height
- * minus scaled points (phones + iPad via scaleFocused).
+ * Keeps the hint strip visually above the tab bar and the floating AI button.
+ * The AI button protrudes ~half its size above the tab bar, so we add enough
+ * clearance so the banner (including "Don't show again") never overlaps it.
+ * Uses a screen-height fraction + scaleFocused so the gap adapts to device
+ * size, iPad scaling, and font-scale (already baked into tabBarInset).
  */
 function sferaHintBottomLiftPx(tabBarInset: number): number {
-  return Math.max(0, tabBarInset - SH * 0.052 - scaleFocused(14));
+  return tabBarInset + SH * 0.035 + scaleFocused(4);
 }
 
 // Orbit around the Sunny Life avatar: spheres move along this circle when switching focus
