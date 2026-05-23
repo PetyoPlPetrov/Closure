@@ -9163,6 +9163,24 @@ const FloatingMemory = React.memo(
             focusedMemoryStyle,
           ]}
         >
+          {/* Memory title above the circle */}
+          {isMemoryFocused && memory.title && (
+            <ThemedText
+              size="l"
+              weight="semibold"
+              numberOfLines={2}
+              style={{
+                position: "absolute",
+                top: -40,
+                left: -memorySize * 0.25,
+                right: -memorySize * 0.25,
+                textAlign: "center",
+                zIndex: 20,
+              }}
+            >
+              {memory.title}
+            </ThemedText>
+          )}
           <View
             style={{
               width: memorySize,
@@ -23169,9 +23187,7 @@ export default function HomeScreen() {
       }
     }
 
-    if (memoryTitle) {
-      crumbs.push({ label: memoryTitle });
-    }
+    // Memory title is shown above the image circle, not in the breadcrumb
 
     const isMemoryLevel = !!focusedMemory;
     const isSphereLevel = !entityName && !memoryTitle;
@@ -23243,7 +23259,7 @@ export default function HomeScreen() {
                 ) : (
                   <ThemedText
                     size="l"
-                    weight="semibold"
+                    weight="bold"
                     numberOfLines={1}
                     style={{
                       color: colors.text,
@@ -23286,7 +23302,7 @@ export default function HomeScreen() {
           >
             <MaterialIcons
               name="edit"
-              size={isTablet ? 32 : 20}
+              size={isTablet ? 30 : 20}
               color={colors.text}
             />
           </Pressable>
