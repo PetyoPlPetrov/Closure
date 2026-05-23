@@ -15384,6 +15384,7 @@ export default function HomeScreen() {
 
     const readyForSferaSizeHint =
       onFocusedOverviewSurface &&
+      focusedHomeMemoryBalance === true &&
       !isLoading &&
       focusedIntroComplete &&
       !focusedSunMenuExpanded;
@@ -15441,6 +15442,7 @@ export default function HomeScreen() {
     isHomeTabFocused,
     homeViewMode,
     selectedSphere,
+    focusedHomeMemoryBalance,
     focusedSunMenuExpanded,
     isLoading,
     focusedIntroComplete,
