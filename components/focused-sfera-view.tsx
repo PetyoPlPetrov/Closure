@@ -5250,20 +5250,21 @@ export function FocusedSferaView({
 
       {/* ─── Focused sfera label + pagination dots (below rotating entities) ─── */}
       {!isMemoryBalanceMode && (
-        <Animated.View
+        <View
           style={[
             styles.focusedLabelContainer,
             {
               top: focusedLabelTop,
               opacity: !sunLoadComplete || isSunExpanded ? 0 : 1,
             },
-            focusedLabelDragFadeStyle,
           ]}
           pointerEvents="none"
         >
-          <ThemedText style={styles.focusedLabelText}>
-            {t(`spheres.${SPHERE_LIST[focusedLabelIdx].type}`)}
-          </ThemedText>
+          <Animated.View style={focusedLabelDragFadeStyle}>
+            <ThemedText style={styles.focusedLabelText}>
+              {t(`spheres.${SPHERE_LIST[focusedLabelIdx].type}`)}
+            </ThemedText>
+          </Animated.View>
           <View
             style={[styles.focusedLabelDotsRow, { marginTop: LABEL_TO_DOTS_GAP }]}
           >
@@ -5287,7 +5288,7 @@ export function FocusedSferaView({
               />
             ))}
           </View>
-        </Animated.View>
+        </View>
       )}
 
       {/* ─── Sfera size hint: shown on overview surface below the sphere cluster ─── */}

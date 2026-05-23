@@ -16,8 +16,8 @@ export default function LessonsTabScreen() {
 
   const tabBarOverlapHeight = useMemo(
     () =>
-      Math.round(78 * fontScale) +
-      Math.max(12, insets.bottom + 12 - 20 * fontScale),
+      Math.round(58 * fontScale) +
+      Math.max(12, insets.bottom),
     [fontScale, insets.bottom],
   );
 

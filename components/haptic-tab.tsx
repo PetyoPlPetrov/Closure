@@ -124,9 +124,10 @@ export function HapticTab(props: BottomTabBarButtonProps) {
   });
 
   return (
-    <Animated.View style={animatedStyle}>
+    <Animated.View style={[{ flex: 1 }, animatedStyle]}>
       <PlatformPressable
         {...props}
+        style={[props.style, { flex: 1, justifyContent: 'center', alignItems: 'center' }]}
         onPress={handlePress}
       />
     </Animated.View>
@@ -269,9 +270,10 @@ export function HomeTabButton(props: BottomTabBarButtonProps) {
   });
 
   return (
-    <Animated.View style={animatedStyle}>
+    <Animated.View style={[{ flex: 1 }, animatedStyle]}>
       <PlatformPressable
         {...props}
+        style={[props.style, { flex: 1, justifyContent: 'center', alignItems: 'center' }]}
         onPress={handlePress}
       />
     </Animated.View>
@@ -333,8 +335,12 @@ export function EventsTabButton(props: BottomTabBarButtonProps) {
   }));
 
   return (
-    <Animated.View style={animatedStyle}>
-      <PlatformPressable {...props} onPress={handlePress} />
+    <Animated.View style={[{ flex: 1 }, animatedStyle]}>
+      <PlatformPressable
+        {...props}
+        style={[props.style, { flex: 1, justifyContent: 'center', alignItems: 'center' }]}
+        onPress={handlePress}
+      />
     </Animated.View>
   );
 }

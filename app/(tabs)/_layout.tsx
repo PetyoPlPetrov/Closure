@@ -1,9 +1,15 @@
 import { useDemoMode } from "@/utils/DemoModeProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { Tabs, useGlobalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing as REasing,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AITabButton, HapticTab, HomeTabButton } from "@/components/haptic-tab";
@@ -11,7 +17,6 @@ import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useFontScale } from "@/hooks/use-device-size";
-import { TAB_BAR_BACKGROUND_LIGHT_COSMIC_OFF } from "@/library/components/tab-screen-container";
 import { useJourney } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
 import {
@@ -24,78 +29,81 @@ import {
   setShowWalkthroughAfterOnboarding,
   subscribeCreateMemoryHint,
 } from "@/utils/onboarding-storage";
-import { useVisualSettings, MAX_COSMIC_BACKGROUND_OPACITY } from "@/utils/VisualSettingsProvider";
 
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace("#", "");
-  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
-  const n = parseInt(full, 16);
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-}
-
-function lerpHex(a: string, b: string, t: number): string {
-  const u = Math.max(0, Math.min(1, t));
-  const p = hexToRgb(a);
-  const q = hexToRgb(b);
-  const r = Math.round(p.r + (q.r - p.r) * u);
-  const g = Math.round(p.g + (q.g - p.g) * u);
-  const bl = Math.round(p.b + (q.b - p.b) * u);
-  const h = (x: number) => x.toString(16).padStart(2, "0");
-  return `#${h(r)}${h(g)}${h(bl)}`;
-}
-
-/** Light tab bar: cosmos off → full chrome (matches `TabBarBackground` lerps). */
-function lightTabBarBorderRgba(cosmicBackgroundOpacity: number): string {
-  const t =
-    MAX_COSMIC_BACKGROUND_OPACITY <= 0
-      ? 0
-      : cosmicBackgroundOpacity / MAX_COSMIC_BACKGROUND_OPACITY;
-  const g = Math.round(150 * t);
-  const a = 0.08 + (0.6 - 0.08) * t;
-  return `rgba(${g}, ${g}, ${g}, ${a})`;
-}
+/** Horizontal margin for the floating tab bar. */
+const TAB_BAR_H_MARGIN = 16;
+const TAB_BAR_RADIUS = 28;
 
 function TabBarBackground() {
   const colorScheme = useColorScheme();
-  const { cosmicBackgroundOpacity } = useVisualSettings();
-  const chromeT =
-    MAX_COSMIC_BACKGROUND_OPACITY <= 0
-      ? 0
-      : cosmicBackgroundOpacity / MAX_COSMIC_BACKGROUND_OPACITY;
+  const isDark = (colorScheme ?? "dark") === "dark";
 
-  if (colorScheme === "dark") {
-    return (
-      <LinearGradient
-        colors={["#243041", "#1F2A3A", "#1A2332", "#151D2A", "#0F1620"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+  return (
+    <View style={[StyleSheet.absoluteFill, { borderRadius: TAB_BAR_RADIUS, overflow: "hidden" }]}>
+      <BlurView
+        intensity={isDark ? 60 : 80}
+        tint={isDark ? "dark" : "light"}
         style={StyleSheet.absoluteFill}
       />
-    );
-  }
-
-  // Light (or unset): blend tab bar chrome with cosmic slider
-  if (cosmicBackgroundOpacity <= 0) {
-    return (
+      {/* Tinted overlay for depth */}
       <View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: TAB_BAR_BACKGROUND_LIGHT_COSMIC_OFF },
+          {
+            backgroundColor: isDark
+              ? "rgba(15, 22, 36, 0.55)"
+              : "rgba(245, 245, 247, 0.45)",
+          },
         ]}
       />
-    );
-  }
+    </View>
+  );
+}
 
-  const t = chromeT;
-  const c1 = lerpHex(TAB_BAR_BACKGROUND_LIGHT_COSMIC_OFF, "#D0D4DA", t);
-  const c2 = lerpHex(TAB_BAR_BACKGROUND_LIGHT_COSMIC_OFF, "#C9CDD4", t);
-  const c3 = lerpHex(TAB_BAR_BACKGROUND_LIGHT_COSMIC_OFF, "#C2C7CE", t);
+/** Animated pill indicator for the active tab. */
+function ActiveTabPill({
+  activeIndex,
+  tabCount,
+  tabBarWidth,
+  pillColor,
+}: {
+  activeIndex: number;
+  tabCount: number;
+  tabBarWidth: number;
+  pillColor: string;
+}) {
+  const translateX = useSharedValue(0);
+  const PILL_W = 36;
+  const PILL_H = 3.5;
+
+  const tabItemWidth = tabBarWidth / tabCount;
+
+  useEffect(() => {
+    const target = activeIndex * tabItemWidth + tabItemWidth / 2 - PILL_W / 2;
+    translateX.value = withTiming(target, {
+      duration: 300,
+      easing: REasing.out(REasing.cubic),
+    });
+  }, [activeIndex, tabItemWidth, translateX]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
   return (
-    <LinearGradient
-      colors={[c1, c2, c3]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
-      style={StyleSheet.absoluteFill}
+    <Reanimated.View
+      style={[
+        {
+          position: "absolute",
+          bottom: 10,
+          left: 0,
+          width: PILL_W,
+          height: PILL_H,
+          borderRadius: PILL_H / 2,
+          backgroundColor: pillColor,
+        },
+        animatedStyle,
+      ]}
     />
   );
 }
@@ -106,7 +114,6 @@ const POST_ONBOARDING_AI_WELCOME_FADE_MS = 650;
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
-  const { cosmicBackgroundOpacity } = useVisualSettings();
   const fontScale = useFontScale();
   const t = useTranslate();
   const { isDemoMode } = useDemoMode();
@@ -120,11 +127,11 @@ export default function TabLayout() {
   const memoriesBelowAISpotlightCap =
     idealizedMemories.length < POST_ONBOARDING_AI_SPOTLIGHT_MAX_MEMORIES;
 
-  const iconSize = Math.round(28 * fontScale);
-  const tabBarHeight =
-    Math.round(78 * fontScale) +
-    Math.max(12, insets.bottom + 12 - 20 * fontScale);
+  const iconSize = Math.round(26 * fontScale);
+  const tabBarHeight = Math.round(58 * fontScale);
   const aiButtonSize = Math.round(56 * fontScale);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [tabBarWidth, setTabBarWidth] = useState(0);
   const [showPostOnboardingAIWelcome, setShowPostOnboardingAIWelcomeState] = useState(false);
   const [postOnboardingAIWelcomeEligible, setPostOnboardingAIWelcomeEligible] =
     useState(false);
@@ -136,13 +143,9 @@ export default function TabLayout() {
     showPostOnboardingAIWelcome && !isInsightsDrillMemoryFlow;
 
   const inactiveColor =
-    colorScheme === "dark" ? "#ffffff" : colors.tabIconDefault;
+    colorScheme === "dark" ? "rgba(255,255,255,0.45)" : colors.tabIconDefault;
   const activeTintColor =
     colorScheme === "dark" ? colors.primaryLight : "#1976D2";
-  const borderTopColor =
-    colorScheme === "dark"
-      ? "rgba(255, 255, 255, 0.1)"
-      : lightTabBarBorderRgba(cosmicBackgroundOpacity);
 
   const screenOptions = useMemo(
     () => ({
@@ -150,34 +153,39 @@ export default function TabLayout() {
       tabBarInactiveTintColor: inactiveColor,
       headerShown: false,
       tabBarButton: HapticTab,
-      tabBarLabelPosition: "below-icon" as const,
+      tabBarShowLabel: false,
       tabBarBackground: TabBarBackground,
       tabBarStyle: {
+        position: "absolute" as const,
         backgroundColor: "transparent" as const,
-        borderTopColor,
-        borderTopWidth: 1,
-        paddingBottom: Math.max(32 * fontScale, insets.bottom + 12),
-        paddingTop: 8 * fontScale,
+        borderTopWidth: 0,
+        borderWidth: 1,
+        borderColor: colorScheme === "dark"
+          ? "rgba(255,255,255,0.08)"
+          : "rgba(0,0,0,0.06)",
+        marginHorizontal: TAB_BAR_H_MARGIN,
+        marginBottom: Math.max(12, insets.bottom),
+        borderRadius: TAB_BAR_RADIUS,
         height: tabBarHeight,
         flexDirection: "row" as const,
+        elevation: 0,
+        shadowColor: colorScheme === "dark" ? "#000" : "#555",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: colorScheme === "dark" ? 0.4 : 0.12,
+        shadowRadius: 24,
       },
       tabBarItemStyle: {
+        flex: 1,
         flexDirection: "column" as const,
         justifyContent: "center" as const,
         alignItems: "center" as const,
-      },
-      tabBarLabelStyle: {
-        fontSize: Math.round(12 * fontScale),
-        fontWeight: "500" as const,
-        letterSpacing: 0.015,
-        marginTop: 4 * fontScale,
+        height: tabBarHeight,
       },
     }),
     [
       activeTintColor,
       inactiveColor,
-      borderTopColor,
-      cosmicBackgroundOpacity,
+      colorScheme,
       fontScale,
       insets.bottom,
       tabBarHeight,
@@ -191,47 +199,11 @@ export default function TabLayout() {
     [iconSize],
   );
 
-  const homeLabel = useCallback(
-    ({ focused, color }: { focused: boolean; color: string }) => (
-      <ThemedText
-        size="xs"
-        weight={focused ? "bold" : "medium"}
-        letterSpacing="l"
-        style={{
-          color: focused ? color : inactiveColor,
-          marginTop: 6 * fontScale,
-          lineHeight: 18 * fontScale,
-        }}
-      >
-        {t("tab.home")}
-      </ThemedText>
-    ),
-    [inactiveColor, fontScale, t],
-  );
-
   const lessonsIcon = useCallback(
     ({ color }: { color: string }) => (
       <MaterialIcons name="menu-book" size={iconSize} color={color} />
     ),
     [iconSize],
-  );
-
-  const lessonsLabel = useCallback(
-    ({ focused, color }: { focused: boolean; color: string }) => (
-      <ThemedText
-        size="xs"
-        weight={focused ? "bold" : "medium"}
-        letterSpacing="l"
-        style={{
-          color: focused ? color : inactiveColor,
-          marginTop: 6 * fontScale,
-          lineHeight: 18 * fontScale,
-        }}
-      >
-        {t("tab.lessons")}
-      </ThemedText>
-    ),
-    [inactiveColor, fontScale, t],
   );
 
   useEffect(() => {
@@ -404,13 +376,26 @@ export default function TabLayout() {
           />
         </Animated.View>
       )}
-      <Tabs initialRouteName="index" screenOptions={screenOptions}>
+      <Tabs
+        initialRouteName="index"
+        screenOptions={screenOptions}
+        screenListeners={{
+          state: (e: any) => {
+            const state = e.data?.state;
+            if (!state) return;
+            const idx = state.index ?? 0;
+            // Map: index=0 (Home), lessons=2 (but visually tab index 1)
+            const routeName = state.routes?.[idx]?.name;
+            if (routeName === "index") setActiveTabIndex(0);
+            else if (routeName === "lessons") setActiveTabIndex(1);
+          },
+        }}
+      >
         <Tabs.Screen
           name="index"
           options={{
             title: "Home",
             tabBarIcon: homeIcon,
-            tabBarLabel: homeLabel,
             tabBarButton: HomeTabButton,
           }}
         />
@@ -424,7 +409,6 @@ export default function TabLayout() {
             title: "Lessons",
             tabBarButton: HapticTab,
             tabBarIcon: lessonsIcon,
-            tabBarLabel: lessonsLabel,
             /** Pauses the Lessons screen tree when another tab is focused (no Reanimated/JS work). */
             freezeOnBlur: true,
           }}
@@ -508,11 +492,33 @@ export default function TabLayout() {
           options={{ href: null, headerShown: false }}
         />
       </Tabs>
+      {/* Animated pill indicator overlaid on the tab bar */}
+      <View
+        pointerEvents="none"
+        onLayout={(e) => setTabBarWidth(e.nativeEvent.layout.width)}
+        style={{
+          position: "absolute",
+          bottom: Math.max(12, insets.bottom),
+          left: TAB_BAR_H_MARGIN,
+          right: TAB_BAR_H_MARGIN,
+          height: tabBarHeight,
+          zIndex: 99,
+        }}
+      >
+        {tabBarWidth > 0 && (
+          <ActiveTabPill
+            activeIndex={activeTabIndex}
+            tabCount={2}
+            tabBarWidth={tabBarWidth}
+            pillColor={activeTintColor}
+          />
+        )}
+      </View>
       {/* Central AI button floating above the tab bar between Home and Lessons */}
       <View
         style={{
           position: "absolute",
-          bottom: tabBarHeight - aiButtonSize * 0.5,
+          bottom: Math.max(12, insets.bottom) + tabBarHeight - aiButtonSize * 0.5,
           left: 0,
           right: 0,
           alignItems: "center",

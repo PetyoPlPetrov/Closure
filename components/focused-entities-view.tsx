@@ -1049,8 +1049,8 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           });
           if (pulsingAnimations) {
             insightTitleScale.value = withSequence(
-              withTiming(1.18, { duration: 0 }),
-              withSpring(1, { damping: 10, stiffness: 120 }),
+              withTiming(1.05, { duration: 0 }),
+              withSpring(1, { damping: 14, stiffness: 140 }),
             );
           }
           insightCardTranslateX.value = withTiming(
@@ -1894,6 +1894,27 @@ const SferaInsightsCard = React.memo(function SferaInsightsCard({
           </Pressable>
         ) : <View style={{ width: 48 }} />}
       </View>
+
+      {/* Navigation dots */}
+      {numModes > 1 && (
+        <Pressable
+          onPress={goNext}
+          hitSlop={8}
+          style={{ flexDirection: "row", gap: 4, paddingTop: 6, alignSelf: "center" }}
+        >
+          {allowedModes.map((_, i) => (
+            <View
+              key={i}
+              style={{
+                width: i === modeIdx ? 12 : 5,
+                height: 5,
+                borderRadius: 2.5,
+                backgroundColor: i === modeIdx ? shadowColor : shadowColor + "55",
+              }}
+            />
+          ))}
+        </Pressable>
+      )}
 
       {/* Notification bell — below the planet (hidden in demo mode) */}
       {showReminderBell && !isDemoModeInsightCard && (
