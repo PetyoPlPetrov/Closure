@@ -193,7 +193,7 @@ export default function PersonalizationScreen() {
           padding: 20 * fontScale,
           borderRadius: 16 * fontScale,
           backgroundColor: colorScheme === "dark" ? "#1a1a1a" : colors.surfaceElevated1,
-          maxWidth: 360,
+          maxWidth: 360 * fontScale,
           alignSelf: "center",
         },
         modalOverlay: {

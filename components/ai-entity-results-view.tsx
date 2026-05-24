@@ -1013,7 +1013,7 @@ export function AIEntityResultsView({
                 onChange={(_, selectedDate) => {
                   if (selectedDate) setDatePickerTempDate(selectedDate);
                 }}
-                style={{ height: 200 }}
+                style={{ height: 200 * fontScale }}
               />
             </View>
           </View>

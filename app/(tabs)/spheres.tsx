@@ -986,7 +986,7 @@ export default function SpheresScreen() {
           paddingHorizontal: 16 * fontScale,
           paddingTop: 20 * fontScale,
           paddingBottom: 8 * fontScale,
-          marginTop: 70,
+          marginTop: 70 * fontScale,
         },
         headerButton: {
           minWidth: 44,

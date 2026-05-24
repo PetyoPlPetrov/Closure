@@ -9,6 +9,7 @@ import { UniverseExamScreen } from "@/components/universe-exam-screen";
 import { Colors } from "@/constants/theme";
 import { TAB_BACKGROUND_COLOR_LIGHT_COSMIC_OFF } from "@/library/components/tab-screen-container";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useFontScale } from "@/hooks/use-device-size";
 import { useJourney } from "@/utils/JourneyProvider";
 import type { LifeSphere } from "@/utils/JourneyProvider";
 import { useTranslate } from "@/utils/languages/use-translate";
@@ -525,6 +526,7 @@ const LessonSfera = React.memo(function LessonSfera({
   showTapHint?: boolean;
 }) {
   const t = useTranslate();
+  const fontScale = useFontScale();
   const colorScheme = useColorScheme();
   const scheme = (colorScheme ?? "dark") as "light" | "dark";
   const isLight = scheme === "light";
@@ -1019,6 +1021,7 @@ const LessonSfera = React.memo(function LessonSfera({
               {
                 backgroundColor: themeColors.background,
                 borderColor: isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(255,255,255,0.12)",
+                maxWidth: 360 * fontScale,
               },
             ]}
             onPress={(e) => e.stopPropagation()}
@@ -1144,6 +1147,7 @@ export function UniverseLessonsScreen({
   onInitialTargetHandled,
 }: Props) {
   const t = useTranslate();
+  const fontScale = useFontScale();
   const colorScheme = useColorScheme();
   const scheme = (colorScheme ?? "dark") as "light" | "dark";
   const isLight = scheme === "light";
@@ -1920,6 +1924,7 @@ export function UniverseLessonsScreen({
                 color: isLight ? colors.text : colors.textHighEmphasis,
                 textShadowColor: isLight ? "rgba(0, 0, 0, 0.06)" : accentColor + "55",
                 textShadowRadius: isLight ? 4 : 10,
+                paddingHorizontal: 108 * fontScale,
               },
             ]}
           >

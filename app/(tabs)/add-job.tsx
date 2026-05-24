@@ -336,7 +336,7 @@ export default function AddJobScreen() {
           paddingHorizontal: 16 * fontScale,
           paddingTop: 20 * fontScale,
           paddingBottom: 8 * fontScale,
-          marginTop: 70,
+          marginTop: 70 * fontScale,
         },
         headerButton: {
           minWidth: 44,
@@ -714,7 +714,7 @@ export default function AddJobScreen() {
                           }
                         }}
                         maximumDate={endDate || undefined}
-                        style={{ height: 200 }}
+                        style={{ height: 200 * fontScale }}
                       />
                     </View>
                   </View>
@@ -923,7 +923,7 @@ export default function AddJobScreen() {
                             }
                           }}
                           minimumDate={startDate || undefined}
-                          style={{ height: 200 }}
+                          style={{ height: 200 * fontScale }}
                         />
                       </View>
                     </View>

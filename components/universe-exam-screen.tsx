@@ -9,6 +9,7 @@
 import { ThemedText } from "@/components/themed-text";
 import { Colors, fabAccentBackground } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useFontScale } from "@/hooks/use-device-size";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { useJourney } from "@/utils/JourneyProvider";
 import type { LifeSphere } from "@/utils/JourneyProvider";
@@ -287,6 +288,7 @@ const TwinkleDot = React.memo(function TwinkleDot({
 
 export function UniverseExamScreen({ visible, onClose }: Props) {
   const t = useTranslate();
+  const fontScale = useFontScale();
   const { language, resolvedSpeechToTextLanguage } = useLanguage();
   const { idealizedMemories } = useJourney();
   const { hasAIEntitlement } = useSubscription();
@@ -811,6 +813,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                 {
                   shadowColor: pal.cardShadow,
                   borderColor: pal.cardBorderOuter,
+                  maxWidth: 360 * fontScale,
                 },
               ]}
               onPress={Keyboard.dismiss}
@@ -1081,7 +1084,7 @@ export function UniverseExamScreen({ visible, onClose }: Props) {
                       accessibilityLabel={language === "bg" ? "Отвори спомена" : "Open memory"}
                       style={({ pressed }) => ({
                         width: CARD_WIDTH - 40,
-                        height: 160,
+                        height: 160 * fontScale,
                         borderRadius: 16,
                         overflow: "hidden",
                         backgroundColor: pal.imageFallbackBg,

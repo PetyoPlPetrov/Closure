@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFontScale } from '@/hooks/use-device-size';
 
 interface ShareModalProps {
   visible: boolean;
@@ -54,6 +55,7 @@ const LIGHT_COSMIC = {
 export default function ShareModal({ visible, onClose, title, content }: ShareModalProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const fontScale = useFontScale();
 
   const shareButtonPressScale = useSharedValue(1);
   const closeButtonPressScale = useSharedValue(1);
@@ -110,6 +112,7 @@ export default function ShareModal({ visible, onClose, title, content }: ShareMo
           style={[
             styles.modalOuter,
             isDark && styles.modalOuterDark,
+            { maxWidth: 480 * fontScale, maxHeight: 560 * fontScale },
           ]}
         >
           {isDark ? (

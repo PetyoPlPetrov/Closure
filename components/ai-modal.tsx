@@ -2440,7 +2440,7 @@ export function AIModal({
                                                     maximumDate={
                                                       newEntityEndDate || undefined
                                                     }
-                                                    style={{ height: 200 }}
+                                                    style={{ height: 200 * fontScale }}
                                                   />
                                                 </View>
                                               </View>
@@ -2648,7 +2648,7 @@ export function AIModal({
                                                         newEntityStartDate ||
                                                         undefined
                                                       }
-                                                      style={{ height: 200 }}
+                                                      style={{ height: 200 * fontScale }}
                                                     />
                                                   </View>
                                                 </View>
@@ -2880,7 +2880,7 @@ export function AIModal({
     },
     modalContainer: {
       width: "95%",
-      maxWidth: 600,
+      maxWidth: 600 * fontScale,
       borderRadius: 24 * fontScale,
     },
     modal: {
@@ -2894,7 +2894,7 @@ export function AIModal({
     },
     modalContainerLarge: {
       width: "95%",
-      maxWidth: 600,
+      maxWidth: 600 * fontScale,
       borderRadius: 24 * fontScale,
     },
     modalLarge: {

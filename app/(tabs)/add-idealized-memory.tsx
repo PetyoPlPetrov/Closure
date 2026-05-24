@@ -2757,7 +2757,7 @@ export default function AddIdealizedMemoryScreen() {
         // ⭐ Main upload container with strong shadow
         uploadContainer: {
           width: '100%',
-          height: 220,
+          height: 220 * fontScale,
           borderRadius: 18,
 
           backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',

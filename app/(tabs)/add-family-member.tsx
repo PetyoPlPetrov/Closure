@@ -282,7 +282,7 @@ export default function AddFamilyMemberScreen() {
   return (
     <TabScreenContainer>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { marginTop: 70 * fontScale }]}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => {

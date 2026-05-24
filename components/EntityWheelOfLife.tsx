@@ -1457,7 +1457,7 @@ export function EntityWheelOfLife({
                     <View
                       style={{
                         width: CARD_WIDTH - 40,
-                        height: 160,
+                        height: 160 * fontScale,
                         borderRadius: 16,
                         overflow: 'hidden',
                         backgroundColor:
@@ -1476,7 +1476,7 @@ export function EntityWheelOfLife({
                     <View
                       style={{
                         width: CARD_WIDTH - 40,
-                        height: 100,
+                        height: 100 * fontScale,
                         borderRadius: 16,
                         backgroundColor:
                           colorScheme === 'dark'
@@ -1664,7 +1664,7 @@ export function EntityWheelOfLife({
                   <View
                     style={{
                       width: RESULT_CARD_WIDTH - 40,
-                      height: 160,
+                      height: 160 * fontScale,
                       borderRadius: 16,
                       overflow: 'hidden',
                       backgroundColor:
@@ -1683,7 +1683,7 @@ export function EntityWheelOfLife({
                   <View
                     style={{
                       width: RESULT_CARD_WIDTH - 40,
-                      height: 100,
+                      height: 100 * fontScale,
                       borderRadius: 16,
                       backgroundColor:
                         colorScheme === 'dark'

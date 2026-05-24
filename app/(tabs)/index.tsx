@@ -5368,7 +5368,7 @@ const FloatingAvatar = React.memo(
                           <View
                             style={{
                               width: CARD_WIDTH - 40,
-                              height: 160,
+                              height: 160 * fontScale,
                               borderRadius: 16,
                               overflow: "hidden",
                               backgroundColor:
@@ -5389,7 +5389,7 @@ const FloatingAvatar = React.memo(
                           <View
                             style={{
                               width: CARD_WIDTH - 40,
-                              height: 100,
+                              height: 100 * fontScale,
                               borderRadius: 16,
                               backgroundColor:
                                 colorScheme === "dark"
@@ -6584,7 +6584,7 @@ const FloatingAvatar = React.memo(
                           <View
                             style={{
                               width: CARD_WIDTH - 40,
-                              height: 160,
+                              height: 160 * fontScale,
                               borderRadius: 16,
                               overflow: "hidden",
                               backgroundColor:
@@ -6605,7 +6605,7 @@ const FloatingAvatar = React.memo(
                           <View
                             style={{
                               width: CARD_WIDTH - 40,
-                              height: 100,
+                              height: 100 * fontScale,
                               borderRadius: 16,
                               backgroundColor:
                                 colorScheme === "dark"
@@ -19772,7 +19772,7 @@ export default function HomeScreen() {
                 top: 0,
                 left: 0,
                 right: 0,
-                height: 250,
+                height: 250 * fontScale,
                 zIndex: 150,
                 pointerEvents: "none",
               }}
@@ -21069,7 +21069,7 @@ export default function HomeScreen() {
                             <View
                               style={{
                                 width: RESULT_CARD_WIDTH - 40,
-                                height: 160,
+                                height: 160 * fontScale,
                                 borderRadius: 16,
                                 overflow: "hidden",
                                 backgroundColor:
@@ -21088,7 +21088,7 @@ export default function HomeScreen() {
                             <View
                               style={{
                                 width: RESULT_CARD_WIDTH - 40,
-                                height: 100,
+                                height: 100 * fontScale,
                                 borderRadius: 16,
                                 backgroundColor:
                                   colorScheme === "dark"
@@ -22607,7 +22607,7 @@ export default function HomeScreen() {
                         <View
                           style={{
                             width: CARD_WIDTH - 40,
-                            height: 160,
+                            height: 160 * fontScale,
                             borderRadius: 16,
                             overflow: "hidden",
                             backgroundColor:
@@ -22629,7 +22629,7 @@ export default function HomeScreen() {
                         <View
                           style={{
                             width: CARD_WIDTH - 40,
-                            height: 100,
+                            height: 100 * fontScale,
                             borderRadius: 16,
                             backgroundColor:
                               colorScheme === "dark"
