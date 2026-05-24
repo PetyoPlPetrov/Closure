@@ -29,6 +29,7 @@ import { LifeSphere, useJourney } from "@/utils/JourneyProvider";
 import { useLanguage } from "@/utils/languages/language-context";
 import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
+import { useFreeDailyAI } from "@/utils/FreeDailyAIProvider";
 import { showPaywallForUpgradeAccess } from "@/utils/premium-access";
 import { useSubscription } from "@/utils/SubscriptionProvider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -97,6 +98,7 @@ export function AIEntityCreationModal({
   const { momentColors } = useMomentColors();
   const t = useTranslate();
   const { hasAIEntitlement } = useSubscription();
+  const { freeDailyAILimit } = useFreeDailyAI();
   const { language, resolvedSpeechToTextLanguage } = useLanguage();
   const { addProfile, addJob, addFamilyMember, addFriend, addHobby } =
     useJourney();
@@ -202,11 +204,11 @@ export function AIEntityCreationModal({
   // Fetch remaining AI requests when modal is open (for premium: disable submit at 0)
   useEffect(() => {
     if (visible) {
-      getRemainingAIRequests(hasAIEntitlement).then(setRemainingAIRequests);
+      getRemainingAIRequests(hasAIEntitlement, freeDailyAILimit).then(setRemainingAIRequests);
     } else {
       setRemainingAIRequests(null);
     }
-  }, [visible, hasAIEntitlement]);
+  }, [visible, hasAIEntitlement, freeDailyAILimit]);
 
   // Rotate loading messages when processing
   useEffect(() => {
@@ -455,7 +457,7 @@ export function AIEntityCreationModal({
     ) {
       // Enforce free-tier daily limit (3 by default, 5 with Sferas badge) and 30/day for Sfera AI.
       // Memory + entity creation share one pool. Atomic consume avoids race conditions.
-      const consumed = await consumeAIRequestIfAvailable(hasAIEntitlement);
+      const consumed = await consumeAIRequestIfAvailable(hasAIEntitlement, freeDailyAILimit);
       if (!consumed) {
         if (!hasAIEntitlement) {
           await showPaywallForUpgradeAccess();

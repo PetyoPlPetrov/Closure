@@ -7,6 +7,7 @@ import {
   REQUESTS_PER_DAY_PREMIUM,
 } from '@/utils/ai-rate-limiter';
 import { getFreeAIDailyLimit } from '@/utils/badge-rewards';
+import { useFreeDailyAI } from '@/utils/FreeDailyAIProvider';
 import { subscribeBadgeRewardsChanged } from '@/utils/badge-rewards-events';
 import { useTranslate } from '@/utils/languages/use-translate';
 import { useSubscription } from '@/utils/SubscriptionProvider';
@@ -47,16 +48,17 @@ export function AIActionModal({
   const colors = Colors[colorScheme ?? 'dark'];
   const t = useTranslate();
   const { hasAIEntitlement } = useSubscription();
+  const { freeDailyAILimit } = useFreeDailyAI();
   const [remainingAIRequests, setRemainingAIRequests] = useState<number | null>(null);
-  // Free-tier daily limit is dynamic: 3 by default, 5 with active Sferas badge.
-  const [freeAIDailyLimit, setFreeAIDailyLimit] = useState(3);
+  // Free-tier daily limit is dynamic: base comes from remote config, boosted by Sferas badge.
+  const [freeAIDailyLimit, setFreeAIDailyLimit] = useState(freeDailyAILimit);
 
   useEffect(() => {
     if (visible) {
       const refresh = () => {
-        getRemainingAIRequests(hasAIEntitlement).then(setRemainingAIRequests);
+        getRemainingAIRequests(hasAIEntitlement, freeDailyAILimit).then(setRemainingAIRequests);
         if (!hasAIEntitlement) {
-          getFreeAIDailyLimit().then(setFreeAIDailyLimit);
+          getFreeAIDailyLimit(freeDailyAILimit).then(setFreeAIDailyLimit);
         }
       };
       refresh();
@@ -67,7 +69,7 @@ export function AIActionModal({
     } else {
       setRemainingAIRequests(null);
     }
-  }, [visible, hasAIEntitlement]);
+  }, [visible, hasAIEntitlement, freeDailyAILimit]);
 
   // Pulse animation for the modal (container, glow, icon only — no button pulsing)
   const pulseScale = useSharedValue(1);
@@ -321,6 +323,7 @@ export function AIActionModal({
 
                 {/* Remaining free AI memory creations, or daily limit reached (premium) */}
                 {remainingAIRequests !== null &&
+                  (hasAIEntitlement || freeAIDailyLimit > 0) &&
                   (hasAIEntitlement && remainingAIRequests === 0 ? (
                     <ThemedText
                       size="xs"

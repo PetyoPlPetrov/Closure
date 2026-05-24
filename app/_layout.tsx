@@ -81,6 +81,7 @@ import {
   useSplash,
 } from "@/utils/SplashAnimationProvider";
 import { SubscriptionProvider } from "@/utils/SubscriptionProvider";
+import { FreeDailyAIProvider } from "@/utils/FreeDailyAIProvider";
 import {
   ThemeProvider as AppThemeProvider,
   useTheme,
@@ -976,6 +977,7 @@ export default function RootLayout() {
       <SplashAnimationProvider>
         <LanguageProvider>
           <SubscriptionProvider>
+            <FreeDailyAIProvider>
             <DemoModeProvider>
             <JourneyProvider>
               <MomentNotificationProvider>
@@ -1002,6 +1004,7 @@ export default function RootLayout() {
               </MomentNotificationProvider>
             </JourneyProvider>
             </DemoModeProvider>
+            </FreeDailyAIProvider>
           </SubscriptionProvider>
         </LanguageProvider>
       </SplashAnimationProvider>

@@ -44,6 +44,7 @@ import { useTranslate } from "@/utils/languages/use-translate";
 import { useMomentNotifications } from "@/utils/MomentNotificationProvider";
 import { useMomentColors } from "@/utils/MomentColorsProvider";
 import { getFreeAIDailyLimit } from "@/utils/badge-rewards";
+import { useFreeDailyAI } from "@/utils/FreeDailyAIProvider";
 import { subscribeBadgeRewardsChanged } from "@/utils/badge-rewards-events";
 import { cancelEventMemoryReminders } from "@/utils/event-memory-reminders";
 import {
@@ -152,6 +153,7 @@ export function AIModal({
   const { language, resolvedSpeechToTextLanguage } = useLanguage();
   const { showNotification, hideNotification } = useInAppNotification();
   const { hasAIEntitlement } = useSubscription();
+  const { freeDailyAILimit } = useFreeDailyAI();
   const {
     profiles,
     jobs,
@@ -220,7 +222,7 @@ export function AIModal({
   const [remainingAIRequests, setRemainingAIRequests] = useState<number | null>(
     null,
   );
-  const [freeAIDailyLimit, setFreeAIDailyLimit] = useState(3);
+  const [freeAIDailyLimit, setFreeAIDailyLimit] = useState(freeDailyAILimit);
 
   // "Add to existing memory" mode state
   const [addToExistingMemory, setAddToExistingMemory] = useState(false);
@@ -651,9 +653,9 @@ export function AIModal({
       !onboardingSferaAI
     ) {
       const refresh = () => {
-        getRemainingAIRequests(hasAIEntitlement).then(setRemainingAIRequests);
+        getRemainingAIRequests(hasAIEntitlement, freeDailyAILimit).then(setRemainingAIRequests);
         if (!hasAIEntitlement) {
-          getFreeAIDailyLimit().then(setFreeAIDailyLimit);
+          getFreeAIDailyLimit(freeDailyAILimit).then(setFreeAIDailyLimit);
         }
       };
       refresh();
@@ -662,7 +664,7 @@ export function AIModal({
     } else if (!visible) {
       setRemainingAIRequests(null);
     }
-  }, [visible, currentView, hasAIEntitlement, goldenEventId, onboardingSferaAI]);
+  }, [visible, currentView, hasAIEntitlement, goldenEventId, onboardingSferaAI, freeDailyAILimit]);
 
   // Watch for pendingResponse prop changes while modal is open (for when background task completes)
   useEffect(() => {
@@ -1209,7 +1211,7 @@ export function AIModal({
     if (!bypassDailyAiQuota) {
       // Enforce free-tier daily limit (3 by default, 5 with Sferas badge) and 30/day for Sfera AI.
       // Memory + entity creation share one pool. Atomic consume avoids race conditions.
-      const consumed = await consumeAIRequestIfAvailable(hasAIEntitlement);
+      const consumed = await consumeAIRequestIfAvailable(hasAIEntitlement, freeDailyAILimit);
       if (!consumed) {
         if (!hasAIEntitlement) {
           await showPaywallForUpgradeAccess();
@@ -3590,6 +3592,7 @@ export function AIModal({
                     {currentView !== "input" &&
                       !onboardingSferaAI &&
                       remainingAIRequests !== null &&
+                      (hasAIEntitlement || freeAIDailyLimit > 0) &&
                       (hasAIEntitlement && remainingAIRequests === 0 ? (
                         <ThemedText
                           size="xs"
@@ -3884,6 +3887,7 @@ export function AIModal({
                   </TouchableOpacity>
                   {remainingAIRequests !== null &&
                     !onboardingSferaAI &&
+                    (hasAIEntitlement || freeAIDailyLimit > 0) &&
                     (hasAIEntitlement && remainingAIRequests === 0 ? (
                       <ThemedText
                         size="xs"

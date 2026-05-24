@@ -46,10 +46,14 @@ export async function getFreeEntityLimitPerSfera(): Promise<number> {
     : FREE_ENTITY_LIMIT_DEFAULT;
 }
 
-export async function getFreeAIDailyLimit(): Promise<number> {
+export async function getFreeAIDailyLimit(
+  baseLimit?: number,
+): Promise<number> {
+  const base = baseLimit ?? FREE_AI_DAILY_LIMIT_DEFAULT;
+  if (base === 0) return 0;
   return (await hasSferasBadgeActive())
     ? FREE_AI_DAILY_LIMIT_WITH_SFERAS
-    : FREE_AI_DAILY_LIMIT_DEFAULT;
+    : base;
 }
 
 export async function getFreeExamDailyLimit(): Promise<number> {

@@ -116,12 +116,13 @@ export async function recordAIRequest(): Promise<void> {
  */
 export async function consumeAIRequestIfAvailable(
   isSubscribed: boolean,
+  baseLimit?: number,
 ): Promise<boolean> {
   const records = await getAIRequestRecords();
   const today = getLocalDateString();
   const limit = isSubscribed
     ? REQUESTS_PER_DAY_PREMIUM
-    : await getFreeAIDailyLimit();
+    : await getFreeAIDailyLimit(baseLimit);
 
   const todayRecordIndex = records.findIndex((record) => record.date === today);
   const currentCount =
@@ -149,11 +150,12 @@ export async function consumeAIRequestIfAvailable(
  */
 export async function getRemainingAIRequests(
   isSubscribed: boolean,
+  baseLimit?: number,
 ): Promise<number> {
   const used = await getTodayRequestCount();
   const limit = isSubscribed
     ? REQUESTS_PER_DAY_PREMIUM
-    : await getFreeAIDailyLimit();
+    : await getFreeAIDailyLimit(baseLimit);
   return Math.max(0, limit - used);
 }
 
@@ -164,8 +166,9 @@ export async function getRemainingAIRequests(
  */
 export async function canMakeAIRequest(
   isSubscribed: boolean,
+  baseLimit?: number,
 ): Promise<boolean> {
-  const remaining = await getRemainingAIRequests(isSubscribed);
+  const remaining = await getRemainingAIRequests(isSubscribed, baseLimit);
   return remaining > 0;
 }
 
@@ -176,11 +179,12 @@ export async function canMakeAIRequest(
  */
 export async function getTimeUntilNextRequest(
   isSubscribed: boolean,
+  baseLimit?: number,
 ): Promise<number> {
   const used = await getTodayRequestCount();
   const limit = isSubscribed
     ? REQUESTS_PER_DAY_PREMIUM
-    : await getFreeAIDailyLimit();
+    : await getFreeAIDailyLimit(baseLimit);
 
   if (used < limit) {
     return 0;
@@ -199,8 +203,9 @@ export async function getTimeUntilNextRequest(
  */
 export async function getTimeUntilNextRequestFormatted(
   isSubscribed: boolean,
+  baseLimit?: number,
 ): Promise<string> {
-  const timeMs = await getTimeUntilNextRequest(isSubscribed);
+  const timeMs = await getTimeUntilNextRequest(isSubscribed, baseLimit);
 
   if (timeMs === 0) {
     return "Available now";

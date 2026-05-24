@@ -52,7 +52,7 @@ function TabBarBackground() {
           {
             backgroundColor: isDark
               ? "rgba(15, 22, 36, 0.55)"
-              : "rgba(245, 245, 247, 0.45)",
+              : "rgba(235, 237, 242, 0.78)",
           },
         ]}
       />
@@ -143,7 +143,7 @@ export default function TabLayout() {
     showPostOnboardingAIWelcome && !isInsightsDrillMemoryFlow;
 
   const inactiveColor =
-    colorScheme === "dark" ? "rgba(255,255,255,0.45)" : colors.tabIconDefault;
+    colorScheme === "dark" ? "rgba(255,255,255,0.55)" : colors.tabIconDefault;
   const activeTintColor =
     colorScheme === "dark" ? colors.primaryLight : "#1976D2";
 
@@ -162,7 +162,7 @@ export default function TabLayout() {
         borderWidth: 1,
         borderColor: colorScheme === "dark"
           ? "rgba(255,255,255,0.08)"
-          : "rgba(0,0,0,0.06)",
+          : "rgba(0,0,0,0.18)",
         marginHorizontal: TAB_BAR_H_MARGIN,
         marginBottom: Math.max(12, insets.bottom),
         borderRadius: TAB_BAR_RADIUS,
@@ -171,7 +171,7 @@ export default function TabLayout() {
         elevation: 0,
         shadowColor: colorScheme === "dark" ? "#000" : "#555",
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: colorScheme === "dark" ? 0.4 : 0.12,
+        shadowOpacity: colorScheme === "dark" ? 0.4 : 0.18,
         shadowRadius: 24,
       },
       tabBarItemStyle: {
