@@ -149,21 +149,6 @@ export const SplashOrbitOrb = React.memo(function SplashOrbitOrb({
           strokeWidth="2.35"
         />
       </Svg>
-      <View
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          left: "18%",
-          top: "18%",
-          width: "28%",
-          height: "28%",
-          borderRadius: 100,
-          backgroundColor:
-            colorScheme === "light"
-              ? "rgba(255,255,255,0.44)"
-              : "rgba(255,255,255,0.34)",
-        }}
-      />
       <MaterialIcons
         name={SPHERE_ICONS[sphere]}
         size={iconSize}

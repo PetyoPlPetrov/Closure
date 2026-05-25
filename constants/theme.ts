@@ -45,12 +45,12 @@ export const Colors = {
   },
   dark: {
     text: '#F8FAFC',
-    background: '#0B1120',
+    background: '#060A14',
 
-    /** Opaque highs — translucent white loses AAA on brightest elevated cards (#424E62). */
+    /** Opaque highs — translucent white loses AAA on brightest elevated cards. */
     textHighEmphasis: '#FFFFFF',
-    textMediumEmphasis: '#94A3B8',
-    textDisabled: '#475569',
+    textMediumEmphasis: '#9CAEC4',
+    textDisabled: '#657C95',
 
     tint: '#34D399',
     primary: '#10B981',
@@ -58,23 +58,23 @@ export const Colors = {
     primaryDark: '#059669',
     /** Third stop for 3-point glossy gradients (event cards, loaders). */
     primaryDeep: '#047857',
-    primaryText: '#0B1120',
+    primaryText: '#060A14',
 
     icon: '#F8FAFC',
-    tabIconDefault: '#475569',
+    tabIconDefault: '#657C95',
     tabIconSelected: '#34D399',
 
     error: '#EF4444',
 
-    surface: '#0B1120',
-    surfaceElevated1: '#151E32',
-    surfaceElevated2: '#1D283E',
-    surfaceElevated4: '#2A3750',
-    surfaceElevated8: '#3A4C6A',
-    card: '#1D283E',
-    border: '#2A3750',
-    muted: '#64748B',
-    textTertiary: '#384860',
+    surface: '#060A14',
+    surfaceElevated1: '#101A2C',
+    surfaceElevated2: '#172438',
+    surfaceElevated4: '#213048',
+    surfaceElevated8: '#2C3E58',
+    card: '#172438',
+    border: '#213048',
+    muted: '#869DB5',
+    textTertiary: '#4A5F78',
   },
 };
 
