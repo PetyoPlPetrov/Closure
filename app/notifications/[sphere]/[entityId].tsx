@@ -4,6 +4,7 @@ import * as Notifications from "expo-notifications";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+    Alert,
     AppState,
     AppStateStatus,
     Dimensions,
@@ -118,10 +119,6 @@ export default function NotificationDetailScreen() {
     message: "",
     soundEnabled: true, // Default to sound enabled
   });
-  const [infoModal, setInfoModal] = useState<{
-    title: string;
-    body: string;
-  } | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const isInitializing = useRef(true);
 
@@ -894,7 +891,7 @@ export default function NotificationDetailScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.infoIcon}
-                      onPress={() => setInfoModal(opt.info)}
+                      onPress={() => Alert.alert(opt.info.title, opt.info.body)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <MaterialIcons
@@ -926,26 +923,6 @@ export default function NotificationDetailScreen() {
           </View>
         </View>
 
-        <Modal
-          visible={!!infoModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setInfoModal(null)}
-        >
-          <Pressable
-            style={styles.modalOverlay}
-            onPress={() => setInfoModal(null)}
-          >
-            <View style={styles.modalCard}>
-              <ThemedText size="m" weight="bold" style={{ marginBottom: 6 }}>
-                {infoModal?.title}
-              </ThemedText>
-              <ThemedText size="sm" style={{ color: palette.muted }}>
-                {infoModal?.body}
-              </ThemedText>
-            </View>
-          </Pressable>
-        </Modal>
       </ScrollView>
     </TabScreenContainer>
   );
@@ -1090,23 +1067,10 @@ const createStyles = (
       paddingHorizontal: 8 * fontScale,
       paddingVertical: 6 * fontScale,
     },
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: "rgba(0,0,0,0.5)",
-      justifyContent: "center",
-      padding: 20 * fontScale,
-    },
     timePickerOverlay: {
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.58)",
       justifyContent: "flex-end",
-    },
-    modalCard: {
-      backgroundColor: palette.card,
-      borderRadius: 12 * fontScale,
-      padding: 16 * fontScale,
-      borderWidth: 1,
-      borderColor: palette.border,
     },
     timePickerModal: {
       backgroundColor: palette.card,
