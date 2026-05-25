@@ -3789,7 +3789,7 @@ export function AIModal({
                   </View>
 
                   {/* Add to existing memory toggle */}
-                  {!onboardingSferaAI && !goldenEventId && (
+                  {!onboardingSferaAI && !goldenEventId && idealizedMemories.length > 0 && (
                     <Pressable
                       style={{
                         flexDirection: "row",

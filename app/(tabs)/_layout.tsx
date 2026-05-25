@@ -180,6 +180,7 @@ export default function TabLayout() {
         justifyContent: "center" as const,
         alignItems: "center" as const,
         height: tabBarHeight,
+        paddingBottom: 4,
       },
     }),
     [
