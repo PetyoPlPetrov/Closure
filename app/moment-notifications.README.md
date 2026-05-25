@@ -49,21 +49,13 @@ Refresh status indicators:
 - The info icon next to the button is always clickable; it explains incremental behavior and the current pending state.
 - All refresh button labels and alerts are fully localized (see `momentNotifications.refresh.*` translation keys).
 
-## Free AI nudge policy (non-entitled users)
+## AI nudge access
 
-There is one free AI-source moment nudge slot with the following rules:
-
-- Free AI is available only when the user has no existing AI-source nudge schedule.
-- Free AI creation is limited to one per day.
-- If the user creates a free AI nudge and deletes it the same day, they must wait until the next day to create another free AI nudge.
-- If the user deletes it on a later day, they can create a new free AI nudge (still max one free creation per day).
-- Premium/entitled users are not limited by this free-slot policy.
+AI-source nudges require a subscription (AI entitlement). Non-subscribers are shown the paywall when attempting to select the AI source.
 
 Implementation notes:
 
-- Last free-use day is stored in `@sferas:moment_notifications_free_ai_last_used_date`.
-- The schedule carries `freeAiGranted: true` when it was created via the free AI slot.
-- AI refresh remains incremental (new items only) for both premium AI schedules and free-AI schedules.
+- AI refresh remains incremental (new items only) for premium AI schedules.
 - Missing-summary detection is keyed by `memoryId + momentId` (not only `momentId`) to avoid collisions across different memories. See "ID mapping rules" below.
 - AI modal-generated moment IDs include a timestamp and random suffix for uniqueness, but the codebase does not rely on this — compound ids (`memoryId::momentId`) are used wherever cross-memory uniqueness is required.
 

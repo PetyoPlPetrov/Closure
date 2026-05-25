@@ -51,7 +51,7 @@ function TabBarBackground() {
           StyleSheet.absoluteFill,
           {
             backgroundColor: isDark
-              ? "rgba(15, 22, 36, 0.55)"
+              ? "rgba(30, 42, 62, 0.72)"
               : "rgba(235, 237, 242, 0.78)",
           },
         ]}
@@ -161,7 +161,7 @@ export default function TabLayout() {
         borderTopWidth: 0,
         borderWidth: 1,
         borderColor: colorScheme === "dark"
-          ? "rgba(255,255,255,0.08)"
+          ? "rgba(255,255,255,0.14)"
           : "rgba(0,0,0,0.18)",
         marginHorizontal: TAB_BAR_H_MARGIN,
         marginBottom: Math.max(12, insets.bottom),

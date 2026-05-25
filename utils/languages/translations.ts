@@ -4315,9 +4315,9 @@ const translations = {
     "streakRules.badge.nova.reward":
       "Reward: increases free entity limit per sfera from 2 to 5.",
     "streakRules.badge.sferas.name": "Sferas",
-    "streakRules.badge.sferas.description": "Earn 5 free AI requests.",
+    "streakRules.badge.sferas.description": "Earn 1 extra free AI request per day.",
     "streakRules.badge.sferas.reward":
-      "Reward: increases free AI requests and free wheel/lesson checks from 3 to 5 per day.",
+      "Reward: +1 free AI request and +1 free wheel/lesson check per day.",
     "streakRules.reminder.toggleTitle": "Mid-day badge reminder",
     "streakRules.reminder.toggleDescription":
       "When enabled, we remind you during the day to log a memory and keep your current badge benefits.",
@@ -9381,9 +9381,9 @@ const translations = {
     "streakRules.badge.nova.reward":
       "Награда: увеличава безплатния лимит за обекти в сфера от 2 на 5.",
     "streakRules.badge.sferas.name": "Сферас",
-    "streakRules.badge.sferas.description": "Печелиш 5 безплатни AI заявки.",
+    "streakRules.badge.sferas.description": "Печелиш 1 допълнителна безплатна AI заявка на ден.",
     "streakRules.badge.sferas.reward":
-      "Награда: увеличава безплатните AI заявки и безплатните wheel/lesson проверки от 3 на 5 за ден.",
+      "Награда: +1 безплатна AI заявка и +1 безплатна wheel/lesson проверка на ден.",
     "streakRules.reminder.toggleTitle": "Напомняне по средата на деня",
     "streakRules.reminder.toggleDescription":
       "Когато е включено, ще получаваш дневно напомняне да запишеш спомен и да запазиш ползите от текущия бадж.",

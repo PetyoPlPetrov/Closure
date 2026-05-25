@@ -1270,7 +1270,7 @@ export default function SpheresScreen() {
         },
         fabContainer: {
           position: "absolute",
-          bottom: 26 * fontScale,
+          bottom: Math.round(58 * fontScale) + Math.max(12, insets.bottom) + 16,
           right: 16 * fontScale,
           zIndex: 10,
         },
@@ -1512,6 +1512,7 @@ export default function SpheresScreen() {
       colors.icon,
       colors.error,
       maxContentWidth,
+      insets.bottom,
     ],
   );
 

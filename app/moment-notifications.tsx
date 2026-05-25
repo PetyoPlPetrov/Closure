@@ -1,5 +1,4 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
@@ -53,8 +52,6 @@ const MIN_FREQUENCY_HOURS = 1;
 const MAX_FREQUENCY_HOURS = 168; // 1 week
 const DEFAULT_ACTIVE_START_TIME = "10:00";
 const DEFAULT_ACTIVE_END_TIME = "19:00";
-const FREE_AI_LAST_USED_DATE_KEY = "@sferas:moment_notifications_free_ai_last_used_date";
-
 type FrequencyMode = "interval" | "specific_times";
 type TimePickerTarget = "intervalStart" | "intervalEnd" | "addSpecific";
 
@@ -77,13 +74,6 @@ function sortTimesAscending(times: string[]): string[] {
     const [h2, m2] = b.split(":").map((v) => Number.parseInt(v || "0", 10));
     return h1 * 60 + m1 - (h2 * 60 + m2);
   });
-}
-
-function getLocalDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -144,7 +134,6 @@ export default function MomentNotificationsScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [aiConsentModalVisible, setAiConsentModalVisible] = useState(false);
   const [pendingSourceAfterConsent, setPendingSourceAfterConsent] = useState<"ai" | null>(null);
-  const [freeAiLastUsedDate, setFreeAiLastUsedDate] = useState<string | null>(null);
   const [timePickerTarget, setTimePickerTarget] = useState<TimePickerTarget | null>(null);
   const [timePickerValue, setTimePickerValue] = useState(new Date());
 
@@ -192,27 +181,7 @@ export default function MomentNotificationsScreen() {
   const hasValidSpecificTimes = normalizedSpecificTimes.length > 0;
   const hasValidFrequencyConfig = formFrequencyMode === "interval" ? true : hasValidSpecificTimes;
 
-  useEffect(() => {
-    let mounted = true;
-    void AsyncStorage.getItem(FREE_AI_LAST_USED_DATE_KEY).then((value) => {
-      if (!mounted) return;
-      setFreeAiLastUsedDate(value);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const todayDateKey = getLocalDateKey(new Date());
-  const hasAnyAISchedule = schedules.some((schedule) => schedule.source === "ai");
-  const usedFreeAIToday = freeAiLastUsedDate === todayDateKey;
-  const isEditingExistingFreeAISchedule =
-    editingSchedule?.source === "ai" && editingSchedule.freeAiGranted === true;
-  const canClaimFreeAI =
-    !hasAIEntitlement &&
-    !hasAnyAISchedule &&
-    !usedFreeAIToday;
-  const canUseAISource = aiConsent.isEnabled && (hasAIEntitlement || canClaimFreeAI || isEditingExistingFreeAISchedule);
+  const canUseAISource = aiConsent.isEnabled && hasAIEntitlement;
 
   const hasFormChanged = editingSchedule
     ? (() => {
@@ -346,7 +315,7 @@ export default function MomentNotificationsScreen() {
 
   const getEffectiveSource = useCallback(
     (schedule: MomentNotificationSchedule): "moments" | "ai" =>
-      schedule.source === "ai" && !hasAIEntitlement && schedule.freeAiGranted !== true
+      schedule.source === "ai" && !hasAIEntitlement
         ? "moments"
         : schedule.source,
     [hasAIEntitlement]
@@ -369,9 +338,7 @@ export default function MomentNotificationsScreen() {
   const handleSourcePress = useCallback(
     (source: "moments" | "ai") => {
       if (source === "ai") {
-        const canUseFreeForCurrentEdit =
-          (editingSchedule?.source === "ai" && editingSchedule.freeAiGranted === true) || canClaimFreeAI;
-        if (!hasAIEntitlement && !canUseFreeForCurrentEdit) {
+        if (!hasAIEntitlement) {
           void showPaywallForUpgradeAccess().then((purchased) => {
             if (purchased) setFormSource(source);
           });
@@ -385,7 +352,7 @@ export default function MomentNotificationsScreen() {
       }
       setFormSource(source);
     },
-    [hasAIEntitlement, aiConsent.isEnabled, editingSchedule, canClaimFreeAI]
+    [hasAIEntitlement, aiConsent.isEnabled]
   );
 
   const openAdd = useCallback(() => {
@@ -424,8 +391,7 @@ export default function MomentNotificationsScreen() {
       setFormActiveEndTime(schedule.activeEndTime ?? DEFAULT_ACTIVE_END_TIME);
       setFormSpecificTimes(sortTimesAscending(schedule.specificTimes ?? []));
       const baseSource = schedule.source;
-      const canKeepAISource = hasAIEntitlement || schedule.freeAiGranted === true;
-      setFormSource(baseSource === "ai" && !canKeepAISource ? "moments" : baseSource);
+      setFormSource(baseSource === "ai" && !hasAIEntitlement ? "moments" : baseSource);
       setFormSoundEnabled(schedule.soundEnabled !== false);
       setFormEnabled(schedule.enabled);
       setModalVisible(true);
@@ -460,22 +426,8 @@ export default function MomentNotificationsScreen() {
       }
     }
 
-    const todayKey = getLocalDateKey(new Date());
-    const isEditingExistingFreeAI = editingSchedule?.source === "ai" && editingSchedule.freeAiGranted === true;
-    // Re-read from AsyncStorage so the once-per-day gate is authoritative even if the
-    // initial load effect hadn't resolved yet when the user tapped Save.
-    let storedFreeAILastUsedDate: string | null = freeAiLastUsedDate;
-    try {
-      storedFreeAILastUsedDate = await AsyncStorage.getItem(FREE_AI_LAST_USED_DATE_KEY);
-    } catch {
-      storedFreeAILastUsedDate = freeAiLastUsedDate;
-    }
-    const canUseFreeAIForThisSave =
-      !hasAIEntitlement &&
-      (isEditingExistingFreeAI || (!hasAnyAISchedule && storedFreeAILastUsedDate !== todayKey));
-
     if (formSource === "ai") {
-      if (!hasAIEntitlement && !canUseFreeAIForThisSave) {
+      if (!hasAIEntitlement) {
         const purchased = await showPaywallForUpgradeAccess();
         if (!purchased) return;
       } else if (!aiConsent.isEnabled) {
@@ -510,8 +462,6 @@ export default function MomentNotificationsScreen() {
             )
           : formFrequencyHours;
       const specificTimes = sortTimesAscending(formSpecificTimes);
-      const freeAiGrantedForSavedSchedule =
-        formSource === "ai" && (editingSchedule?.freeAiGranted === true || (!hasAIEntitlement && canUseFreeAIForThisSave));
 
       if (editingSchedule) {
         await updateSchedule({
@@ -524,7 +474,6 @@ export default function MomentNotificationsScreen() {
           activeEndTime: formActiveEndTime,
           specificTimes,
           source: formSource,
-          freeAiGranted: freeAiGrantedForSavedSchedule,
           userMessages: [],
           soundEnabled: formSoundEnabled,
           enabled: formEnabled,
@@ -539,20 +488,10 @@ export default function MomentNotificationsScreen() {
           activeEndTime: formActiveEndTime,
           specificTimes,
           source: formSource,
-          freeAiGranted: freeAiGrantedForSavedSchedule,
           userMessages: [],
           soundEnabled: formSoundEnabled,
           enabled: formEnabled,
         });
-      }
-      if (
-        formSource === "ai" &&
-        !hasAIEntitlement &&
-        freeAiGrantedForSavedSchedule &&
-        !isEditingExistingFreeAI
-      ) {
-        await AsyncStorage.setItem(FREE_AI_LAST_USED_DATE_KEY, todayKey);
-        setFreeAiLastUsedDate(todayKey);
       }
       await refreshMomentNudgeSchedules();
       showNotification({
@@ -575,8 +514,6 @@ export default function MomentNotificationsScreen() {
     formEnabled,
     hasAIEntitlement,
     aiConsent.isEnabled,
-    hasAnyAISchedule,
-    freeAiLastUsedDate,
     updateSchedule,
     addSchedule,
     refreshMomentNudgeSchedules,
@@ -592,7 +529,6 @@ export default function MomentNotificationsScreen() {
     formSpecificTimes,
     normalizedSpecificTimes,
     showNotification,
-    editingSchedule?.freeAiGranted,
   ]);
 
   const handleRefreshAISummaries = useCallback(async () => {
@@ -1303,11 +1239,6 @@ export default function MomentNotificationsScreen() {
                           ? t("momentNotifications.source.aiHintSunnyMoments")
                           : t("momentNotifications.source.aiHintLessons")}
                       </ThemedText>
-                      {!hasAIEntitlement && canClaimFreeAI && (
-                        <ThemedText size="sm" style={{ color: palette.muted }}>
-                          You have 1 free AI nudge available today.
-                        </ThemedText>
-                      )}
                     </View>
                   </View>
                 )}

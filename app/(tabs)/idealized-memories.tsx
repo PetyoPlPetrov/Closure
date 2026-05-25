@@ -15,6 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFontScale } from "@/hooks/use-device-size";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -23,6 +24,7 @@ export default function IdealizedMemoriesScreen() {
   const colors = Colors[colorScheme ?? "dark"];
   const { maxContentWidth } = useLargeDevice();
   const insets = useSafeAreaInsets();
+  const fontScale = useFontScale();
   const params = useLocalSearchParams();
   const { getIdealizedMemoriesByProfileId, getIdealizedMemoriesByEntityId, deleteIdealizedMemory } = useJourney();
   const { deleteSummariesByMemoryId } = useMomentNotifications();
@@ -127,7 +129,7 @@ export default function IdealizedMemoriesScreen() {
         },
         fab: {
           position: "absolute",
-          bottom: 26,
+          bottom: Math.round(58 * fontScale) + Math.max(12, insets.bottom) + 16,
           right: 26,
           width: 62,
           height: 62,
@@ -145,7 +147,7 @@ export default function IdealizedMemoriesScreen() {
         },
         listContent: {
           padding: 16,
-          paddingBottom: 100,
+          paddingBottom: Math.round(58 * fontScale) + Math.max(12, insets.bottom) + 100,
           alignItems: "center",
         },
         listContentWrapper: {
@@ -157,7 +159,7 @@ export default function IdealizedMemoriesScreen() {
           marginBottom: 16, // Add gap between memory cards
         },
       }),
-    [colorScheme, colors.background, maxContentWidth]
+    [colorScheme, colors.background, maxContentWidth, fontScale, insets.bottom]
   );
 
   const handleAddMemory = () => {

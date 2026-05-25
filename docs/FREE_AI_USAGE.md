@@ -43,9 +43,9 @@ Constants: `FREE_AI_DAILY_LIMIT_DEFAULT` / `FREE_AI_DAILY_LIMIT_WITH_SFERAS`, `F
 
 ---
 
-## Moment notifications: one free “AI” schedule setup per day
+## Moment notifications: AI source requires subscription
 
-Non‑subscribers can start **one** notification schedule whose **source** is **AI** per calendar day, under conditions enforced in `app/moment-notifications.tsx` (e.g. no existing AI schedule, `freeAiGranted` / `FREE_AI_LAST_USED_DATE_KEY`). That is **separate** from the two daily pools above.
+AI-source moment nudges are **subscription-only** (require AI entitlement). Non-subscribers are shown the paywall when attempting to select the AI source. There is no free tier for AI nudges.
 
 ---
 

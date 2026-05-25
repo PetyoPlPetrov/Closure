@@ -54,6 +54,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Circle, Defs, Path, RadialGradient, Stop, Svg, LinearGradient as SvgLinearGradient } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { hexToRgb, momentPillGlyphColor } from "@/utils/moment-pill-glyph";
 
@@ -1226,6 +1227,7 @@ export default function AddIdealizedMemoryScreen() {
   const loaderCtx = useHomeTransitionLoader();
   const { showLoader } = loaderCtx ?? { showLoader: () => {} };
   const fontScale = useFontScale();
+  const insets = useSafeAreaInsets();
   const { maxContentWidth, isLargeDevice } = useLargeDevice();
   
   // Cloud dimensions - larger on large devices
@@ -2983,7 +2985,7 @@ export default function AddIdealizedMemoryScreen() {
 
         floatingButton: {
           position: 'absolute',
-          bottom: 26,
+          bottom: Math.round(58 * fontScale) + Math.max(12, insets.bottom) + 16,
           right: 26,
           zIndex: 1000,
         },
@@ -3269,7 +3271,7 @@ export default function AddIdealizedMemoryScreen() {
           borderRadius: 1,
         },
       }),
-    [colors, fontScale, colorScheme, maxContentWidth, cloudWidth, cloudHeight, sunWidth, sunHeight, isLargeDevice]
+    [colors, fontScale, colorScheme, maxContentWidth, cloudWidth, cloudHeight, sunWidth, sunHeight, isLargeDevice, insets.bottom]
   );
 
   // Animated styles for moment type buttons

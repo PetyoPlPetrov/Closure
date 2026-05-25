@@ -109,7 +109,6 @@ function normalizeSchedule(
     activeEndTime: formatMinutesToTime(parseTimeToMinutes(activeEnd, 1140)),
     specificTimes: uniqueSpecificTimes,
     soundEnabled: schedule.soundEnabled !== false,
-    freeAiGranted: schedule.freeAiGranted === true,
   };
 }
 
@@ -739,7 +738,7 @@ export function MomentNotificationProvider({ children }: { children: React.React
           momentId: string;
           momentText: string;
         }> = [];
-        const canUseAIForSchedule = canUseAI || schedule.freeAiGranted === true;
+        const canUseAIForSchedule = canUseAI;
         const effectiveSource = schedule.source === 'ai' && !canUseAIForSchedule ? 'moments' : schedule.source;
         if (effectiveSource === 'moments') {
           for (const mem of idealizedMemories) {

@@ -55,7 +55,7 @@ function getBadgeBenefitReminderBody(currentStreak: number): string {
     case 'nova':
       return 'Log one memory today to keep Nova and your 5 free entities per sfera. AI modal memories also count.';
     case 'sferas':
-      return 'Log one memory today to keep Sferas and your 5 free AI requests + 5 free lesson checks. AI modal memories also count.';
+      return 'Log one memory today to keep Sferas and your extra free AI request + lesson check per day. AI modal memories also count.';
     case 'ignite':
     default:
       return 'Log one memory today to keep Ignite and continue toward your next badge rewards. AI modal memories also count.';
